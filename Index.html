@@ -8,6 +8,8 @@
     <title>Finanční centrum | Finance Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- finance-common.js: sjednocené nastavení + cloud auth/sync -->
+    <script src="Soubory/finance-common.js" defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
@@ -252,6 +254,29 @@
         html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
         html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
         html.light .drag-handle { background: rgba(255,255,255,0.92); border-color: #e2e8f0; color: #94a3b8; }
+
+        /* V Index.html nepotřebujeme plovoucí FAB – Nastavení je vlastní záložka. */
+        #fc-settings-fab { display: none !important; }
+
+        /* ── Login indikátor v topnavu ── */
+        #loginChip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 8px 3px 6px;
+            font-size: 10px;
+            font-family: 'Inter', sans-serif;
+            color: #cbd5e1;
+            background: rgba(15,23,42,0.6);
+            border: 1px solid #1e293b;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: color .15s, border-color .15s, background .15s;
+        }
+        #loginChip:hover { color: #f8fafc; border-color: #334155; background: rgba(30,41,59,0.9); }
+        #loginChip .ldot { width:6px; height:6px; border-radius:50%; background:#64748b; box-shadow:none; transition: background .15s, box-shadow .15s; }
+        #loginChip.online .ldot { background:#22c55e; box-shadow:0 0 4px #22c55e; }
+        #loginChip .luser { font-family: 'JetBrains Mono', monospace; font-size: 10px; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        html.light #loginChip { background: rgba(241,245,249,0.7); border-color: #e2e8f0; color: #475569; }
+        html.light #loginChip:hover { background: #fff; color: #0f172a; border-color: #cbd5e1; }
     </style>
 </head>
 
@@ -279,6 +304,10 @@
             <div class="flex items-center gap-2">
                 <span class="status-dot"></span>
                 <span class="text-[10px] text-slate-500 font-mono hidden sm:inline">localStorage · online</span>
+                <a id="loginChip" href="Soubory/Nastavení.html" title="Cloud účet — kliknutím otevřete Nastavení">
+                    <span class="ldot"></span>
+                    <span class="luser" id="loginChipLabel">Přihlásit</span>
+                </a>
                 <div class="w-px h-4 bg-slate-800"></div>
                 <button onclick="toggleReorderMode()" id="reorder-toggle" title="Ručně seřadit moduly"
                     class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
@@ -568,7 +597,8 @@
             }
 
             currentTab = name;
-            try { sessionStorage.setItem('fc_tab', name); } catch(e) {}
+            /* Záměrně neukládáme do sessionStorage — výchozí stránka při
+               otevření Index.html je vždy Dashboard. */
         }
         function onTileClick(key) {
             if (document.body.classList.contains('reorder-mode')) return; // v reorder módu klik neotvírá
@@ -663,19 +693,56 @@
 
             renderAll();
 
-            // Restore last tab
-            try {
-                const saved = sessionStorage.getItem('fc_tab');
-                if (saved && (saved === 'dashboard' || MODULES[saved])) switchTab(saved);
-            } catch(e) {}
+            // Výchozí stránka po otevření Index.html = vždy Dashboard.
+            switchTab('dashboard');
 
             // Current date
             const d = new Date();
             const opts = { day: 'numeric', month: 'long', year: 'numeric' };
             document.getElementById('currentDate').textContent = d.toLocaleDateString('cs-CZ', opts);
 
+            // Login chip — initial render + naslouchání na změny session.
+            updateLoginChip();
+            window.addEventListener('fc-session-change', function () {
+                updateLoginChip();
+                // Cloud pull mohl změnit pořadí / téma — překreslíme dlaždice
+                renderAll();
+                if (currentTab === 'dashboard') switchTab('dashboard');
+            });
+
+            // Auto-sync pořadí modulů do cloudu po drag&drop nebo resetu.
+            const _origSaveOrder = saveOrder;
+            saveOrder = function (order) {
+                _origSaveOrder(order);
+                try { window.FinanceCommon && window.FinanceCommon.cloud.scheduleSync(); } catch(e) {}
+            };
+            const _origApplyTheme = applyTheme;
+            applyTheme = function (t) {
+                _origApplyTheme(t);
+                try { window.FinanceCommon && window.FinanceCommon.cloud.scheduleSync(); } catch(e) {}
+            };
+
             lucide.createIcons();
         })();
+
+        function updateLoginChip() {
+            const chip = document.getElementById('loginChip');
+            const lbl = document.getElementById('loginChipLabel');
+            if (!chip || !lbl) return;
+            try {
+                const FC = window.FinanceCommon;
+                if (FC && FC.auth && FC.auth.isLoggedIn()) {
+                    const s = FC.auth.getSession();
+                    chip.classList.add('online');
+                    chip.title = 'Přihlášen jako ' + s.user + ' — kliknutím otevřete Nastavení';
+                    lbl.textContent = s.user;
+                } else {
+                    chip.classList.remove('online');
+                    chip.title = 'Cloud účet — kliknutím se přihlásíte v Nastavení';
+                    lbl.textContent = 'Přihlásit';
+                }
+            } catch (e) {}
+        }
     </script>
 </body>
 </html>
