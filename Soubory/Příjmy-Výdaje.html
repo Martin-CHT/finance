@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Příjmy &amp; Výdaje | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            font-size: 0.875rem;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ── PANEL / CARD ── */
+        .panel {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3);
+        }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(15,23,42,0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid #1e293b;
+        }
+
+        /* ── INPUTS ── */
+        .pro-input {
+            width: 100%;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.375rem;
+            color: #f8fafc;
+            color-scheme: dark;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .pro-input:focus {
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 2px rgba(14,165,233,0.2);
+        }
+        .pro-input::placeholder { color: #475569; }
+
+        select.pro-input { cursor: pointer; }
+
+        .pro-input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+            accent-color: #0ea5e9;
+        }
+
+        /* ── BUTTONS ── */
+        .btn-primary {
+            background: #0284c7;
+            color: #f0f9ff;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        .btn-primary:hover { background: #0369a1; }
+        .btn-primary:active { opacity: 0.85; }
+
+        .btn-secondary {
+            background: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            border-radius: 0.375rem;
+            padding: 0.5rem 0.875rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        .btn-secondary:hover { background: #334155; color: #e2e8f0; }
+
+        .btn-danger {
+            background: transparent;
+            color: #f43f5e;
+            border: 1px solid #4c1d20;
+            border-radius: 0.375rem;
+            padding: 0.375rem 0.625rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .btn-danger:hover { background: rgba(244,63,94,0.1); }
+
+        .btn-ai {
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            color: #fff;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        .btn-ai:hover { opacity: 0.9; }
+        .btn-ai:active { transform: scale(0.97); }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* ── NUMBER INPUT SPINNERS ── */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        /* ── TABLE ── */
+        .data-table thead th {
+            background: #1e293b;
+            color: #64748b;
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid #334155;
+            white-space: nowrap;
+        }
+        .data-table thead th:first-child { border-radius: 0; }
+        .data-table tbody tr {
+            background: #0f172a;
+            border-bottom: 1px solid #1a2740;
+            transition: background 0.1s;
+        }
+        .data-table tbody tr:hover { background: rgba(30,41,59,0.5); }
+        .data-table tbody td { padding: 0.75rem 1.25rem; vertical-align: middle; }
+
+        /* ── COMPACT MODE ── */
+        .compact .data-table tbody td { padding: 0.375rem 1.25rem; }
+        .compact .data-table thead th { padding: 0.5rem 1.25rem; }
+
+        /* ── ROW EXCLUDED ── */
+        .row-excluded { opacity: 0.35; }
+        .row-excluded td { text-decoration: line-through; }
+
+        /* ── BADGES ── */
+        .badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 1px solid transparent;
+        }
+
+        /* ── STAT CARDS ── */
+        .stat-card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 1.25rem 1.5rem;
+        }
+        .stat-card .stat-label {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #475569;
+            margin-bottom: 0.375rem;
+        }
+        .stat-card .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+        .stat-card .stat-sub {
+            font-size: 0.6875rem;
+            color: #475569;
+            margin-top: 0.375rem;
+        }
+
+        /* ── TAB NAV ── */
+        .tab-btn {
+            padding: 0.75rem 0;
+            border: none;
+            border-bottom: 2px solid transparent;
+            background: transparent;
+            color: #475569;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .tab-btn:hover { color: #94a3b8; }
+        .tab-btn.tab-active {
+            color: #38bdf8;
+            border-bottom-color: #38bdf8;
+        }
+
+        /* ── FILTER BUTTONS ── */
+        .filter-btn {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            border: 1px solid transparent;
+        }
+        .filter-active {
+            background: rgba(14,165,233,0.15);
+            color: #38bdf8;
+            border-color: rgba(14,165,233,0.3);
+        }
+        .filter-inactive {
+            background: transparent;
+            color: #475569;
+            border-color: #1e293b;
+        }
+        .filter-inactive:hover { color: #94a3b8; border-color: #334155; }
+
+        /* ── GROUP BUTTONS ── */
+        .group-btn {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+        }
+        .group-btn-active {
+            background: #0ea5e9;
+            color: #fff;
+        }
+        .group-btn-inactive {
+            background: transparent;
+            color: #475569;
+        }
+        .group-btn-inactive:hover { color: #94a3b8; background: #1e293b; }
+
+        /* ── CURRENCY TAG ── */
+        .currency-tag {
+            font-size: 0.6rem;
+            color: #38bdf8;
+            font-weight: 700;
+            background: rgba(14,165,233,0.1);
+            border: 1px solid rgba(14,165,233,0.25);
+            padding: 1px 5px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-left: 5px;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            background: rgba(2,6,23,0.85);
+            backdrop-filter: blur(6px);
+        }
+
+        /* ── AI QUICK ADD PANEL ── */
+        .ai-panel {
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.08));
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: 0.5rem;
+        }
+
+        /* ── FX STATUS ── */
+        .fx-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+        }
+
+        /* ── SECTION HEADING ── */
+        .section-label {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #334155;
+        }
+
+        /* ── TERMINAL ACCENT LINE ── */
+        .terminal-accent { border-left: 2px solid #0ea5e9; padding-left: 0.75rem; }
+
+        /* ── AI ADVICE CONTENT ── */
+        #ai-advice-content {
+            font-size: 0.875rem;
+            line-height: 1.75;
+            color: #94a3b8;
+        }
+
+        /* ── GROUP ROW ── */
+        .group-row td {
+            background: #0c1526;
+            color: #38bdf8;
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 1px solid #1e293b;
+            border-top: 1px solid #1e293b;
+        }
+
+        /* ── ANALYSIS KPI ── */
+        .kpi-card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+        }
+
+        /* ── SETTINGS CODE BLOCK ── */
+        .code-block {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 0.375rem;
+            padding: 1rem 1.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.6875rem;
+            color: #7dd3fc;
+            overflow-x: auto;
+            line-height: 1.6;
+        }
+
+        /* ── PROVIDER TOGGLE ── */
+        .provider-btn {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+
+        /* ── EMPTY STATE ── */
+        #empty-state {
+            background: transparent;
+        }
+
+        /* ── MASS ACTIONS PANEL ── */
+        .mass-actions-bar {
+            background: rgba(14,165,233,0.08);
+            border: 1px solid rgba(14,165,233,0.2);
+            border-radius: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Fade-in animation */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+
+        /* ─── LIGHT THEME ─── */
+        html.light body { background-color: #f1f5f9; color: #0f172a; }
+        html.light .panel { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light .stat-card { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light header, html.light .navbar { background: rgba(255,255,255,0.92) !important; border-bottom-color: #e2e8f0 !important; }
+        html.light .pro-input, html.light input, html.light select, html.light textarea { background-color: #ffffff !important; border-color: #cbd5e1 !important; color: #0f172a !important; color-scheme: light !important; }
+        html.light thead tr, html.light th { background-color: #f1f5f9 !important; color: #475569 !important; }
+        html.light tbody tr { background-color: #ffffff; }
+        html.light tbody tr:hover { background-color: #f8fafc !important; }
+        html.light .text-slate-100 { color: #0f172a !important; }
+        html.light .text-slate-200 { color: #1e293b !important; }
+        html.light .text-slate-300 { color: #334155 !important; }
+        html.light .text-slate-400 { color: #475569 !important; }
+        html.light .text-slate-500 { color: #64748b !important; }
+        html.light .bg-slate-900 { background-color: #ffffff !important; }
+        html.light .bg-slate-950 { background-color: #f8fafc !important; }
+        html.light .bg-slate-800 { background-color: #f1f5f9 !important; }
+        html.light .border-slate-800 { border-color: #e2e8f0 !important; }
+        html.light .border-slate-700 { border-color: #cbd5e1 !important; }
+        html.light [style*="background:#0f172a"] { background-color: #ffffff !important; }
+        html.light [style*="background:#020617"] { background-color: #f1f5f9 !important; }
+        html.light [style*="background:#1e293b"] { background-color: #f8fafc !important; }
+        html.light [style*="border:1px solid #1e293b"], html.light [style*="border: 1px solid #1e293b"] { border-color: #e2e8f0 !important; }
+        html.light [style*="border:1px solid #334155"], html.light [style*="border: 1px solid #334155"] { border-color: #cbd5e1 !important; }
+        html.light [style*="color:#64748b"] { color: #64748b !important; }
+        html.light [style*="color:#94a3b8"] { color: #64748b !important; }
+        html.light [style*="color:#e2e8f0"] { color: #334155 !important; }
+        html.light [style*="color:#f8fafc"] { color: #0f172a !important; }
+        html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
+        html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+        html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+    <!-- finance-common.js: sjednocené nastavení mezi Nastavení.html a moduly -->
+    <script src="finance-common.js" defer></script>
+</head>
+
+<body class="antialiased pb-16">
+
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="max-w-[1600px] mx-auto px-4 lg:px-6 h-14 flex items-center justify-between gap-4">
+            <!-- Logo -->
+            <div class="flex items-center gap-2.5 shrink-0">
+                <div class="w-7 h-7 rounded bg-sky-500/10 border border-sky-500/30 flex items-center justify-center">
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5 text-sky-400"></i>
+                </div>
+                <div>
+                    <span class="font-semibold text-slate-100 text-sm tracking-tight">Finance</span>
+                    <span class="font-semibold text-sky-400 text-sm tracking-tight"> Terminal</span>
+                </div>
+                <span class="hidden md:block text-slate-700 text-xs font-mono ml-1">// Příjmy &amp; Výdaje</span>
+            </div>
+
+            <!-- FX Status -->
+            <div id="fx-status" class="hidden md:flex items-center gap-2 fx-status text-slate-500 bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded">
+                <span id="fx-indicator" class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                <span id="fx-text">Načítám API kurzy...</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="app.exportData()" class="btn-secondary">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Export</span>
+                </button>
+                <label class="btn-secondary cursor-pointer">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Import</span>
+                    <input type="file" class="hidden" accept=".json" onchange="app.importData(event)">
+                </label>
+                <button onclick="app.toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
+                    class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-transparent hover:border-slate-700 transition-colors">
+                    <i data-lucide="sun" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="app.resetData()" class="btn-danger">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Reset</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto px-4 lg:px-6 py-6 space-y-6">
+
+        <!-- SUMMARY STAT CARDS -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+
+            <!-- Income -->
+            <div class="stat-card border-t-2 border-t-emerald-500">
+                <div class="stat-label flex items-center gap-1.5">
+                    <i data-lucide="arrow-down-circle" class="w-3 h-3 text-emerald-500"></i> Příjmy
+                </div>
+                <div id="stat-income" class="stat-value text-emerald-400 font-mono">0 Kč</div>
+                <div class="stat-sub">Celkové příjmy měsíce</div>
+            </div>
+
+            <!-- Expenses -->
+            <div class="stat-card border-t-2 border-t-rose-500">
+                <div class="stat-label flex items-center gap-1.5 justify-between">
+                    <span class="flex items-center gap-1.5"><i data-lucide="arrow-up-circle" class="w-3 h-3 text-rose-500"></i> Výdaje</span>
+                    <span id="perc-expense" class="font-mono text-rose-400/70 text-[0.6rem]">0%</span>
+                </div>
+                <div id="stat-expense" class="stat-value text-rose-400 font-mono">0 Kč</div>
+                <div class="stat-sub">Z příjmů na výdaje</div>
+            </div>
+
+            <!-- Savings -->
+            <div class="stat-card border-t-2 border-t-sky-500">
+                <div class="stat-label flex items-center gap-1.5 justify-between">
+                    <span class="flex items-center gap-1.5"><i data-lucide="piggy-bank" class="w-3 h-3 text-sky-500"></i> Spoření</span>
+                    <span id="perc-savings" class="font-mono text-sky-400/70 text-[0.6rem]">0%</span>
+                </div>
+                <div id="stat-savings" class="stat-value text-sky-400 font-mono">0 Kč</div>
+                <div class="stat-sub">Míra úspor z příjmů</div>
+            </div>
+
+            <!-- Balance -->
+            <div id="card-balance" class="stat-card border-t-2 border-t-slate-600">
+                <div class="stat-label flex items-center gap-1.5 justify-between">
+                    <span id="label-balance" class="flex items-center gap-1.5"><i data-lucide="wallet" class="w-3 h-3 text-slate-500"></i> Zůstatek</span>
+                    <span id="perc-free" class="font-mono text-slate-500 text-[0.6rem]">0%</span>
+                </div>
+                <div id="stat-balance" class="stat-value font-mono">0 Kč</div>
+                <div class="stat-sub">Volné prostředky</div>
+            </div>
+
+        </section>
+
+        <!-- TAB NAVIGATION -->
+        <div class="flex items-center gap-6 border-b border-slate-800 -mb-1">
+            <button onclick="app.setTab('journal')" id="tab-journal" class="tab-btn tab-active">
+                Deník
+            </button>
+            <button onclick="app.setTab('analysis')" id="tab-analysis" class="tab-btn">
+                Analýza
+            </button>
+            <button onclick="app.setTab('ai')" id="tab-ai" class="tab-btn">
+                AI Rádce
+            </button>
+            <button onclick="app.setTab('settings')" id="tab-settings" class="tab-btn">
+                Nastavení
+            </button>
+        </div>
+
+        <!-- ───────────────── TAB: JOURNAL ───────────────── -->
+        <div id="section-journal" class="space-y-4 animate-fade-in">
+
+            <!-- New Entry Form -->
+            <div class="panel p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4 text-sky-400"></i>
+                        <span class="text-xs font-semibold text-slate-300 uppercase tracking-widest">Nový záznam</span>
+                    </div>
+                    <button type="button" onclick="app.toggleAiForm()" class="btn-ai">
+                        <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> AI Rychlovklad
+                    </button>
+                </div>
+
+                <form id="tx-form" onsubmit="app.addTransaction(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label class="section-label block mb-1.5">Typ pohybu</label>
+                            <input id="in-typ" list="list-typy" placeholder="Např. Výdaj" required class="pro-input">
+                        </div>
+                        <div>
+                            <label class="section-label block mb-1.5">Účet / Kde?</label>
+                            <input id="in-ucet" list="list-ucty" placeholder="Např. Běžný" required class="pro-input">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="section-label block mb-1.5">Popis (Info)</label>
+                            <input id="in-info" placeholder="Název platby" required class="pro-input">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                        <div class="sm:col-span-2">
+                            <label class="section-label block mb-1.5">Částka &amp; Měna</label>
+                            <div class="flex items-center gap-2">
+                                <input id="in-suma" type="number" step="0.01" placeholder="0.00" required
+                                    oninput="app.updatePreviewAdd()"
+                                    class="pro-input font-mono text-base flex-1">
+                                <select id="in-mena" onchange="app.updatePreviewAdd()" class="pro-input w-24 text-center font-mono">
+                                    <option value="CZK">CZK</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="USD">USD</option>
+                                </select>
+                            </div>
+                            <div id="preview-add" class="text-[0.6875rem] font-mono text-sky-400 mt-1 hidden">≈ 0 Kč</div>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn-primary w-full justify-center py-2.5">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit platbu
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5 mt-2 pt-3 border-t border-slate-800 w-fit cursor-pointer"
+                        onclick="document.getElementById('in-saving').click()">
+                        <input id="in-saving" type="checkbox" class="pro-input" style="width:1rem;height:1rem;">
+                        <label class="section-label cursor-pointer m-0 text-slate-500">Položka představuje SPOŘENÍ</label>
+                    </div>
+                </form>
+
+                <!-- AI Quick Add -->
+                <div id="ai-quick-add" class="hidden mt-4 pt-4 border-t border-slate-800 animate-fade-in">
+                    <div class="ai-panel p-4 flex flex-col sm:flex-row gap-3 items-center">
+                        <div class="flex-1 w-full">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i>
+                                <span class="text-xs font-semibold text-purple-300 uppercase tracking-wider">AI zpracování textu</span>
+                            </div>
+                            <textarea id="ai-input" rows="2"
+                                placeholder="'včera 400 za naftu z běžnýho'..."
+                                class="pro-input resize-none text-sm" style="background:#0c1526;"></textarea>
+                        </div>
+                        <button type="button" onclick="app.aiQuickAdd()" id="ai-btn" class="btn-ai whitespace-nowrap self-end sm:self-center px-5 py-3">
+                            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Zpracovat
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Filters -->
+            <div class="panel p-3 flex flex-wrap items-center gap-3">
+                <span class="section-label">Filtrovat účty:</span>
+                <div id="account-filters" class="flex flex-wrap gap-1.5">
+                    <!-- generated dynamically -->
+                </div>
+            </div>
+
+            <!-- Table Panel -->
+            <div class="panel flex flex-col" style="min-height: 460px;">
+
+                <!-- Table Toolbar -->
+                <div class="px-4 py-3 border-b border-slate-800 flex flex-wrap justify-between items-center gap-3">
+                    <div class="flex items-center gap-3 flex-1">
+                        <!-- Search -->
+                        <div class="relative">
+                            <i data-lucide="search" class="absolute left-2.5 top-2 text-slate-500 w-3.5 h-3.5"></i>
+                            <input id="search-input" oninput="app.renderTable()" type="text"
+                                placeholder="Vyhledat..."
+                                class="pro-input pl-8 w-52 py-1.5 text-xs">
+                        </div>
+
+                        <!-- Mass Actions -->
+                        <div id="mass-actions" class="hidden items-center gap-2 animate-fade-in">
+                            <div class="mass-actions-bar">
+                                <span class="text-xs font-mono text-sky-400"><span id="mass-count">0</span> vybráno</span>
+                                <button onclick="app.massEdit()" title="Hromadná úprava"
+                                    class="p-1 text-sky-400 hover:bg-sky-400/10 rounded transition">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="app.massDelete()" title="Smazat hromadně"
+                                    class="p-1 text-rose-400 hover:bg-rose-400/10 rounded transition">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="app.massExclude()" title="Změnit viditelnost"
+                                    class="p-1 text-slate-400 hover:bg-slate-400/10 rounded transition">
+                                    <i data-lucide="eye-off" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <!-- Compact Toggle -->
+                        <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input type="checkbox" onchange="app.toggleCompact(event)" id="ui-compact-check"
+                                class="pro-input" style="width:0.875rem;height:0.875rem;">
+                            <span class="section-label text-slate-600">Kompakt</span>
+                        </label>
+
+                        <!-- Group By -->
+                        <div class="hidden sm:flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-0.5">
+                            <button onclick="app.setGroupBy('none')" id="group-none" class="group-btn group-btn-active">Vše</button>
+                            <button onclick="app.setGroupBy('ucet')" id="group-ucet" class="group-btn group-btn-inactive">Účet</button>
+                            <button onclick="app.setGroupBy('pohyb')" id="group-pohyb" class="group-btn group-btn-inactive">Typ</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto flex-1">
+                    <table class="w-full text-left data-table" id="main-table">
+                        <thead>
+                            <tr>
+                                <th class="w-10 px-4">
+                                    <input type="checkbox" id="mass-select-all" onchange="app.toggleSelectAll(event)"
+                                        class="pro-input" style="width:0.875rem;height:0.875rem;">
+                                </th>
+                                <th onclick="app.setSort('pohyb')" class="cursor-pointer hover:text-sky-400 transition-colors">
+                                    Typ <i data-lucide="arrow-up-down" class="inline w-2.5 h-2.5 ml-1 opacity-40"></i>
+                                </th>
+                                <th onclick="app.setSort('info')" class="cursor-pointer hover:text-sky-400 transition-colors">
+                                    Popis <i data-lucide="arrow-up-down" class="inline w-2.5 h-2.5 ml-1 opacity-40"></i>
+                                </th>
+                                <th onclick="app.setSort('ucet')" class="cursor-pointer hover:text-sky-400 transition-colors">
+                                    Účet <i data-lucide="arrow-up-down" class="inline w-2.5 h-2.5 ml-1 opacity-40"></i>
+                                </th>
+                                <th onclick="app.setSort('suma')" class="cursor-pointer hover:text-sky-400 transition-colors text-right">
+                                    Suma <i data-lucide="arrow-up-down" class="inline w-2.5 h-2.5 ml-1 opacity-40"></i>
+                                </th>
+                                <th class="text-center">Akce</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                    <div id="empty-state" class="hidden text-center py-20">
+                        <i data-lucide="inbox" class="w-10 h-10 text-slate-700 mx-auto mb-3"></i>
+                        <p class="text-slate-600 font-mono text-xs uppercase tracking-widest">Žádné záznamy</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ───────────────── TAB: ANALYSIS ───────────────── -->
+        <div id="section-analysis" class="hidden animate-fade-in space-y-4">
+
+            <!-- KPI Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="kpi-card">
+                    <div class="section-label flex items-center gap-1.5 mb-2">
+                        <i data-lucide="calendar" class="w-3 h-3 text-rose-400"></i> Průměrná útrata/den
+                    </div>
+                    <div id="a-daily" class="font-mono text-xl font-bold text-rose-400">0 Kč</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="section-label flex items-center gap-1.5 mb-2">
+                        <i data-lucide="percent" class="w-3 h-3 text-emerald-400"></i> Míra úspor z příjmů
+                    </div>
+                    <div id="a-savrate" class="font-mono text-xl font-bold text-emerald-400">0%</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="section-label flex items-center gap-1.5 mb-2">
+                        <i data-lucide="sun" class="w-3 h-3 text-sky-400"></i> Volný denní rozpočet
+                    </div>
+                    <div id="a-daily-left" class="font-mono text-xl font-bold text-sky-400">---</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="panel p-6 flex flex-col">
+                    <div class="section-label flex items-center gap-2 mb-5">
+                        <i data-lucide="pie-chart" class="w-3 h-3 text-sky-400"></i> Struktura výdajů
+                    </div>
+                    <div class="flex-1 h-72"><canvas id="chart-pie"></canvas></div>
+                </div>
+                <div class="panel p-6 flex flex-col">
+                    <div class="section-label flex items-center gap-2 mb-5">
+                        <i data-lucide="bar-chart-2" class="w-3 h-3 text-sky-400"></i> Makro přehled (Cashflow)
+                    </div>
+                    <div class="flex-1 h-72"><canvas id="chart-bar"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ───────────────── TAB: AI ADVISOR ───────────────── -->
+        <div id="section-ai" class="hidden max-w-3xl mx-auto animate-fade-in">
+            <div class="panel p-8 relative overflow-hidden">
+                <div class="absolute right-0 top-0 opacity-[0.03] p-8 pointer-events-none">
+                    <i data-lucide="bot" class="w-64 h-64"></i>
+                </div>
+
+                <div class="flex items-center gap-4 mb-8 relative z-10">
+                    <div class="w-12 h-12 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#6366f1,#a855f7);">
+                        <i data-lucide="brain-circuit" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 tracking-tight">AI Finanční Diagnostika</h2>
+                        <p class="text-xs font-mono text-purple-400 mt-0.5 uppercase tracking-widest">Deep Analysis by AI</p>
+                    </div>
+                </div>
+
+                <div id="ai-advice-content"
+                    class="min-h-[180px] mb-8 terminal-accent relative z-10 text-slate-400 text-sm leading-relaxed">
+                    Kliknutím níže umělá inteligence analyzuje vaše data a napíše vám konkrétní doporučení ke
+                    zlepšení vašeho cashflow.
+                </div>
+
+                <button onclick="app.getAiAdvice()" id="ai-advice-btn"
+                    class="btn-ai w-full justify-center py-4 text-sm relative z-10">
+                    <i data-lucide="zap" class="w-4 h-4"></i> Spustit analýzu dat
+                </button>
+            </div>
+        </div>
+
+        <!-- ───────────────── TAB: SETTINGS ───────────────── -->
+        <div id="section-settings" class="hidden max-w-3xl mx-auto space-y-4 animate-fade-in">
+
+            <!-- Cloud API -->
+            <div class="panel p-6">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-5">
+                    <i data-lucide="cloud" class="w-4 h-4 text-sky-400"></i> Cloud API &amp; Live Sync
+                </h3>
+                <div class="space-y-3">
+                    <label class="section-label block">Google Apps Script URL</label>
+                    <input id="api-url" type="text" onchange="app.saveApiUrl()"
+                        placeholder="https://script.google.com/macros/s/..."
+                        class="pro-input font-mono text-xs">
+                    <p class="text-xs text-slate-600 mt-1">Aplikace bude automaticky odesílat každou změnu na toto URL (Live Sync).</p>
+                </div>
+            </div>
+
+            <!-- Apps Script Guide -->
+            <div class="panel p-6">
+                <h4 class="section-label text-sky-400 mb-5 flex items-center gap-2">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Návod k nastavení Google Sheets
+                </h4>
+                <div class="space-y-4 text-sm text-slate-400">
+                    <p>1. Otevřete novou Google Tabulku a klikněte na <b class="text-slate-300">Rozšíření &gt; Apps Script</b>.</p>
+                    <p>2. Vložte do editoru tento kód a uložte:</p>
+                    <pre class="code-block select-all">function jsonOutput(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getDataSheet() {
+  return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+}
+
+function doGet() {
+  var sheet = getDataSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length &lt; 2) return jsonOutput({ status: "success", data: [] });
+
+  var headers = data[0].map(String);
+  var res = [];
+  for (var i = 1; i &lt; data.length; i++) {
+    if (data[i].join("") === "") continue;
+    var obj = {};
+    for (var j = 0; j &lt; headers.length; j++) obj[headers[j]] = data[i][j];
+    res.push(obj);
+  }
+  return jsonOutput({ status: "success", data: res });
+}
+
+function doPost(e) {
+  var payload = JSON.parse(e.postData.contents || "[]");
+  var txs = Array.isArray(payload) ? payload : (payload.data || []);
+  if (!Array.isArray(txs)) return jsonOutput({ status: "error", message: "Neplatná data" });
+
+  var sheet = getDataSheet();
+  if (txs.length === 0 &amp;&amp; sheet.getLastRow() > 1) {
+    return jsonOutput({ status: "skipped", message: "Prázdný zápis přeskočen kvůli ochraně existujících dat" });
+  }
+
+  var headers = ["id", "date", "pohyb", "info", "suma", "ucet", "saving", "isExcluded", "origSuma", "origMena"];
+  txs.forEach(function(t) {
+    Object.keys(t).forEach(function(k) {
+      if (headers.indexOf(k) === -1) headers.push(k);
+    });
+  });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (txs.length > 0) {
+    var rows = txs.map(function(t) {
+      return headers.map(function(h) { return t[h] !== undefined ? t[h] : ""; });
+    });
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+  return jsonOutput({ status: "success", message: "OK" });
+}</pre>
+                    <p>3. Klikněte na <b class="text-slate-300">Nasadit &gt; Nové nasazení</b>.</p>
+                    <p>4. Vyberte typ <b class="text-slate-300">Webová aplikace</b> a přístup <b class="text-slate-300">Kdokoliv (Anyone)</b>.</p>
+                    <p>5. Zkopírujte zobrazenou URL a vložte ji do políčka výše.</p>
+                </div>
+            </div>
+
+            <!-- AI API Key -->
+            <div class="panel p-6">
+                <div class="flex items-center justify-between mb-5">
+                    <button onclick="openAIHelpModal()" class="flex items-center gap-2 text-slate-200 hover:text-sky-400 transition-colors group">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-purple-400 group-hover:text-sky-400 transition-colors"></i>
+                        <span class="text-sm font-semibold">AI API Klíč</span>
+                        <i data-lucide="help-circle" class="w-3.5 h-3.5 text-slate-600 group-hover:text-sky-400 transition-colors"></i>
+                    </button>
+                    <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-0.5">
+                        <button onclick="app.setAIProvider('groq')" id="btn-provider-groq"
+                            class="provider-btn" style="background:#a855f7;color:#fff;">Groq</button>
+                        <button onclick="app.setAIProvider('gemini')" id="btn-provider-gemini"
+                            class="provider-btn" style="color:#475569;background:transparent;">Gemini</button>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <label class="section-label block">Groq API klíč (gsk_...)</label>
+                    <input id="groq-api-input" type="password" onchange="app.handleGroqKeyChange(this.value)"
+                        placeholder="gsk_..." class="pro-input font-mono text-xs">
+
+                    <label class="section-label block mt-4">Gemini API klíč (AIza...)</label>
+                    <input id="gemini-api-input" type="password" onchange="app.handleGeminiKeyChange(this.value)"
+                        placeholder="AIza..." class="pro-input font-mono text-xs hidden">
+
+                    <div id="ai-status"
+                        class="flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs font-mono transition-colors bg-slate-900 text-slate-500 border border-slate-800 mt-2">
+                        <i data-lucide="key-round" class="w-3.5 h-3.5"></i> Bez klíče
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ───────────────── EDIT MODAL ───────────────── -->
+    <div id="edit-modal" class="fixed inset-0 z-[300] hidden items-center justify-center p-4 modal-overlay"
+        onclick="if(event.target === this) app.closeEdit()">
+        <div class="panel w-full max-w-sm p-5 shadow-2xl">
+
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-sm font-semibold text-sky-400 flex items-center gap-2">
+                    <i data-lucide="pen-line" class="w-4 h-4"></i> Úprava záznamu
+                </h3>
+                <button onclick="app.closeEdit()" class="text-slate-600 hover:text-slate-400 transition p-1 rounded">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="edit-form" onsubmit="app.saveEdit(event)" class="space-y-3">
+                <div>
+                    <label class="section-label block mb-1">Kategorie</label>
+                    <input id="ed-typ" list="list-typy" required class="pro-input">
+                </div>
+                <div>
+                    <label class="section-label block mb-1">Popis</label>
+                    <input id="ed-info" required class="pro-input">
+                </div>
+                <div>
+                    <label class="section-label block mb-1">Účet</label>
+                    <input id="ed-ucet" list="list-ucty" required class="pro-input">
+                </div>
+                <div>
+                    <label class="section-label block mb-1">Cena a Měna</label>
+                    <div class="flex items-center gap-2">
+                        <input id="ed-suma" type="number" step="0.01" required oninput="app.updatePreviewEdit()"
+                            class="pro-input font-mono text-lg font-bold flex-1">
+                        <select id="ed-mena" onchange="app.updatePreviewEdit()" class="pro-input w-20 text-center font-mono">
+                            <option value="CZK">CZK</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                    <div id="preview-edit" class="text-[0.6875rem] font-mono text-sky-400 mt-1 hidden">≈ 0 Kč</div>
+                </div>
+
+                <div class="flex items-center gap-2.5 p-3 border border-slate-800 rounded bg-slate-900/50 cursor-pointer"
+                    onclick="document.getElementById('ed-saving').click()">
+                    <input id="ed-saving" type="checkbox" class="pro-input" style="width:0.875rem;height:0.875rem;">
+                    <label class="section-label cursor-pointer m-0">Položka je spoření</label>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="app.closeEdit()" class="btn-secondary flex-1 justify-center py-2.5">Zrušit</button>
+                    <button type="submit" class="btn-primary flex-1 justify-center py-2.5">Uložit změny</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Datalists -->
+    <datalist id="list-typy"></datalist>
+    <datalist id="list-ucty"></datalist>
+
+    <!-- ───────────────── GROQ HELP MODAL ───────────────── -->
+    <div id="groq-modal" class="fixed inset-0 z-[400] hidden flex items-center justify-center p-4 sm:p-6">
+        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer" onclick="closeGroqHelpModal()"></div>
+        <div class="relative panel w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i> Groq API klíč pro AI
+                </h3>
+                <button onclick="closeGroqHelpModal()" class="text-slate-600 hover:text-slate-400 p-1 rounded transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto text-slate-400 text-sm space-y-4">
+                <p>Aplikace používá AI od <b class="text-slate-300">Groq</b> (model Llama) pro inteligentní funkce. Klíč je <b class="text-slate-300">zcela zdarma</b> a sdílí se napříč všemi stránkami přes <b class="text-slate-300">cookies</b>.</p>
+                <div class="border-l-2 border-purple-500 pl-4 bg-purple-500/5 py-3 rounded-r">
+                    <h4 class="font-semibold text-slate-200 mb-2 text-xs uppercase tracking-wider">Návod krok za krokem (1 minuta):</h4>
+                    <ol class="list-decimal pl-5 space-y-1.5 text-sm">
+                        <li>Otevřete <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com/keys</a> a přihlaste se.</li>
+                        <li>Klikněte na <b class="text-slate-300">Create API Key</b>.</li>
+                        <li>Celý klíč zkopírujte (<code class="font-mono text-purple-300 text-xs bg-slate-900 px-1 rounded">gsk_…</code>).</li>
+                        <li>Vložte ho do políčka <b class="text-slate-300">Groq API klíč</b>. Hotovo!</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="px-5 py-3 border-t border-slate-800 flex justify-end">
+                <button onclick="closeGroqHelpModal()" class="btn-primary" style="background:linear-gradient(135deg,#7c3aed,#a855f7);">Rozumím, zavřít</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ───────────────── GEMINI HELP MODAL ───────────────── -->
+    <div id="gemini-modal" class="fixed inset-0 z-[400] hidden flex items-center justify-center p-4 sm:p-6">
+        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer" onclick="closeGeminiHelpModal()"></div>
+        <div class="relative panel w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-blue-400"></i> Gemini API klíč pro AI
+                </h3>
+                <button onclick="closeGeminiHelpModal()" class="text-slate-600 hover:text-slate-400 p-1 rounded transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto text-slate-400 text-sm space-y-4">
+                <p>Aplikace podporuje modely <b class="text-slate-300">Gemini</b> od Googlu. API klíč je <b class="text-slate-300">zdarma</b> a sdílí se přes <b class="text-slate-300">cookies</b>.</p>
+                <div class="border-l-2 border-blue-500 pl-4 bg-blue-500/5 py-3 rounded-r">
+                    <h4 class="font-semibold text-slate-200 mb-2 text-xs uppercase tracking-wider">Návod krok za krokem:</h4>
+                    <ol class="list-decimal pl-5 space-y-1.5 text-sm">
+                        <li>Otevřete <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-400 hover:underline">Google AI Studio</a> a přihlaste se.</li>
+                        <li>Klikněte na <b class="text-slate-300">Create API key</b> v novém projektu.</li>
+                        <li>Zkopírujte vygenerovaný klíč (<code class="font-mono text-blue-300 text-xs bg-slate-900 px-1 rounded">AIza...</code>).</li>
+                        <li>Vložte ho do políčka <b class="text-slate-300">Gemini API klíč</b>. Hotovo!</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="px-5 py-3 border-t border-slate-800 flex justify-end">
+                <button onclick="closeGeminiHelpModal()" class="btn-primary" style="background:#1d4ed8;">Rozumím, zavřít</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- MODAL FUNKCE PRO AI API ---
+        function openGroqHelpModal() { document.getElementById('groq-modal').classList.remove('hidden'); lucide.createIcons(); }
+        function closeGroqHelpModal() { document.getElementById('groq-modal').classList.add('hidden'); }
+        function openGeminiHelpModal() { document.getElementById('gemini-modal').classList.remove('hidden'); lucide.createIcons(); }
+        function closeGeminiHelpModal() { document.getElementById('gemini-modal').classList.add('hidden'); }
+        function openAIHelpModal() {
+            const provider = getCookie('ai_provider') || localStorage.getItem('ai_provider') || 'groq';
+            if (provider === 'gemini') openGeminiHelpModal();
+            else openGroqHelpModal();
+        }
+
+        function setCookie(name, value, days = 365) {
+            const maxAge = Math.max(0, Number(days) || 0) * 24 * 60 * 60;
+            document.cookie = `${name}=${encodeURIComponent(value || '')}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        }
+
+        function getCookie(name) {
+            const item = document.cookie.split('; ').find(row => row.startsWith(`${name}=`));
+            return item ? decodeURIComponent(item.split('=').slice(1).join('=')) : '';
+        }
+
+        function deleteCookie(name) {
+            document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+        }
+
+        // Ordered list of free FX APIs — tried in sequence until one succeeds
+        const FX_SOURCES = [
+            {
+                url: "https://api.exchangerate-api.com/v4/latest/CZK",
+                parse: j => ({ EUR: j.rates.EUR, USD: j.rates.USD })
+            },
+            {
+                url: "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/czk.json",
+                parse: j => ({ EUR: j.czk.eur, USD: j.czk.usd })
+            },
+            {
+                url: "https://open.er-api.com/v6/latest/CZK",
+                parse: j => ({ EUR: j.rates.EUR, USD: j.rates.USD })
+            }
+        ];
+
+        const app = {
+            data: JSON.parse(localStorage.getItem('FinanceAI_data')) || JSON.parse(localStorage.getItem('f_pro_vFinal_data')) || JSON.parse(localStorage.getItem('f_vProFinal_data')) || [],
+            apiUrl: getCookie('FinanceAI_api') || getCookie('google_sync_finance_ai') || localStorage.getItem('FinanceAI_api') || localStorage.getItem('f_pro_vFinal_api') || localStorage.getItem('f_vProFinal_api') || "",
+            cloudReady: false,
+            isSyncingFromCloud: false,
+            sortHistory: [{key: 'id', dir: 'desc'}],
+            groupBy: 'none',
+            hiddenAccounts: new Set(),
+            selectedIds: new Set(),
+            isCompact: false,
+            editingId: null,
+            editingMass: false,
+            chart: null,
+            chartBar: null,
+            rates: { CZK: 1, EUR: 0.04, USD: 0.043 }, // Fallback values
+
+            async init() {
+                const readThemeCookie = (name) => document.cookie.split('; ').find(row => row.startsWith(`${name}=`))?.split('=')[1];
+                this.applyTheme(readThemeCookie('finance_theme') || readThemeCookie('pension_theme') || readThemeCookie('prijmy_vydaje_theme') || localStorage.getItem('pension_theme') || localStorage.getItem('finance_theme') || localStorage.getItem('prijmy_vydaje_theme') || 'dark');
+
+                // Načíst AI provider a klíče
+                const provider = getCookie('ai_provider') || localStorage.getItem('ai_provider') || 'groq';
+                const groqKey = getCookie('groq_api_key') || localStorage.getItem('groq_api_key') || '';
+                const geminiKey = getCookie('gemini_api_key') || localStorage.getItem('gemini_api_key') || '';
+                if (groqKey) document.getElementById('groq-api-input').value = groqKey;
+                if (geminiKey) document.getElementById('gemini-api-input').value = geminiKey;
+                this.updateAIProviderUI(provider);
+                this.updateAIStatus();
+
+                // MIGRACE DAT
+                this.data.forEach(t => {
+                    if (!t.origMena) {
+                        let match = t.info.match(/\s*\(([\d.]+)\s+(EUR|USD)\)$/i);
+                        if (match) {
+                            t.origMena = match[2].toUpperCase();
+                            t.origSuma = parseFloat(match[1]);
+                            t.info = t.info.replace(/\s*\([\d.]+\s+(EUR|USD)\)$/i, '');
+                        } else {
+                            t.origMena = "CZK";
+                            t.origSuma = Math.abs(t.suma);
+                        }
+                    }
+                });
+
+                await this.fetchRates();
+
+                // Escape key for closing modal
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') this.closeEdit();
+                });
+
+                document.getElementById('api-url').value = this.apiUrl;
+                this.render();
+                if (this.apiUrl) await this.syncFromCloud({ seedIfEmpty: true });
+                else this.cloudReady = true;
+                lucide.createIcons();
+            },
+
+            applyTheme(theme) {
+                const normalized = theme === 'dark' ? 'dark' : 'light';
+                document.documentElement.classList.toggle('light', normalized === 'light');
+                document.cookie = `finance_theme=${normalized}; path=/; max-age=31536000; SameSite=Lax`;
+                document.cookie = `pension_theme=${normalized}; path=/; max-age=31536000; SameSite=Lax`;
+                document.cookie = `prijmy_vydaje_theme=${normalized}; path=/; max-age=31536000; SameSite=Lax`;
+                localStorage.setItem('pension_theme', normalized);
+                localStorage.setItem('finance_theme', normalized);
+                localStorage.setItem('prijmy_vydaje_theme', normalized);
+                const btn = document.getElementById('theme-toggle');
+                if (btn) {
+                    btn.innerHTML = normalized === 'dark'
+                        ? '<i data-lucide="sun" class="w-3.5 h-3.5"></i>'
+                        : '<i data-lucide="moon" class="w-3.5 h-3.5"></i>';
+                    lucide.createIcons();
+                }
+                if (this.chart || this.chartBar) this.renderAnalysis();
+            },
+
+            toggleTheme() {
+                this.applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light');
+            },
+
+            updateAIProviderUI(provider) {
+                const normalized = provider === 'gemini' ? 'gemini' : 'groq';
+                setCookie('ai_provider', normalized, 365);
+                localStorage.setItem('ai_provider', normalized);
+
+                const groqBtn = document.getElementById('btn-provider-groq');
+                const geminiBtn = document.getElementById('btn-provider-gemini');
+                const groqInput = document.getElementById('groq-api-input');
+                const geminiInput = document.getElementById('gemini-api-input');
+
+                if (normalized === 'groq') {
+                    if (groqBtn) groqBtn.style.cssText = 'background:#a855f7;color:#fff;';
+                    if (geminiBtn) geminiBtn.style.cssText = 'color:#475569;background:transparent;';
+                    if (groqInput) groqInput.classList.remove('hidden');
+                    if (geminiInput) geminiInput.classList.add('hidden');
+                } else {
+                    if (groqBtn) groqBtn.style.cssText = 'color:#475569;background:transparent;';
+                    if (geminiBtn) geminiBtn.style.cssText = 'background:#3b82f6;color:#fff;';
+                    if (groqInput) groqInput.classList.add('hidden');
+                    if (geminiInput) geminiInput.classList.remove('hidden');
+                }
+
+                this.updateAIStatus();
+                lucide.createIcons();
+            },
+
+            setAIProvider(provider) {
+                this.updateAIProviderUI(provider);
+            },
+
+            handleGroqKeyChange(value) {
+                const key = (value || '').trim();
+                if (key) {
+                    setCookie('groq_api_key', key, 365);
+                    localStorage.setItem('groq_api_key', key);
+                } else {
+                    deleteCookie('groq_api_key');
+                    localStorage.removeItem('groq_api_key');
+                }
+                this.updateAIStatus();
+            },
+
+            handleGeminiKeyChange(value) {
+                const key = (value || '').trim();
+                if (key) {
+                    setCookie('gemini_api_key', key, 365);
+                    localStorage.setItem('gemini_api_key', key);
+                } else {
+                    deleteCookie('gemini_api_key');
+                    localStorage.removeItem('gemini_api_key');
+                }
+                this.updateAIStatus();
+            },
+
+            updateAIStatus() {
+                const provider = getCookie('ai_provider') || localStorage.getItem('ai_provider') || 'groq';
+                const key = provider === 'gemini'
+                    ? (getCookie('gemini_api_key') || localStorage.getItem('gemini_api_key') || '')
+                    : (getCookie('groq_api_key') || localStorage.getItem('groq_api_key') || '');
+                const el = document.getElementById('ai-status');
+                if (!el) return;
+
+                if (key) {
+                    el.className = 'flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs font-mono transition-colors bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-2';
+                    el.innerHTML = `<i data-lucide="key-round" class="w-3.5 h-3.5"></i> ${provider === 'gemini' ? 'Gemini' : 'Groq'} klíč uložen`;
+                } else {
+                    el.className = 'flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs font-mono transition-colors bg-slate-900 text-slate-500 border border-slate-800 mt-2';
+                    el.innerHTML = `<i data-lucide="key-round" class="w-3.5 h-3.5"></i> Bez klíče pro ${provider === 'gemini' ? 'Gemini' : 'Groq'}`;
+                }
+                lucide.createIcons();
+            },
+
+            async fetchRates() {
+                const ind = document.getElementById('fx-indicator');
+                const txt = document.getElementById('fx-text');
+                let lastErr;
+                for (const src of FX_SOURCES) {
+                    try {
+                        const controller = new AbortController();
+                        const timeout = setTimeout(() => controller.abort(), 7000);
+                        const r = await fetch(src.url, { cache: 'no-store', signal: controller.signal });
+                        clearTimeout(timeout);
+                        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                        const j = await r.json();
+                        const parsed = src.parse(j);
+                        if (!parsed.EUR || !parsed.USD) throw new Error('Neplatná odpověď');
+                        this.rates = { CZK: 1, EUR: Number(parsed.EUR), USD: Number(parsed.USD) };
+                        if (ind) ind.className = "w-1.5 h-1.5 rounded-full bg-emerald-500";
+                        if (txt) txt.innerText = `API Kurzy: 1€ = ${(1 / this.rates.EUR).toFixed(2)} Kč | 1$ = ${(1 / this.rates.USD).toFixed(2)} Kč`;
+                        let changed = false;
+                        this.data.forEach(t => {
+                            if (t.origMena && t.origMena !== "CZK" && t.origSuma) {
+                                let newCzk = t.origSuma / this.rates[t.origMena];
+                                let finalS = Math.abs(newCzk);
+                                if (!t.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) finalS = -finalS;
+                                if (Math.abs(t.suma - finalS) > 0.01) { t.suma = finalS; changed = true; }
+                            }
+                        });
+                        if (changed) { this.save(); this.render(); }
+                        return;
+                    } catch (e) { lastErr = e; }
+                }
+                if (ind) ind.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
+                if (txt) txt.innerText = "Kurzy offline (Fallback)";
+            },
+
+            setTab(tab) {
+                ['journal', 'analysis', 'ai', 'settings'].forEach(id => {
+                    const section = document.getElementById(`section-${id}`);
+                    if (section) section.classList.add('hidden');
+                    const btn = document.getElementById(`tab-${id}`);
+                    if (btn) {
+                        btn.classList.remove('tab-active');
+                    }
+                });
+                const activeSec = document.getElementById(`section-${tab}`);
+                if (activeSec) activeSec.classList.remove('hidden');
+                const activeBtn = document.getElementById(`tab-${tab}`);
+                if (activeBtn) {
+                    activeBtn.classList.add('tab-active');
+                }
+
+                if (tab === 'analysis') this.renderAnalysis();
+                lucide.createIcons();
+            },
+
+            setSort(key) {
+                let existingIdx = this.sortHistory.findIndex(s => s.key === key);
+                if (existingIdx === 0) {
+                    this.sortHistory[0].dir = this.sortHistory[0].dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    if (existingIdx !== -1) this.sortHistory.splice(existingIdx, 1);
+                    this.sortHistory.unshift({key: key, dir: 'asc'});
+                }
+                this.renderTable();
+            },
+
+            setGroupBy(g) {
+                this.groupBy = g;
+                ['none', 'ucet', 'pohyb'].forEach(id => {
+                    const btn = document.getElementById(`group-${id}`);
+                    if (btn) {
+                        btn.className = 'group-btn group-btn-inactive';
+                    }
+                });
+                const activeBtn = document.getElementById(`group-${g}`);
+                if (activeBtn) {
+                    activeBtn.className = 'group-btn group-btn-active';
+                }
+                this.renderTable();
+            },
+
+            toggleCompact(e) {
+                this.isCompact = e.target.checked;
+                const tablePanel = document.querySelector('#main-table')?.closest('.panel');
+                if (tablePanel) tablePanel.classList.toggle('compact', this.isCompact);
+                this.renderTable();
+            },
+
+            toggleSelect(id, e) {
+                if (e.target.checked) this.selectedIds.add(id); else this.selectedIds.delete(id);
+                this.renderMassActions();
+            },
+
+            toggleSelectAll(e) {
+                const checked = e.target.checked;
+                const cbs = document.querySelectorAll('.row-checkbox');
+                cbs.forEach(cb => {
+                    cb.checked = checked;
+                    const id = parseInt(cb.value);
+                    if (checked) this.selectedIds.add(id); else this.selectedIds.delete(id);
+                });
+                this.renderMassActions();
+            },
+
+            renderMassActions() {
+                const el = document.getElementById('mass-actions');
+                const countEl = document.getElementById('mass-count');
+                if (this.selectedIds.size > 0) {
+                    el.classList.remove('hidden');
+                    el.classList.add('flex');
+                    countEl.innerText = this.selectedIds.size;
+                } else {
+                    el.classList.remove('flex');
+                    el.classList.add('hidden');
+                }
+            },
+
+            massDelete() {
+                if(!confirm(`Opravdu smazat ${this.selectedIds.size} vybraných záznamů?`)) return;
+                this.data = this.data.filter(t => !this.selectedIds.has(t.id));
+                this.selectedIds.clear();
+                let cb = document.getElementById('mass-select-all'); if(cb) cb.checked = false;
+                this.save(); this.render();
+            },
+
+            massExclude() {
+                this.data.forEach(t => {
+                    if(this.selectedIds.has(t.id)) t.isExcluded = !t.isExcluded;
+                });
+                this.selectedIds.clear();
+                let cb = document.getElementById('mass-select-all'); if(cb) cb.checked = false;
+                this.save(); this.render();
+            },
+
+            addTransaction(e) {
+                e.preventDefault();
+                const typ = document.getElementById('in-typ').value.trim();
+                const ucet = document.getElementById('in-ucet').value.trim();
+                const info = document.getElementById('in-info').value.trim();
+                const sumaOrig = parseFloat(document.getElementById('in-suma').value);
+                const mena = document.getElementById('in-mena').value;
+                const saving = document.getElementById('in-saving').checked;
+
+                let czkVal = sumaOrig / (this.rates[mena] || 1);
+                let finalInfo = info;
+
+                // Znaménková logika
+                let s = Math.abs(czkVal);
+                if (!typ.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+
+                this.data.unshift({
+                    id: Date.now(), pohyb: typ, info: finalInfo, suma: s, ucet: ucet, saving: saving ? "ANO" : "NE", isExcluded: false,
+                    origSuma: sumaOrig, origMena: mena
+                });
+
+                document.getElementById('preview-add').classList.add('hidden');
+                this.save();
+                this.render();
+                e.target.reset();
+            },
+
+            toggleExclude(id) {
+                const t = this.data.find(x => x.id === id);
+                if (t) t.isExcluded = !t.isExcluded;
+                this.save(); this.render();
+            },
+
+            removeItem(id) {
+                if (confirm('Opravdu smazat záznam?')) {
+                    this.data = this.data.filter(t => t.id !== id);
+                    this.save(); this.render();
+                }
+            },
+
+            save() {
+                localStorage.setItem('FinanceAI_data', JSON.stringify(this.data));
+                if (this.apiUrl && this.cloudReady && !this.isSyncingFromCloud) this.syncToCloud();
+            },
+
+            async saveApiUrl() {
+                this.apiUrl = document.getElementById('api-url').value.trim();
+                localStorage.setItem('FinanceAI_api', this.apiUrl);
+                if (this.apiUrl) {
+                    setCookie('FinanceAI_api', this.apiUrl, 365);
+                    setCookie('google_sync_finance_ai', this.apiUrl, 365);
+                } else {
+                    deleteCookie('FinanceAI_api');
+                    deleteCookie('google_sync_finance_ai');
+                }
+                this.cloudReady = false;
+                if (this.apiUrl) await this.syncFromCloud({ seedIfEmpty: true });
+                else this.cloudReady = true;
+            },
+
+            toggleAiForm() {
+                const el = document.getElementById('ai-quick-add');
+                if (el) {
+                    el.classList.toggle('hidden');
+                    if (!el.classList.contains('hidden')) {
+                        setTimeout(() => { const aiInput = document.getElementById('ai-input'); if (aiInput) aiInput.focus(); }, 150);
+                    }
+                }
+            },
+
+            render() {
+                this.renderAccountFilters();
+                this.renderTable();
+                this.renderStats();
+                this.updateLists();
+                lucide.createIcons();
+            },
+
+            renderAccountFilters() {
+                const area = document.getElementById('account-filters');
+                if (!area) return;
+                const ucty = [...new Set(this.data.map(t => t.ucet))];
+                area.innerHTML = '';
+
+                if (ucty.length === 0) {
+                    area.innerHTML = '<span class="text-xs text-slate-600 italic font-mono">Zatím žádné účty</span>';
+                    return;
+                }
+
+                ucty.forEach(u => {
+                    const isActive = !this.hiddenAccounts.has(u);
+                    const btn = document.createElement('button');
+                    btn.className = `filter-btn ${isActive ? 'filter-active' : 'filter-inactive'}`;
+                    btn.innerHTML = isActive ? `<i data-lucide="check" class="w-3 h-3"></i> ${u}` : u;
+                    btn.onclick = () => {
+                        if (isActive) this.hiddenAccounts.add(u); else this.hiddenAccounts.delete(u);
+                        this.render();
+                    };
+                    area.appendChild(btn);
+                });
+            },
+
+            renderTable() {
+                const searchInput = document.getElementById('search-input');
+                const search = searchInput ? searchInput.value.toLowerCase() : "";
+                const tbody = document.getElementById('table-body');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+
+                let cball = document.getElementById('mass-select-all');
+                if(cball) cball.checked = false;
+                this.selectedIds.clear();
+                this.renderMassActions();
+
+                let filtered = this.data.filter(t =>
+                    (t.info.toLowerCase().includes(search) || t.pohyb.toLowerCase().includes(search) || t.ucet.toLowerCase().includes(search))
+                    && !this.hiddenAccounts.has(t.ucet)
+                );
+
+                filtered.sort((a, b) => {
+                    for (let i = 0; i < this.sortHistory.length; i++) {
+                        const {key, dir} = this.sortHistory[i];
+                        let vA = a[key] !== undefined ? a[key] : "";
+                        let vB = b[key] !== undefined ? b[key] : "";
+                        if (typeof vA === 'string') vA = vA.toLowerCase();
+                        if (typeof vB === 'string') vB = vB.toLowerCase();
+                        if (vA < vB) return dir === 'asc' ? -1 : 1;
+                        if (vA > vB) return dir === 'asc' ? 1 : -1;
+                    }
+                    return 0;
+                });
+
+                const emptyState = document.getElementById('empty-state');
+                if (filtered.length === 0) {
+                    if (emptyState) emptyState.classList.remove('hidden');
+                } else {
+                    if (emptyState) emptyState.classList.add('hidden');
+                }
+
+                let groups = { 'Všechny transakce': filtered };
+                if (this.groupBy !== 'none') {
+                    groups = filtered.reduce((acc, t) => {
+                        const key = t[this.groupBy] || "Neurčeno";
+                        if (!acc[key]) acc[key] = [];
+                        acc[key].push(t);
+                        return acc;
+                    }, {});
+                }
+
+                Object.entries(groups).forEach(([groupName, rows]) => {
+                    if (this.groupBy !== 'none') {
+                        const groupSum = rows.filter(r => !r.isExcluded).reduce((s, r) => s + r.suma, 0);
+                        const tr = document.createElement('tr');
+                        tr.className = 'group-row';
+                        tr.innerHTML = `
+                            <td colspan="4" class="px-5 py-2">${groupName} (${rows.length}x)</td>
+                            <td class="px-5 py-2 text-right font-mono ${groupSum >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${this.fmt(groupSum)}</td>
+                            <td></td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+
+                    rows.forEach(t => {
+                        const isSaving = t.saving === "ANO" || t.pohyb.toLowerCase().includes("spoření");
+                        const tr = document.createElement('tr');
+                        tr.className = t.isExcluded ? 'row-excluded' : '';
+
+                        const icn = this.isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5';
+                        const pdg = this.isCompact ? 'p-0.5' : 'p-1.5';
+
+                        let displayInfo = t.info;
+                        if (t.origMena && t.origMena !== "CZK" && t.origSuma) {
+                            displayInfo += ` (${this.fmtForeign(t.origSuma, t.origMena)})`;
+                        }
+
+                        tr.innerHTML = `
+                            <td class="px-4">
+                                <input type="checkbox" value="${t.id}" class="row-checkbox pro-input" style="width:0.875rem;height:0.875rem;" onchange="app.toggleSelect(${t.id}, event)" ${this.selectedIds.has(t.id) ? 'checked' : ''}>
+                            </td>
+                            <td>
+                                <span class="badge ${this.getBadgeStyle(t.pohyb, isSaving)}">${t.pohyb}</span>
+                            </td>
+                            <td>
+                                <span class="text-slate-200 text-sm">${this.hl(displayInfo)}</span>
+                            </td>
+                            <td>
+                                <span class="font-mono text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">${t.ucet}</span>
+                            </td>
+                            <td class="text-right font-mono font-bold text-sm ${t.suma > 0 ? 'text-emerald-400' : 'text-rose-400'}">${this.fmt(t.suma)}</td>
+                            <td>
+                                <div class="flex items-center justify-center gap-1">
+                                    <button onclick="app.toggleExclude(${t.id})" title="Vyloučit z výpočtu"
+                                        class="${pdg} ${t.isExcluded ? 'text-sky-400 bg-sky-400/10 rounded' : 'text-slate-600 hover:bg-slate-700 rounded hover:text-slate-400'} transition">
+                                        <i data-lucide="${t.isExcluded ? 'eye' : 'eye-off'}" class="${icn}"></i>
+                                    </button>
+                                    <button onclick="app.openEdit(${t.id})" title="Upravit"
+                                        class="${pdg} text-slate-600 hover:bg-slate-700 rounded hover:text-sky-400 transition">
+                                        <i data-lucide="edit-3" class="${icn}"></i>
+                                    </button>
+                                    <button onclick="app.removeItem(${t.id})" title="Smazat"
+                                        class="${pdg} text-slate-600 hover:bg-rose-400/10 rounded hover:text-rose-400 transition">
+                                        <i data-lucide="trash-2" class="${icn}"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                });
+
+                lucide.createIcons();
+            },
+
+            hl(t) { return t.replace(/\((.*?)\)/g, '<span class="currency-tag">$1</span>'); },
+
+            renderStats() {
+                const active = this.data.filter(t => !t.isExcluded);
+                const income = active.filter(t => t.suma > 0 && t.saving !== 'ANO').reduce((a, b) => a + b.suma, 0);
+                const savings = Math.abs(active.filter(t => t.saving === 'ANO' || t.pohyb.toLowerCase().includes('spoření')).reduce((a, b) => a + b.suma, 0));
+                const expense = Math.abs(active.filter(t => t.suma < 0 && t.saving !== 'ANO' && !t.pohyb.toLowerCase().includes('spoření')).reduce((a, b) => a + b.suma, 0));
+                const balance = active.reduce((a, b) => a + b.suma, 0);
+
+                const els = { 'stat-income': income, 'stat-expense': expense, 'stat-savings': savings, 'stat-balance': balance };
+                for (const k in els) { const el = document.getElementById(k); if (el) el.innerText = this.fmt(els[k]); }
+
+                const p = (v) => income > 0 ? Math.round((v / income) * 100) : 0;
+
+                const pEls = { 'perc-expense': `${p(expense)}% z příjmů`, 'perc-savings': `${p(savings)}% z příjmů`, 'perc-free': `${p(balance)}%` };
+                for (const k in pEls) { const el = document.getElementById(k); if (el) el.innerText = pEls[k]; }
+
+                // Dynamic Balance Coloring Logic (15k, 10k)
+                const balCard = document.getElementById('card-balance');
+                const balText = document.getElementById('stat-balance');
+
+                if (balCard && balText) {
+                    // Reset border-top color
+                    balCard.style.borderTopColor = '';
+
+                    if (balance > 15000) {
+                        balCard.style.borderTopColor = '#10b981';
+                        balText.className = 'stat-value font-mono text-emerald-400';
+                    } else if (balance >= 10000 && balance <= 15000) {
+                        balCard.style.borderTopColor = '#f97316';
+                        balText.className = 'stat-value font-mono text-orange-400';
+                    } else {
+                        balCard.style.borderTopColor = '#f43f5e';
+                        balText.className = 'stat-value font-mono text-rose-400';
+                    }
+                }
+            },
+
+            // --- SYNC ---
+            async syncToCloud() {
+                if (!this.apiUrl || !this.cloudReady || this.isSyncingFromCloud) return;
+                try { await fetch(this.apiUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(this.data) }); } catch (e) { }
+            },
+            normalizeCloudRows(rows) {
+                return rows.map(x => ({
+                    ...x,
+                    id: Number(x.id) || Date.now() + Math.floor(Math.random() * 100000),
+                    suma: parseFloat(x.suma) || 0,
+                    origSuma: x.origSuma !== undefined && x.origSuma !== "" ? parseFloat(x.origSuma) : x.origSuma,
+                    isExcluded: x.isExcluded === true || x.isExcluded === "true",
+                    saving: x.saving || "NE",
+                    pohyb: x.pohyb || "",
+                    info: x.info || "",
+                    ucet: x.ucet || ""
+                }));
+            },
+            async syncFromCloud({ seedIfEmpty = false } = {}) {
+                if (!this.apiUrl) { this.cloudReady = true; return; }
+                try {
+                    const r = await fetch(this.apiUrl);
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    const payload = await r.json();
+                    if (payload && payload.status === 'error') throw new Error(payload.message || 'Chyba API');
+                    const rows = Array.isArray(payload) ? payload : payload.data;
+
+                    if (Array.isArray(rows) && rows.length > 0) {
+                        this.isSyncingFromCloud = true;
+                        this.data = this.normalizeCloudRows(rows);
+                        localStorage.setItem('FinanceAI_data', JSON.stringify(this.data));
+                        this.render();
+                    }
+
+                    this.cloudReady = true;
+                    if ((!Array.isArray(rows) || rows.length === 0) && seedIfEmpty && this.data.length > 0) {
+                        await this.syncToCloud();
+                    }
+                } catch (e) {
+                    console.warn("Cloud data se nepodařilo načíst:", e);
+                    this.cloudReady = false;
+                } finally {
+                    this.isSyncingFromCloud = false;
+                }
+            },
+
+            // --- AI ---
+            async aiQuickAdd() {
+                const input = document.getElementById('ai-input').value; if (!input) return;
+                const btn = document.getElementById('ai-btn'); btn.disabled = true; btn.innerHTML = "Zpracovávám...";
+                try {
+                    const res = await this.callAI(input, `Převeď text na JSON: {"pohyb":"...","info":"...","suma":123,"ucet":"...","saving":"ANO/NE"}. Saving=ANO jen u spoření. Suma vždy kladná v JSON.`);
+                    const tx = JSON.parse(res.replace(/```json|```/g, '').trim());
+                    let s = Math.abs(tx.suma); if (!tx.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+                    this.data.unshift({ id: Date.now(), ...tx, suma: s, ucet: tx.ucet || 'Běžný', date: new Date().toISOString(), isExcluded: false });
+                    this.save(); this.render(); document.getElementById('ai-input').value = "";
+                } catch (e) { alert("AI data nerozpoznala. Zkuste prosím větu přeformulovat."); }
+                btn.disabled = false; btn.innerHTML = 'Zpracovat text AI';
+                lucide.createIcons();
+            },
+
+            async getAiAdvice() {
+                const out = document.getElementById('ai-advice-content'); const btn = document.getElementById('ai-advice-btn');
+                btn.disabled = true; out.innerText = "AI analyzuje vaše data...";
+                try {
+                    const r = await this.callAI(`Moje data: ${JSON.stringify(this.data.filter(t => !t.isExcluded))}`, "Jsi finanční analytik. Udělej analýzu měsíce v češtině. Formátuj pomocí odrážek.");
+                    out.innerHTML = r.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-sky-400">$1</b>');
+                } catch (e) { out.innerText = "Chyba AI spojení."; }
+                btn.disabled = false; btn.innerText = "Spustit analýzu";
+            },
+
+            async callGemini(p, s) {
+                const apiKey = getCookie('gemini_api_key') || localStorage.getItem('gemini_api_key') || '';
+                if (!apiKey) {
+                    throw new Error("Chybí Gemini API klíč. Zadejte klíč v Nastavení (zdarma na ai.google.dev). Klíč se sdílí napříč všemi stránkami.");
+                }
+                const model = 'gemini-2.5-flash';
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                    body: JSON.stringify({
+                        contents: [{
+                            role: 'user',
+                            parts: [{ text: `${s}\n\n${p}` }]
+                        }],
+                        generationConfig: { maxOutputTokens: 1024 }
+                    })
+                });
+                if (res.ok) {
+                    const j = await res.json();
+                    return j.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                }
+                if (res.status === 401) {
+                    throw new Error("Chyba 401: Neplatný Gemini API klíč. Vygenerujte nový na ai.google.dev a uložte ho v Nastavení.");
+                }
+                if (res.status === 404) {
+                    throw new Error(`Chyba 404: model Gemini ${model} není pro tento API klíč dostupný. Zkontrolujte projekt v Google AI Studio.`);
+                }
+                throw new Error(`Chyba API: ${res.status}`);
+            },
+
+            async callGroq(p, s) {
+                const apiKey = getCookie('groq_api_key') || localStorage.getItem('groq_api_key') || '';
+                if (!apiKey) {
+                    throw new Error("Chybí Groq API klíč. Zadejte klíč v Nastavení (zdarma na console.groq.com). Klíč se sdílí napříč všemi stránkami.");
+                }
+                const url = 'https://api.groq.com/openai/v1/chat/completions';
+                for (let i = 0; i < 3; i++) {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'llama-3.3-70b-versatile',
+                            messages: [
+                                { role: 'system', content: s },
+                                { role: 'user', content: p }
+                            ],
+                            max_tokens: 1024
+                        })
+                    });
+                    if (res.ok) {
+                        const j = await res.json();
+                        return j.choices?.[0]?.message?.content || "";
+                    }
+                    if (res.status === 401) {
+                        throw new Error("Chyba 401: Neplatný Groq API klíč. Vygenerujte nový na console.groq.com a uložte ho v Nastavení.");
+                    }
+                    if (res.status === 429) {
+                        if (i === 2) throw new Error("Překročen limit Groq API (429). Free tier: 30 dotazů/min, 14 400/den. Počkejte chvíli.");
+                        const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10);
+                        await new Promise(r => setTimeout(r, retryAfter * 1000));
+                        continue;
+                    }
+                    throw new Error(`Chyba API: ${res.status}`);
+                }
+            },
+
+            async callAI(p, s) {
+                const provider = getCookie('ai_provider') || localStorage.getItem('ai_provider') || 'groq';
+                if (provider === 'gemini') {
+                    return this.callGemini(p, s);
+                } else {
+                    return this.callGroq(p, s);
+                }
+            },
+
+            // --- EDITACE A PREVIEW ---
+            updatePreviewAdd() {
+                const s = parseFloat(document.getElementById('in-suma').value) || 0;
+                const m = document.getElementById('in-mena').value;
+                const el = document.getElementById('preview-add');
+                if (m === "CZK") el.classList.add('hidden');
+                else {
+                    el.classList.remove('hidden');
+                    el.innerText = `≈ ${this.fmt(s / this.rates[m])}`;
+                }
+            },
+            updatePreviewEdit() {
+                const s = parseFloat(document.getElementById('ed-suma').value) || 0;
+                const m = document.getElementById('ed-mena').value;
+                const el = document.getElementById('preview-edit');
+                if (m === "CZK") el.classList.add('hidden');
+                else {
+                    el.classList.remove('hidden');
+                    el.innerText = `≈ ${this.fmt(s / this.rates[m])}`;
+                }
+            },
+
+            openEdit(id) {
+                this.editingId = id;
+                this.editingMass = false;
+                const t = this.data.find(x => x.id === id);
+                document.getElementById('ed-typ').value = t.pohyb;
+                document.getElementById('ed-info').value = t.info;
+                document.getElementById('ed-ucet').value = t.ucet;
+                document.getElementById('ed-suma').value = t.origSuma || Math.abs(t.suma);
+                document.getElementById('ed-mena').value = t.origMena || "CZK";
+                document.getElementById('ed-saving').checked = t.saving === 'ANO' || t.pohyb.toLowerCase().includes('spoření');
+
+                ['ed-typ', 'ed-info', 'ed-ucet', 'ed-suma'].forEach(id => {
+                    document.getElementById(id).setAttribute('required', 'true');
+                    document.getElementById(id).placeholder = "";
+                });
+
+                this.updatePreviewEdit();
+                document.getElementById('edit-modal').classList.remove('hidden');
+                document.getElementById('edit-modal').classList.add('flex');
+            },
+
+            massEdit() {
+                this.editingId = null;
+                this.editingMass = true;
+
+                document.getElementById('ed-typ').value = "";
+                document.getElementById('ed-info').value = "";
+                document.getElementById('ed-ucet').value = "";
+                document.getElementById('ed-suma').value = "";
+                document.getElementById('ed-mena').value = "CZK";
+                document.getElementById('ed-saving').checked = false;
+
+                ['ed-typ', 'ed-info', 'ed-ucet', 'ed-suma'].forEach(id => {
+                    document.getElementById(id).removeAttribute('required');
+                    document.getElementById(id).placeholder = "(Ponechat původní)";
+                });
+
+                this.updatePreviewEdit();
+                document.getElementById('edit-modal').classList.remove('hidden');
+                document.getElementById('edit-modal').classList.add('flex');
+                lucide.createIcons();
+            },
+
+            closeEdit() { document.getElementById('edit-modal').classList.add('hidden'); this.editingId = null; this.editingMass = false; },
+
+            saveEdit(e) {
+                e.preventDefault();
+                const p = document.getElementById('ed-typ').value.trim();
+                const info = document.getElementById('ed-info').value.trim();
+                const ucet = document.getElementById('ed-ucet').value.trim();
+                const sumaRaw = document.getElementById('ed-suma').value;
+                const mena = document.getElementById('ed-mena').value;
+                const savingCheckbox = document.getElementById('ed-saving').checked;
+
+                if (this.editingMass) {
+                   this.data.forEach(t => {
+                       if(this.selectedIds.has(t.id)) {
+                           if(p) t.pohyb = p;
+                           if(info) t.info = info;
+                           if(ucet) t.ucet = ucet;
+                           if(sumaRaw) {
+                               t.origSuma = Math.abs(parseFloat(sumaRaw));
+                               t.origMena = mena;
+                           }
+                           let czkVal = t.origSuma / (this.rates[t.origMena] || 1);
+                           let s = Math.abs(czkVal);
+                           if (!t.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+                           t.suma = s;
+
+                           // Spořící stav hromadný form overriduje natvrdo, jelikož checkbox nelze snadno "ignorovat" v tomto UI
+                           t.saving = savingCheckbox ? "ANO" : "NE";
+                       }
+                   });
+                   this.selectedIds.clear();
+                   let cb = document.getElementById('mass-select-all'); if(cb) cb.checked = false;
+                } else {
+                   const idx = this.data.findIndex(x => x.id === this.editingId);
+                   const t = this.data[idx];
+                   t.pohyb = p;
+                   t.info = info;
+                   t.ucet = ucet;
+                   t.origSuma = Math.abs(parseFloat(sumaRaw));
+                   t.origMena = mena;
+                   let czkVal = t.origSuma / (this.rates[mena] || 1);
+                   let s = Math.abs(czkVal);
+                   if (!t.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+                   t.suma = s;
+                   t.saving = savingCheckbox ? "ANO" : "NE";
+                }
+
+                this.save(); this.render(); this.closeEdit();
+            },
+
+            // --- ANALÝZA VLASTNÍCH DAT ---
+            renderAnalysis() {
+                const canvas = document.getElementById('chart-pie'); if (!canvas) return;
+                const ctx = canvas.getContext('2d'); if (this.chart) this.chart.destroy();
+                const active = this.data.filter(t => !t.isExcluded);
+                const chartText = '#475569';
+                const chartGrid = '#1e293b';
+
+                const cats = {}; active.filter(t => t.suma < 0 && t.saving !== "ANO" && !t.pohyb.toLowerCase().includes('spoření')).forEach(t => cats[t.pohyb] = (cats[t.pohyb] || 0) + Math.abs(t.suma));
+                this.chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(cats),
+                        datasets: [{
+                            data: Object.values(cats),
+                            backgroundColor: ['#0ea5e9', '#f97316', '#10b981', '#f43f5e', '#6366f1', '#8b5cf6'],
+                            borderWidth: 0,
+                            borderRadius: 2
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        cutout: '78%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    usePointStyle: true,
+                                    color: chartText,
+                                    font: { weight: '600', family: 'Inter', size: 11 },
+                                    padding: 16
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const inc = active.filter(t => t.suma > 0 && t.saving !== 'ANO').reduce((a, b) => a + b.suma, 0);
+                const sav = Math.abs(active.filter(t => t.saving === 'ANO' || t.pohyb.toLowerCase().includes('spoření')).reduce((a, b) => a + b.suma, 0));
+                const balance = active.reduce((a, b) => a + b.suma, 0);
+
+                const expenses = active.filter(t => t.suma < 0 && t.saving !== 'ANO' && !t.pohyb.toLowerCase().includes('spoření'));
+                const expenseSum = Math.abs(expenses.reduce((a, b) => a + b.suma, 0));
+
+                // Secondary Bar Chart
+                const canvasBar = document.getElementById('chart-bar');
+                if (canvasBar) {
+                    const ctxBar = canvasBar.getContext('2d');
+                    if (this.chartBar) this.chartBar.destroy();
+                    this.chartBar = new Chart(ctxBar, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Příjmy', 'Výdaje', 'Spoření', 'Zůstatek'],
+                            datasets: [{
+                                data: [inc, expenseSum, sav, balance],
+                                backgroundColor: ['#10b981', '#f43f5e', '#0ea5e9', balance >= 0 ? '#38bdf8' : '#f97316'],
+                                borderRadius: 4,
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: chartGrid },
+                                    ticks: { color: chartText, font: { family: 'JetBrains Mono', size: 11 } },
+                                    border: { color: '#1e293b' }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: chartText, font: { family: 'Inter', size: 11 } },
+                                    border: { color: '#1e293b' }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const savRate = inc > 0 ? Math.round((sav / inc) * 100) : 0;
+
+                if (document.getElementById('a-daily')) {
+                    const dailyExp = expenseSum / Math.max(1, new Date().getDate());
+                    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+                    const daysLeft = daysInMonth - new Date().getDate() + 1;
+                    const dailyLeft = balance > 0 ? balance / daysLeft : 0;
+
+                    document.getElementById('a-daily').innerText = this.fmt(dailyExp);
+                    document.getElementById('a-savrate').innerText = `${savRate}%`;
+                    document.getElementById('a-daily-left').innerText = `${this.fmt(dailyLeft)}`;
+                }
+            },
+
+            // --- UTILS ---
+            fmt(v) { return new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', maximumFractionDigits: 0 }).format(v); },
+            fmtForeign(v, m) { return new Intl.NumberFormat('en-US', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v) + " " + m; },
+
+            getBadgeStyle(c, isSav) {
+                const l = c.toLowerCase();
+                if (isSav || l.includes('spoření')) return 'bg-sky-400/10 border-sky-400/25 text-sky-400';
+                if (l.match(/prijem|příjem|mzda|plat/)) return 'bg-emerald-400/10 border-emerald-400/25 text-emerald-400';
+                if (l.match(/vydaj|výdaj/)) return 'bg-orange-400/10 border-orange-400/25 text-orange-400';
+                if (l.match(/licence|zábava/)) return 'bg-purple-400/10 border-purple-400/25 text-purple-400';
+                return 'bg-slate-700/50 border-slate-600 text-slate-400';
+            },
+
+            updateLists() {
+                const typy = [...new Set(this.data.map(t => t.pohyb))]; const ucty = [...new Set(this.data.map(t => t.ucet))];
+                document.getElementById('list-typy').innerHTML = typy.map(t => `<option value="${t}">`).join('');
+                document.getElementById('list-ucty').innerHTML = ucty.map(u => `<option value="${u}">`).join('');
+            },
+
+            exportData() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(this.data, null, 2)], { type: 'application/json' })); a.download = 'finance_export.json'; a.click(); },
+            importData(e) { const r = new FileReader(); r.onload = ev => { try { this.data = JSON.parse(ev.target.result); this.render(); this.save(); } catch (ex) { alert('Chyba při čtení JSON souboru.'); } }; r.readAsText(e.target.files[0]); },
+            resetData() { if (confirm('Opravdu vymazat veškerá data? Aplikace zůstane prázdná.')) { this.data = []; this.save(); this.render(); } }
+        };
+
+        window.onload = () => app.init();
+
+        window.addEventListener('message', e => {
+            if (e.data?.type === 'finance-theme') app.applyTheme(e.data.theme);
+        });
+    </script>
+</body>
+
+</html>

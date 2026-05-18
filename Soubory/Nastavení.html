@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sjednocené nastavení Finance Terminal — AI API klíče, Google Sheets, řazení modulů.">
+    <title>Nastavení | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        #topNav {
+            background: rgba(15,23,42,0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid #1e293b;
+            position: sticky; top: 0; z-index: 50;
+        }
+        .panel {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+        }
+        .panel h2 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin: 0 0 0.25rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .panel .panel-desc {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+        label.fld {
+            display: block;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+        }
+        .input {
+            width: 100%;
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 0.4rem;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.8rem;
+            color: #f8fafc;
+            font-family: 'JetBrains Mono', monospace;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .input:focus {
+            outline: none;
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 0.9rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 0.4rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 1px solid transparent;
+            user-select: none;
+        }
+        .btn-primary { background: #0ea5e9; color: #fff; }
+        .btn-primary:hover { background: #0284c7; }
+        .btn-secondary { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+        .btn-secondary:hover { background: #334155; }
+        .btn-danger { background: rgba(244,63,94,0.12); color: #fb7185; border-color: rgba(244,63,94,0.3); }
+        .btn-danger:hover { background: rgba(244,63,94,0.2); }
+        .btn-ghost { background: transparent; color: #94a3b8; border-color: #1e293b; }
+        .btn-ghost:hover { background: #0f172a; color: #e2e8f0; }
+
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.65rem;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.3rem;
+            background: #1e293b;
+            color: #64748b;
+        }
+        .badge-status.ok { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .badge-status.warn { background: rgba(245,158,11,0.12); color: #fbbf24; }
+        .badge-status.err { background: rgba(244,63,94,0.12); color: #fb7185; }
+
+        .toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.78rem;
+            color: #fff;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 100;
+            max-width: 24rem;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background: #15803d; }
+        .toast.error { background: #b91c1c; }
+        .toast.info { background: #0369a1; }
+
+        .module-row {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.55rem 0.75rem;
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 0.4rem;
+            cursor: grab;
+            user-select: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .module-row:hover { border-color: #334155; }
+        .module-row.dragging { opacity: 0.4; }
+        .module-row.drop-target { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.25); }
+        .module-row .grip { color: #475569; cursor: grab; }
+        .module-row .label { font-size: 0.8rem; color: #e2e8f0; flex: 1; }
+        .module-row .file { font-size: 0.65rem; color: #475569; font-family: 'JetBrains Mono', monospace; }
+
+        .secret {
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.1em;
+        }
+
+        .tab-pills { display: inline-flex; gap: 0.25rem; background: #020617; border: 1px solid #1e293b; padding: 0.25rem; border-radius: 0.5rem; }
+        .tab-pills button {
+            padding: 0.4rem 0.85rem; font-size: 0.72rem;
+            color: #94a3b8; border-radius: 0.35rem;
+            cursor: pointer; background: transparent; border: none;
+            transition: all 0.15s;
+        }
+        .tab-pills button:hover { color: #e2e8f0; }
+        .tab-pills button.active { background: #1e293b; color: #38bdf8; }
+
+        details > summary { cursor: pointer; list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] .chev { transform: rotate(90deg); }
+        .chev { transition: transform 0.15s; }
+
+        pre.code {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 0.4rem;
+            padding: 0.75rem;
+            font-size: 0.7rem;
+            color: #cbd5e1;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.5;
+        }
+
+        /* ─── LIGHT THEME ─── */
+        html.light body { background-color: #f1f5f9; color: #0f172a; }
+        html.light #topNav { background: rgba(255,255,255,0.92) !important; border-bottom-color: #e2e8f0 !important; }
+        html.light .panel { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light .panel h2 { color: #0f172a; }
+        html.light .panel .panel-desc { color: #64748b; }
+        html.light .input { background-color: #f8fafc; color: #0f172a; border-color: #e2e8f0; }
+        html.light .input:focus { border-color: #0284c7; box-shadow: 0 0 0 2px rgba(2,132,199,0.18); }
+        html.light .btn-secondary { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+        html.light .btn-secondary:hover { background: #e2e8f0; }
+        html.light .btn-ghost { color: #64748b; border-color: #e2e8f0; }
+        html.light .btn-ghost:hover { background: #f1f5f9; color: #0f172a; }
+        html.light .module-row { background-color: #f8fafc !important; border-color: #e2e8f0 !important; }
+        html.light .module-row .label { color: #0f172a; }
+        html.light .tab-pills { background: #f1f5f9; border-color: #e2e8f0; }
+        html.light .tab-pills button { color: #64748b; }
+        html.light .tab-pills button.active { background: #ffffff; color: #0284c7; }
+        html.light pre.code { background: #f8fafc; color: #0f172a; border-color: #e2e8f0; }
+        html.light .text-slate-100 { color: #0f172a !important; }
+        html.light .text-slate-400 { color: #475569 !important; }
+        html.light .text-slate-500 { color: #64748b !important; }
+        html.light .text-slate-600 { color: #94a3b8 !important; }
+        html.light .bg-slate-900 { background-color: #ffffff !important; }
+        html.light .bg-slate-800 { background-color: #f1f5f9 !important; }
+        html.light .border-slate-800 { border-color: #e2e8f0 !important; }
+        html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
+        html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+    </style>
+</head>
+
+<body>
+
+    <!-- ══════════════ TOP NAV ══════════════ -->
+    <nav id="topNav">
+        <div class="px-4 py-2 flex items-center justify-between gap-3 max-w-6xl mx-auto">
+            <div class="flex items-center gap-2.5">
+                <div class="bg-slate-500/10 p-1.5 rounded-lg border border-slate-500/30">
+                    <i data-lucide="settings" class="w-5 h-5 text-slate-300"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Nastavení</h1>
+                    <p class="text-[10px] text-slate-500 leading-tight font-mono">Finance Terminal · sjednocená konfigurace</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
+                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
+                    <i data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+                <a href="../Index.html" title="Zpět na dashboard"
+                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800 inline-flex">
+                    <i data-lucide="home" class="w-4 h-4"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ══════════════ CONTENT ══════════════ -->
+    <main class="max-w-4xl mx-auto px-4 py-6 space-y-5">
+
+        <!-- Heading -->
+        <header class="mb-2">
+            <h2 class="text-lg font-bold text-slate-100">Sjednocené nastavení</h2>
+            <p class="text-xs text-slate-500 mt-1">
+                Veškerá konfigurace je společná pro všechny moduly (Příjmy, Spoření, Investice, Půjčky, Fondy, Majetek).
+                Hodnoty se ukládají do cookies prohlížeče s platností 1 rok a přežijí obnovu stránky.
+                Volitelně lze AI klíče zálohovat do Google Sheets a obnovit je na jiném zařízení.
+            </p>
+        </header>
+
+        <!-- ═══ AI API ═══ -->
+        <section class="panel">
+            <h2><i data-lucide="brain-circuit" class="w-4 h-4 text-violet-400"></i> AI API klíče <span id="aiStatus" class="badge-status">načítám…</span></h2>
+            <p class="panel-desc">
+                Klíče slouží AI funkcím ve všech modulech (rychlý vstup transakcí, finanční coach, analýza fondů).
+                Klíče se ukládají pouze ve vašem prohlížeči. Sdílí je všechny moduly Finance Terminalu.
+            </p>
+
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="fld">Groq API klíč <span class="text-[9px] text-slate-600">(gsk_...)</span></label>
+                    <div class="flex gap-2">
+                        <input id="inpGroq" type="password" class="input secret" placeholder="gsk_..." autocomplete="off">
+                        <button class="btn btn-ghost" onclick="togglePw('inpGroq', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                    <a href="https://console.groq.com/keys" target="_blank" class="text-[10px] text-sky-400 hover:underline mt-1 inline-block">Získat Groq klíč →</a>
+                </div>
+                <div>
+                    <label class="fld">Gemini API klíč <span class="text-[9px] text-slate-600">(AIza...)</span></label>
+                    <div class="flex gap-2">
+                        <input id="inpGemini" type="password" class="input secret" placeholder="AIza..." autocomplete="off">
+                        <button class="btn btn-ghost" onclick="togglePw('inpGemini', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-[10px] text-sky-400 hover:underline mt-1 inline-block">Získat Gemini klíč →</a>
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+                <button class="btn btn-primary" onclick="saveAiKeys()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit AI klíče</button>
+                <button class="btn btn-secondary" onclick="testAiKeys()"><i data-lucide="plug" class="w-3.5 h-3.5"></i> Test připojení</button>
+                <button class="btn btn-danger" onclick="clearAiKeys()"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Smazat klíče</button>
+            </div>
+        </section>
+
+        <!-- ═══ Google Sheets ═══ -->
+        <section class="panel">
+            <h2><i data-lucide="database" class="w-4 h-4 text-emerald-400"></i> Google Sheets synchronizace <span id="sheetsStatus" class="badge-status">načítám…</span></h2>
+            <p class="panel-desc">
+                Jeden společný Google Sheet pro všechny moduly. Volitelná synchronizace (záloha transakcí, cílů, investic, majetku) i možnost zálohovat sem AI klíče,
+                aby šly nahrát na jiném zařízení.
+            </p>
+
+            <label class="fld">Web App URL <span class="text-[9px] text-slate-600">(Google Apps Script „/exec")</span></label>
+            <input id="inpSheets" type="text" class="input" placeholder="https://script.google.com/macros/s/AKfycbx.../exec">
+
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label class="fld">Google Sheet ID <span class="text-[9px] text-slate-600">(volitelné, najdete v URL)</span></label>
+                    <input id="inpSheetId" type="text" class="input" placeholder="1AbCdEf...">
+                </div>
+                <div>
+                    <label class="fld">Sdílený token <span class="text-[9px] text-slate-600">(volitelné, slouží jako ochrana webhooku)</span></label>
+                    <input id="inpSheetToken" type="password" class="input secret" placeholder="vlastní heslo / token" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+                <button class="btn btn-primary" onclick="saveSheets()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit nastavení</button>
+                <button class="btn btn-secondary" onclick="pushConfigToSheets()" title="Pošle aktuální AI klíče a další konfiguraci do listu Config v Google Sheets"><i data-lucide="cloud-upload" class="w-3.5 h-3.5"></i> Zálohovat klíče do Sheets</button>
+                <button class="btn btn-secondary" onclick="pullConfigFromSheets()" title="Stáhne dříve zálohované AI klíče a další konfiguraci z Google Sheets a nastaví je zde"><i data-lucide="cloud-download" class="w-3.5 h-3.5"></i> Načíst klíče ze Sheets</button>
+                <button class="btn btn-ghost" onclick="testSheets()"><i data-lucide="plug" class="w-3.5 h-3.5"></i> Test webhooku</button>
+            </div>
+
+            <details class="mt-4">
+                <summary class="text-[11px] text-slate-500 hover:text-slate-300 inline-flex items-center gap-1.5">
+                    <i data-lucide="chevron-right" class="w-3 h-3 chev"></i>
+                    Jak nastavit Apps Script (návod + ukázkový kód)
+                </summary>
+                <div class="mt-3 text-[12px] text-slate-400 space-y-3">
+                    <ol class="list-decimal list-inside space-y-1">
+                        <li>Otevřete prázdný Google Sheet, který bude sloužit jako datové úložiště.</li>
+                        <li>V menu zvolte <span class="font-mono text-slate-200">Rozšíření → Apps Script</span>.</li>
+                        <li>Vložte ukázkový kód níže, uložte projekt.</li>
+                        <li>Klikněte <span class="font-mono text-slate-200">Deploy → New deployment → Web app</span>, nastavte „Execute as: Me", „Who has access: Anyone".</li>
+                        <li>Zkopírujte URL končící <span class="font-mono text-slate-200">/exec</span> a vložte do pole výše.</li>
+                    </ol>
+                    <pre class="code">/** Minimální Apps Script pro Finance Terminal — sjednocený endpoint. */
+const SHEET_CONFIG = 'Config';
+const TOKEN = 'vlozte_zde_stejny_token_jako_v_nastaveni'; // volitelné
+
+function doGet(e) {
+  if (!checkToken(e)) return _json({ok:false, error:'bad token'});
+  const action = (e.parameter.action || 'getConfig');
+  if (action === 'getConfig') return _json({ok:true, config: readConfig()});
+  return _json({ok:false, error:'unknown action'});
+}
+
+function doPost(e) {
+  if (!checkToken(e)) return _json({ok:false, error:'bad token'});
+  const body = JSON.parse(e.postData.contents || '{}');
+  if (body.action === 'saveConfig') {
+    writeConfig(body.data || {});
+    return _json({ok:true});
+  }
+  if (body.action === 'saveData') {
+    // body.module = 'prijmy' | 'sporeni' | 'majetek' | ...
+    // body.data   = libovolný JSON
+    writeModule(body.module, body.data);
+    return _json({ok:true});
+  }
+  return _json({ok:false, error:'unknown action'});
+}
+
+function checkToken(e) {
+  if (!TOKEN) return true;
+  return (e.parameter.token === TOKEN);
+}
+
+function readConfig() {
+  const sh = _getSheet(SHEET_CONFIG);
+  const rows = sh.getDataRange().getValues();
+  const cfg = {};
+  rows.forEach(r => { if (r[0]) cfg[r[0]] = r[1]; });
+  return cfg;
+}
+
+function writeConfig(cfg) {
+  const sh = _getSheet(SHEET_CONFIG);
+  sh.clear();
+  const rows = Object.entries(cfg);
+  if (rows.length) sh.getRange(1,1,rows.length,2).setValues(rows);
+}
+
+function writeModule(name, data) {
+  const sh = _getSheet('mod_' + name);
+  sh.clear();
+  sh.getRange(1,1).setValue(JSON.stringify(data));
+}
+
+function _getSheet(name) {
+  const ss = SpreadsheetApp.getActive();
+  return ss.getSheetByName(name) || ss.insertSheet(name);
+}
+
+function _json(o) {
+  return ContentService.createTextOutput(JSON.stringify(o))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                </div>
+            </details>
+        </section>
+
+        <!-- ═══ Pořadí modulů ═══ -->
+        <section class="panel">
+            <h2><i data-lucide="arrow-up-down" class="w-4 h-4 text-sky-400"></i> Pořadí modulů na dashboardu</h2>
+            <p class="panel-desc">
+                Pořadí dlaždic a záložek v <span class="font-mono text-slate-300">Index.html</span>. Přetáhněte řádky pro nové pořadí — uloží se okamžitě a synchronizuje se s dashboardem.
+            </p>
+            <div id="moduleList" class="space-y-2"></div>
+            <div class="mt-3 flex gap-2">
+                <button class="btn btn-ghost" onclick="resetOrder()"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Výchozí pořadí</button>
+            </div>
+        </section>
+
+        <!-- ═══ Vzhled / téma ═══ -->
+        <section class="panel">
+            <h2><i data-lucide="palette" class="w-4 h-4 text-amber-400"></i> Vzhled</h2>
+            <p class="panel-desc">Tmavý nebo světlý motiv. Volba se přenáší i do otevřených modulů.</p>
+            <div class="tab-pills">
+                <button id="themeDark" onclick="applyTheme('dark')">Tmavé</button>
+                <button id="themeLight" onclick="applyTheme('light')">Světlé</button>
+            </div>
+        </section>
+
+        <!-- ═══ Export / Import konfigurace ═══ -->
+        <section class="panel">
+            <h2><i data-lucide="file-json" class="w-4 h-4 text-teal-400"></i> Export / import konfigurace</h2>
+            <p class="panel-desc">Stáhne nebo nahraje JSON soubor se všemi nastaveními (AI klíče, Sheets URL, pořadí, téma). Vhodné pro přenos mezi prohlížeči bez Google Sheets.</p>
+            <div class="flex flex-wrap gap-2">
+                <button class="btn btn-secondary" onclick="exportConfig()"><i data-lucide="download" class="w-3.5 h-3.5"></i> Export JSON</button>
+                <label class="btn btn-secondary cursor-pointer">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import JSON
+                    <input type="file" accept="application/json" class="hidden" onchange="importConfig(event)">
+                </label>
+                <button class="btn btn-danger" onclick="resetAll()"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Smazat veškerá nastavení</button>
+            </div>
+        </section>
+
+        <p class="text-[10px] text-slate-600 text-center font-mono py-4">
+            Cookies / localStorage · žádný server kromě volitelných Google Sheets · v2025
+        </p>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        lucide.createIcons();
+
+        /* ════════════════════════════════════════════════════════════
+           Sjednocené úložiště – cookies + zrcadlení do localStorage,
+           aby všechny moduly (které čtou různě) viděly stejnou hodnotu.
+           ════════════════════════════════════════════════════════════ */
+        const COOKIE_DAYS = 365;
+        function setCookie(name, value, days) {
+            try {
+                const exp = new Date(Date.now() + (days || COOKIE_DAYS) * 86400000).toUTCString();
+                document.cookie = `${name}=${encodeURIComponent(value ?? '')}; expires=${exp}; path=/; SameSite=Lax`;
+            } catch (e) {}
+        }
+        function getCookie(name) {
+            try {
+                const m = document.cookie.split('; ').find(r => r.startsWith(name + '='));
+                return m ? decodeURIComponent(m.split('=')[1]) : '';
+            } catch (e) { return ''; }
+        }
+        function delCookie(name) { document.cookie = `${name}=; Max-Age=0; path=/`; }
+
+        /* Sjednocené nastavení → uloží do cookies, localStorage a zrcadlí na všechny historické klíče. */
+        function setUnified(key, value) {
+            setCookie(key, value, COOKIE_DAYS);
+            try { localStorage.setItem(key, value || ''); } catch (e) {}
+        }
+        function getUnified(key) {
+            try {
+                return localStorage.getItem(key) || getCookie(key) || '';
+            } catch (e) { return getCookie(key); }
+        }
+
+        /* Mapping „starých" klíčů na sjednocené (kvůli zpětné kompatibilitě) */
+        const KEYS = {
+            groq:        'groq_api_key',
+            gemini:      'gemini_api_key',
+            sheetsUrl:   'finance_sheets_url',
+            sheetsId:    'finance_sheets_id',
+            sheetsToken: 'finance_sheets_token',
+            theme:       'finance_theme',
+            order:       'fc_module_order'
+        };
+        const THEME_MIRROR_KEYS = ['finance_theme','pension_theme','prijmy_vydaje_theme','sporeni_theme','pujcky_theme','majetek_theme'];
+
+        /* ── UI: AI klíče ── */
+        function loadAiKeys() {
+            document.getElementById('inpGroq').value = getUnified(KEYS.groq);
+            document.getElementById('inpGemini').value = getUnified(KEYS.gemini);
+            updateAiStatus();
+        }
+        function saveAiKeys() {
+            const g = document.getElementById('inpGroq').value.trim();
+            const m = document.getElementById('inpGemini').value.trim();
+            setUnified(KEYS.groq, g);
+            setUnified(KEYS.gemini, m);
+            updateAiStatus();
+            toast('AI klíče uloženy do cookies', 'success');
+        }
+        function clearAiKeys() {
+            if (!confirm('Opravdu smazat oba AI klíče z tohoto prohlížeče?')) return;
+            setUnified(KEYS.groq, '');
+            setUnified(KEYS.gemini, '');
+            try { localStorage.removeItem(KEYS.groq); localStorage.removeItem(KEYS.gemini); } catch(e) {}
+            delCookie(KEYS.groq); delCookie(KEYS.gemini);
+            document.getElementById('inpGroq').value = '';
+            document.getElementById('inpGemini').value = '';
+            updateAiStatus();
+            toast('AI klíče smazány', 'info');
+        }
+        function updateAiStatus() {
+            const g = getUnified(KEYS.groq); const m = getUnified(KEYS.gemini);
+            const el = document.getElementById('aiStatus');
+            if (g && m) { el.textContent = 'Groq + Gemini nastaveno'; el.className = 'badge-status ok'; }
+            else if (g) { el.textContent = 'Pouze Groq'; el.className = 'badge-status warn'; }
+            else if (m) { el.textContent = 'Pouze Gemini'; el.className = 'badge-status warn'; }
+            else { el.textContent = 'nenastaveno'; el.className = 'badge-status err'; }
+        }
+        async function testAiKeys() {
+            const g = getUnified(KEYS.groq); const m = getUnified(KEYS.gemini);
+            if (!g && !m) { toast('Není uložen žádný klíč', 'error'); return; }
+            toast('Testuji klíče…', 'info');
+            const results = [];
+            if (g) {
+                try {
+                    const r = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: 'Bearer ' + g } });
+                    results.push('Groq: ' + (r.ok ? 'OK' : 'CHYBA ' + r.status));
+                } catch (e) { results.push('Groq: ' + e.message); }
+            }
+            if (m) {
+                try {
+                    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(m));
+                    results.push('Gemini: ' + (r.ok ? 'OK' : 'CHYBA ' + r.status));
+                } catch (e) { results.push('Gemini: ' + e.message); }
+            }
+            toast(results.join(' · '), results.every(r => r.includes('OK')) ? 'success' : 'error');
+        }
+        function togglePw(id, btn) {
+            const inp = document.getElementById(id);
+            inp.type = inp.type === 'password' ? 'text' : 'password';
+            btn.innerHTML = inp.type === 'password'
+                ? '<i data-lucide="eye" class="w-4 h-4"></i>'
+                : '<i data-lucide="eye-off" class="w-4 h-4"></i>';
+            lucide.createIcons();
+        }
+
+        /* ── UI: Google Sheets ── */
+        function loadSheets() {
+            document.getElementById('inpSheets').value = getUnified(KEYS.sheetsUrl);
+            document.getElementById('inpSheetId').value = getUnified(KEYS.sheetsId);
+            document.getElementById('inpSheetToken').value = getUnified(KEYS.sheetsToken);
+            updateSheetsStatus();
+        }
+        function saveSheets() {
+            setUnified(KEYS.sheetsUrl, document.getElementById('inpSheets').value.trim());
+            setUnified(KEYS.sheetsId, document.getElementById('inpSheetId').value.trim());
+            setUnified(KEYS.sheetsToken, document.getElementById('inpSheetToken').value.trim());
+            updateSheetsStatus();
+            toast('Nastavení Sheets uloženo', 'success');
+        }
+        function updateSheetsStatus() {
+            const url = getUnified(KEYS.sheetsUrl);
+            const el = document.getElementById('sheetsStatus');
+            if (url) { el.textContent = 'URL nastavena'; el.className = 'badge-status ok'; }
+            else { el.textContent = 'nenastaveno'; el.className = 'badge-status err'; }
+        }
+        function _sheetsUrlWithToken() {
+            const url = getUnified(KEYS.sheetsUrl);
+            if (!url) return '';
+            const t = getUnified(KEYS.sheetsToken);
+            if (!t) return url;
+            return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(t);
+        }
+        async function testSheets() {
+            const url = _sheetsUrlWithToken();
+            if (!url) { toast('Nejdřív vyplňte URL', 'error'); return; }
+            toast('Testuji webhook…', 'info');
+            try {
+                const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=getConfig');
+                const j = await r.json();
+                toast(j && j.ok ? 'Webhook OK · vrátil config' : ('Chyba: ' + JSON.stringify(j)), j && j.ok ? 'success' : 'error');
+            } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+        }
+        async function pushConfigToSheets() {
+            const url = _sheetsUrlWithToken();
+            if (!url) { toast('Nejdřív vyplňte URL', 'error'); return; }
+            const payload = {
+                action: 'saveConfig',
+                data: {
+                    groq_api_key:  getUnified(KEYS.groq),
+                    gemini_api_key: getUnified(KEYS.gemini),
+                    finance_sheets_id: getUnified(KEYS.sheetsId),
+                    finance_theme: getUnified(KEYS.theme) || 'dark',
+                    fc_module_order: getUnified(KEYS.order)
+                }
+            };
+            try {
+                const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+                const j = await r.json();
+                toast(j && j.ok ? 'Konfigurace zálohována do Sheets' : ('Chyba: ' + JSON.stringify(j)), j && j.ok ? 'success' : 'error');
+            } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+        }
+        async function pullConfigFromSheets() {
+            const url = _sheetsUrlWithToken();
+            if (!url) { toast('Nejdřív vyplňte URL', 'error'); return; }
+            try {
+                const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=getConfig');
+                const j = await r.json();
+                if (!j || !j.ok) { toast('Chyba: ' + JSON.stringify(j), 'error'); return; }
+                const c = j.config || {};
+                if (c.groq_api_key)     setUnified(KEYS.groq, c.groq_api_key);
+                if (c.gemini_api_key)   setUnified(KEYS.gemini, c.gemini_api_key);
+                if (c.finance_sheets_id) setUnified(KEYS.sheetsId, c.finance_sheets_id);
+                if (c.finance_theme)    setUnified(KEYS.theme, c.finance_theme);
+                if (c.fc_module_order)  setUnified(KEYS.order, c.fc_module_order);
+                loadAiKeys(); loadSheets(); renderModules();
+                applyTheme(getUnified(KEYS.theme) || 'dark');
+                toast('Konfigurace načtena z Google Sheets', 'success');
+            } catch (e) { toast('Chyba: ' + e.message, 'error'); }
+        }
+
+        /* ── UI: Pořadí modulů ── */
+        const MODULE_META = {
+            prijmy:    { label: 'Příjmy & Výdaje',   file: 'Příjmy-Výdaje.html',    icon: 'bar-chart-2',  color: 'text-sky-400' },
+            sporeni:   { label: 'Spoření & Cíle',    file: 'Spoření.html',          icon: 'piggy-bank',   color: 'text-emerald-400' },
+            investice: { label: 'Investice & Penze', file: 'Investice-penze.html',  icon: 'trending-up',  color: 'text-violet-400' },
+            pujcky:    { label: 'Půjčky & Splátky',  file: 'Půjčky.html',           icon: 'credit-card',  color: 'text-rose-400' },
+            fondy:     { label: 'Fondy Conseq',      file: 'Fondy.html',            icon: 'activity',     color: 'text-amber-400' },
+            majetek:   { label: 'Majetek & Odpisy',  file: 'Majetek-odpisy.html',   icon: 'package',      color: 'text-teal-400' },
+            nastaveni: { label: 'Nastavení',         file: 'Nastavení.html',        icon: 'settings',     color: 'text-slate-300' }
+        };
+        const DEFAULT_ORDER = ['prijmy','sporeni','investice','pujcky','fondy','majetek','nastaveni'];
+
+        function loadOrder() {
+            try {
+                const raw = getUnified(KEYS.order); if (!raw) return [...DEFAULT_ORDER];
+                const arr = JSON.parse(raw); if (!Array.isArray(arr)) return [...DEFAULT_ORDER];
+                const filtered = arr.filter(k => MODULE_META[k]);
+                DEFAULT_ORDER.forEach(k => { if (!filtered.includes(k)) filtered.push(k); });
+                return filtered;
+            } catch (e) { return [...DEFAULT_ORDER]; }
+        }
+        function saveOrder(order) { setUnified(KEYS.order, JSON.stringify(order)); }
+        function resetOrder() { saveOrder([...DEFAULT_ORDER]); renderModules(); toast('Pořadí resetováno', 'info'); }
+
+        function renderModules() {
+            const list = document.getElementById('moduleList');
+            const order = loadOrder();
+            list.innerHTML = order.map((k, idx) => {
+                const m = MODULE_META[k];
+                return `<div class="module-row" draggable="true" data-key="${k}">
+                    <i data-lucide="grip-vertical" class="w-4 h-4 grip"></i>
+                    <span class="text-[10px] font-mono text-slate-600">${String(idx + 1).padStart(2,'0')}</span>
+                    <i data-lucide="${m.icon}" class="w-4 h-4 ${m.color}"></i>
+                    <span class="label">${m.label}</span>
+                    <span class="file">${m.file}</span>
+                    <div class="flex gap-1">
+                        <button class="btn btn-ghost p-1" title="Nahoru" onclick="moveRow('${k}', -1)"><i data-lucide="chevron-up" class="w-3 h-3"></i></button>
+                        <button class="btn btn-ghost p-1" title="Dolů" onclick="moveRow('${k}', 1)"><i data-lucide="chevron-down" class="w-3 h-3"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+            attachOrderDrag();
+            lucide.createIcons();
+        }
+        function moveRow(k, dir) {
+            const order = loadOrder();
+            const i = order.indexOf(k); if (i < 0) return;
+            const j = i + dir; if (j < 0 || j >= order.length) return;
+            [order[i], order[j]] = [order[j], order[i]];
+            saveOrder(order); renderModules();
+        }
+        let dragKey = null;
+        function attachOrderDrag() {
+            document.querySelectorAll('#moduleList .module-row').forEach(row => {
+                row.addEventListener('dragstart', e => {
+                    dragKey = row.dataset.key; row.classList.add('dragging');
+                    try { e.dataTransfer.effectAllowed = 'move'; } catch (err) {}
+                });
+                row.addEventListener('dragend', () => {
+                    row.classList.remove('dragging');
+                    document.querySelectorAll('#moduleList .module-row').forEach(r => r.classList.remove('drop-target'));
+                });
+                row.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    document.querySelectorAll('#moduleList .module-row').forEach(r => r.classList.remove('drop-target'));
+                    row.classList.add('drop-target');
+                });
+                row.addEventListener('drop', e => {
+                    e.preventDefault();
+                    if (!dragKey || dragKey === row.dataset.key) return;
+                    const order = loadOrder();
+                    const from = order.indexOf(dragKey);
+                    const to = order.indexOf(row.dataset.key);
+                    if (from < 0 || to < 0) return;
+                    order.splice(from, 1); order.splice(to, 0, dragKey);
+                    saveOrder(order); dragKey = null; renderModules();
+                });
+            });
+        }
+
+        /* ── UI: Theme ── */
+        function applyTheme(theme) {
+            const norm = theme === 'dark' ? 'dark' : 'light';
+            document.documentElement.classList.toggle('light', norm === 'light');
+            THEME_MIRROR_KEYS.forEach(k => setUnified(k, norm));
+            document.getElementById('themeDark').classList.toggle('active', norm === 'dark');
+            document.getElementById('themeLight').classList.toggle('active', norm === 'light');
+            const btn = document.getElementById('theme-toggle');
+            if (btn) {
+                btn.innerHTML = norm === 'dark'
+                    ? '<i data-lucide="sun" class="w-4 h-4"></i>'
+                    : '<i data-lucide="moon" class="w-4 h-4"></i>';
+                lucide.createIcons();
+            }
+        }
+        function toggleTheme() {
+            applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light');
+        }
+
+        /* ── Export / import ── */
+        function collectAllSettings() {
+            return {
+                groq_api_key:        getUnified(KEYS.groq),
+                gemini_api_key:      getUnified(KEYS.gemini),
+                finance_sheets_url:  getUnified(KEYS.sheetsUrl),
+                finance_sheets_id:   getUnified(KEYS.sheetsId),
+                finance_sheets_token: getUnified(KEYS.sheetsToken),
+                finance_theme:       getUnified(KEYS.theme) || 'dark',
+                fc_module_order:     getUnified(KEYS.order)
+            };
+        }
+        function exportConfig() {
+            const data = collectAllSettings();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'finance-terminal-config.json';
+            document.body.appendChild(a); a.click(); a.remove();
+            toast('Konfigurace stažena', 'success');
+        }
+        function importConfig(evt) {
+            const f = evt.target.files && evt.target.files[0]; if (!f) return;
+            const r = new FileReader();
+            r.onload = () => {
+                try {
+                    const cfg = JSON.parse(r.result);
+                    Object.entries(cfg).forEach(([k, v]) => setUnified(k, v));
+                    loadAiKeys(); loadSheets(); renderModules();
+                    applyTheme(cfg.finance_theme || 'dark');
+                    toast('Konfigurace importována', 'success');
+                } catch (e) { toast('Chybný JSON: ' + e.message, 'error'); }
+            };
+            r.readAsText(f);
+            evt.target.value = '';
+        }
+        function resetAll() {
+            if (!confirm('Opravdu smazat všechna nastavení (AI klíče, Sheets, pořadí, téma)?')) return;
+            Object.values(KEYS).forEach(k => { try { localStorage.removeItem(k); } catch(e) {} delCookie(k); });
+            THEME_MIRROR_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} delCookie(k); });
+            loadAiKeys(); loadSheets(); renderModules();
+            applyTheme('dark');
+            toast('Vše smazáno', 'info');
+        }
+
+        /* ── Toast ── */
+        let toastTmr;
+        function toast(msg, kind) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast show ' + (kind || 'info');
+            clearTimeout(toastTmr);
+            toastTmr = setTimeout(() => t.classList.remove('show'), 3500);
+        }
+
+        /* ── Init ── */
+        (function init() {
+            const theme = getUnified(KEYS.theme) || 'dark';
+            applyTheme(theme);
+            loadAiKeys();
+            loadSheets();
+            renderModules();
+            lucide.createIcons();
+        })();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investice &amp; Penze | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            font-size: 14px;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ── Scrollbars ── */
+        ::-webkit-scrollbar { height: 6px; width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* ── Panel ── */
+        .panel {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.3), 0 2px 4px -1px rgba(0,0,0,.2);
+        }
+
+        /* ── Inputs ── */
+        input[type="number"],
+        input[type="month"],
+        input[type="url"],
+        input[type="password"],
+        select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            color-scheme: dark;
+            border-radius: 0.375rem;
+        }
+
+        input[type="number"]:focus,
+        input[type="month"]:focus,
+        input[type="url"]:focus,
+        input[type="password"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 2px rgba(14,165,233,.2);
+        }
+
+        /* Inline table inputs (transparent bg) */
+        input.inline-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: #f8fafc;
+            color-scheme: dark;
+        }
+        input.inline-input:focus {
+            outline: none;
+            border-bottom-color: #0ea5e9;
+            box-shadow: none;
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+        /* ── Stat cards ── */
+        .stat-card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        .stat-card-accent {
+            background: #0f172a;
+            border: 1px solid #0ea5e9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 0 0 1px rgba(14,165,233,.15), inset 0 0 20px rgba(14,165,233,.04);
+        }
+
+        /* ── Config inputs (large) ── */
+        .config-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #334155;
+            color: #38bdf8;
+            font-size: 1.375rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 0.125rem 0;
+            color-scheme: dark;
+            transition: border-color .2s;
+        }
+        .config-input:focus {
+            outline: none;
+            border-bottom-color: #0ea5e9;
+        }
+
+        /* ── Year header rows ── */
+        .year-header {
+            cursor: pointer;
+            transition: background .15s;
+            border-left: 3px solid transparent;
+        }
+        .year-header:hover { background: rgba(30,41,59,.8) !important; }
+        .year-header.active-year {
+            border-left-color: #0ea5e9;
+            background: rgba(14,165,233,.07) !important;
+        }
+
+        /* ── Manual override highlight ── */
+        .manual-entry { background: rgba(251,146,60,.06) !important; }
+
+        /* ── Badges ── */
+        .age-badge {
+            background: rgba(14,165,233,.15);
+            color: #38bdf8;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .year-badge {
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── Phase inline input colours ── */
+        .prediction-input { color: #64748b; }
+        .manual-input { color: #fb923c; font-weight: 700; }
+        .balance-input { color: #e2e8f0; }
+
+        /* ── AI gradient button ── */
+        .btn-ai {
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            background-size: 200% 200%;
+            animation: gradientMove 5s ease infinite;
+            color: #fff;
+            font-weight: 600;
+        }
+        .btn-ai:hover { opacity: .9; }
+        @keyframes gradientMove {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* ── AI prose markdown ── */
+        .ai-prose strong, .ai-prose b { color: #f8fafc; font-weight: 600; }
+        .ai-prose ul { margin: .5rem 0; padding-left: 1.5rem; list-style: disc; }
+        .ai-prose li { margin-bottom: .25rem; }
+        .ai-prose p { margin-bottom: .5rem; line-height: 1.5; }
+
+        /* ── Modal backdrop ── */
+        .modal-backdrop {
+            position: fixed; inset: 0; z-index: 100;
+            background: rgba(2,6,23,.8);
+            backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 1rem;
+        }
+        .modal-box {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: .75rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,.8);
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        .modal-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #1e293b;
+            background: #0a111e;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-footer {
+            padding: .75rem 1.25rem;
+            border-top: 1px solid #1e293b;
+            background: #0a111e;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* ── Sheets sync status ── */
+        .sync-pill {
+            display: flex; align-items: center; gap: .375rem;
+            padding: .25rem .75rem;
+            border-radius: .375rem;
+            font-size: .7rem;
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        /* ── Phase tag ── */
+        .phase-tag {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* ── Table ── */
+        .data-table thead th {
+            background: #1e293b;
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: .75rem 1rem;
+            border-bottom: 1px solid #334155;
+            white-space: nowrap;
+        }
+        .data-table tbody tr { border-bottom: 1px solid #1e293b; }
+        .data-table tbody tr.year-header td { padding: .75rem 1rem; }
+        .data-table tbody tr:not(.year-header):hover { background: rgba(30,41,59,.5); }
+
+        /* ── Code block ── */
+        pre.code-block {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: .375rem;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #94a3b8;
+            overflow-x: auto;
+        }
+
+        /* ── Positive / Negative ── */
+        .pos { color: #34d399; }
+        .neg { color: #f87171; }
+
+        /* ─── LIGHT THEME ─── */
+        html.light body { background-color: #f1f5f9; color: #0f172a; }
+        html.light .panel { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light nav { background: rgba(255,255,255,0.92) !important; border-bottom-color: #e2e8f0 !important; }
+        html.light input, html.light select, html.light textarea { background-color: #ffffff !important; border-color: #cbd5e1 !important; color: #0f172a !important; color-scheme: light !important; }
+        html.light thead tr, html.light th { background-color: #f1f5f9 !important; color: #475569 !important; }
+        html.light tbody tr { background-color: #ffffff; border-bottom-color: #f1f5f9; }
+        html.light tbody tr:hover { background-color: #f8fafc !important; }
+        html.light .text-slate-100 { color: #0f172a !important; }
+        html.light .text-slate-200 { color: #1e293b !important; }
+        html.light .text-slate-300 { color: #334155 !important; }
+        html.light .text-slate-400 { color: #475569 !important; }
+        html.light .text-slate-500 { color: #64748b !important; }
+        html.light .bg-slate-900 { background-color: #ffffff !important; }
+        html.light .bg-slate-950 { background-color: #f8fafc !important; }
+        html.light .bg-slate-800 { background-color: #f1f5f9 !important; }
+        html.light .border-slate-800 { border-color: #e2e8f0 !important; }
+        html.light .border-slate-700 { border-color: #cbd5e1 !important; }
+        html.light [style*="background:#0f172a"] { background-color: #ffffff !important; }
+        html.light [style*="background:#020617"] { background-color: #f1f5f9 !important; }
+        html.light [style*="background:#1e293b"] { background-color: #f8fafc !important; }
+        html.light [style*="border:1px solid #1e293b"], html.light [style*="border: 1px solid #1e293b"] { border-color: #e2e8f0 !important; }
+        html.light [style*="border:1px solid #334155"], html.light [style*="border: 1px solid #334155"] { border-color: #cbd5e1 !important; }
+        html.light [style*="color:#64748b"] { color: #64748b !important; }
+        html.light [style*="color:#94a3b8"] { color: #64748b !important; }
+        html.light [style*="color:#e2e8f0"] { color: #334155 !important; }
+        html.light [style*="color:#f8fafc"] { color: #0f172a !important; }
+        html.light .modal-backdrop, html.light [class*="bg-slate-950"] { background-color: rgba(241,245,249,0.95) !important; }
+        html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
+        html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+        html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        html.light .pos { color: #16a34a; }
+        html.light .neg { color: #dc2626; }
+    </style>
+    <!-- finance-common.js: sjednocené nastavení mezi Nastavení.html a moduly -->
+    <script src="finance-common.js" defer></script>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- ═══════════════════════ NAVBAR ═══════════════════════ -->
+    <nav class="sticky top-0 z-40 bg-slate-900/50 backdrop-blur-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between gap-2">
+
+            <!-- Left: logo + title -->
+            <div class="flex items-center gap-3 min-w-0">
+                <a href="../index.html" class="flex items-center justify-center w-7 h-7 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-sky-400 hover:border-sky-500 transition-colors flex-shrink-0" title="Zpět na přehled">
+                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
+                </a>
+                <div class="w-px h-5 bg-slate-700 flex-shrink-0"></div>
+                <div class="flex items-center gap-2 min-w-0">
+                    <div class="bg-sky-500/10 border border-sky-500/20 p-1.5 rounded flex-shrink-0">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-sky-400"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-sm font-bold text-slate-100 leading-tight truncate">Investice &amp; Penze</h1>
+                        <p class="text-[10px] text-slate-500 leading-tight hidden sm:block">Finance Terminal · Penzijní kalkulátor</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: actions -->
+            <div class="flex items-center gap-1 flex-shrink-0">
+                <button onclick="app.exportData()" class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-transparent hover:border-slate-700 transition-colors">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Export</span>
+                </button>
+                <label class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-transparent hover:border-slate-700 transition-colors cursor-pointer">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Import</span>
+                    <input type="file" class="hidden" accept=".json" onchange="app.importData(event)">
+                </label>
+                <div class="w-px h-4 bg-slate-700 mx-1"></div>
+                <button onclick="app.toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
+                    class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-transparent hover:border-slate-700 transition-colors">
+                    <i data-lucide="sun" class="w-3.5 h-3.5"></i>
+                </button>
+                <div class="w-px h-4 bg-slate-700 mx-1"></div>
+                <button onclick="resetAll()" class="px-2.5 py-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded border border-transparent hover:border-rose-500/20 transition-colors uppercase tracking-wide">
+                    Reset
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════════ MAIN ═══════════════════════ -->
+    <main class="max-w-7xl mx-auto px-4 py-5 flex flex-col gap-5 w-full">
+
+        <!-- ── CONFIG ROW 1: 6 cards ── -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Váš věk</label>
+                <input type="number" id="base-age" oninput="app.syncDuration(); app.update()"
+                    class="config-input" placeholder="30">
+            </div>
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Počátek investic</label>
+                <input type="month" id="base-start-month" oninput="app.update()"
+                    class="config-input" style="font-size:1rem;">
+            </div>
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Doba vkládání (let)</label>
+                <input type="number" id="base-sporeni-roky" oninput="app.update()"
+                    class="config-input" placeholder="35">
+            </div>
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Renta od věku</label>
+                <input type="number" id="base-renta-start" oninput="app.syncDuration(); app.update()"
+                    class="config-input" style="color: #fb923c;" placeholder="65">
+            </div>
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Základní RPSN (%)</label>
+                <input type="number" id="base-urok" step="0.1" oninput="app.update()"
+                    class="config-input" style="color: #34d399;" placeholder="8.5">
+            </div>
+
+            <div class="stat-card-accent">
+                <label class="block text-[10px] font-semibold text-sky-500 uppercase tracking-wider mb-2">Věčná renta</label>
+                <div id="stat-eternal" class="font-mono text-lg font-bold text-sky-400 leading-tight">0 Kč</div>
+            </div>
+        </div>
+
+        <!-- ── CONFIG ROW 2 + KPI cards ── -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Měsíční vklad (Kč)</label>
+                <input type="number" id="base-vklad" oninput="app.update()"
+                    class="config-input" style="color: #e2e8f0;" placeholder="5000">
+            </div>
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Plánovaná renta (Kč)</label>
+                <input type="number" id="base-renta-suma" oninput="app.update()"
+                    class="config-input" style="color: #fb923c;" placeholder="80000">
+            </div>
+
+            <div class="stat-card border-l-2 border-l-slate-600">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Naspořeno k rentě</label>
+                <div id="stat-max" class="font-mono text-lg font-bold text-slate-100">0 Kč</div>
+            </div>
+
+            <div class="stat-card border-l-2 border-l-sky-500">
+                <label class="block text-[10px] font-semibold text-sky-600 uppercase tracking-wider mb-1">Renta vydrží do</label>
+                <div id="stat-death" class="font-mono text-lg font-bold text-sky-400">0 let</div>
+            </div>
+        </div>
+
+        <!-- ── CHART + AI PANEL ── -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+            <!-- Chart -->
+            <div class="panel lg:col-span-8">
+                <div class="px-4 py-3 border-b border-slate-800 flex justify-between items-center">
+                    <h3 class="text-sm font-semibold flex items-center gap-2 text-slate-200">
+                        <i data-lucide="area-chart" class="w-4 h-4 text-sky-400"></i>
+                        Vývoj majetku
+                    </h3>
+                    <div class="flex items-center gap-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full" style="background:#0ea5e9"></span> Akumulace
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full" style="background:#fb923c"></span> Čerpání
+                        </span>
+                        <span class="flex items-center gap-1.5 border-l border-slate-700 pl-3">
+                            <span class="w-2 h-2 rounded-full" style="background:#f87171"></span> 65 let
+                        </span>
+                    </div>
+                </div>
+                <div class="p-4 h-80">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+
+            <!-- AI Panel -->
+            <div class="panel lg:col-span-4 flex flex-col">
+                <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                    <h3 class="text-sm font-semibold flex items-center gap-2 text-slate-200">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-violet-400"></i>
+                        AI Poradce
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <div id="ai-loading" class="hidden">
+                            <div class="flex gap-1">
+                                <span class="w-1.5 h-1.5 bg-sky-500 rounded-full animate-bounce"></span>
+                                <span class="w-1.5 h-1.5 bg-sky-500 rounded-full animate-bounce" style="animation-delay:.2s"></span>
+                                <span class="w-1.5 h-1.5 bg-sky-500 rounded-full animate-bounce" style="animation-delay:.4s"></span>
+                            </div>
+                        </div>
+                        <button onclick="openAiSettingsModal()" class="text-slate-600 hover:text-slate-300 transition-colors" title="Nastavení AI">
+                            <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="ai-content" class="flex-1 text-xs text-slate-400 leading-relaxed overflow-y-auto p-4 min-h-[220px] max-h-[380px] ai-prose">
+                    Zadejte svá data a nechte AI analyzovat vaši investiční strategii.
+                </div>
+
+                <div class="p-3 border-t border-slate-800 grid grid-cols-1 gap-2">
+                    <button onclick="app.geminiAnalyze()" class="btn-ai w-full py-2 px-3 rounded text-xs flex items-center justify-center gap-1.5 transition-opacity">
+                        ✨ ANALÝZA STRATEGIE
+                    </button>
+                    <button onclick="app.geminiMarketContext()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 px-3 rounded text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition-colors">
+                        ✨ EKONOMICKÝ VÝHLED
+                    </button>
+                    <button onclick="app.aiInterestForecast()" class="w-full bg-emerald-600/80 hover:bg-emerald-600 text-white py-2 px-3 rounded text-xs flex items-center justify-center gap-1.5 transition-colors">
+                        ✨ PREDIKCE RPSN
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── DATA TABLE ── -->
+        <div class="panel overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <i data-lucide="table-2" class="w-3.5 h-3.5 text-slate-500"></i>
+                    Měsíční deník &amp; adaptivní předpověď
+                </h2>
+                <div id="sync-status" class="text-[10px] font-bold text-emerald-400 flex items-center gap-1 opacity-0 transition-opacity">
+                    <i data-lucide="check-circle" class="w-3 h-3"></i> ULOŽENO
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full table-fixed data-table text-left text-xs min-w-[1100px]">
+                    <colgroup>
+                        <col style="width:140px">
+                        <col style="width:110px">
+                        <col style="width:160px">
+                        <col style="width:150px">
+                        <col style="width:100px">
+                        <col style="width:160px">
+                        <col style="width:170px">
+                        <col style="width:65px">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="text-center">
+                                Měsíc / Rok
+                                <div class="normal-case text-[9px] font-normal text-slate-600 mt-0.5">konec měsíce</div>
+                            </th>
+                            <th class="text-center">Stav</th>
+                            <th class="text-right">Vloženo celkem</th>
+                            <th class="text-right">Vklad / Výběr</th>
+                            <th class="text-right">RPSN</th>
+                            <th class="text-right">Měsíční zisk</th>
+                            <th class="text-right">Zůstatek (Kč)</th>
+                            <th class="text-center">Akce</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── GOOGLE SHEETS SYNC ── -->
+        <div class="panel">
+            <div class="p-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <button onclick="openApiHelpModal()" class="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-sky-400 transition-colors focus:outline-none">
+                        <i data-lucide="sheet" class="w-4 h-4 text-emerald-500"></i>
+                        Google Sheets API
+                        <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <div id="sheets-sync-status" class="sync-pill bg-slate-800 text-slate-500 border-slate-700">
+                        <i data-lucide="cloud-off" class="w-3 h-3"></i> Nepropojeno
+                    </div>
+                </div>
+                <input type="url" id="api-url-input"
+                    class="w-full px-3 py-2 text-xs rounded border"
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    onchange="handleApiUrlChange(this.value)">
+                <p class="text-[11px] text-slate-600 mt-2">
+                    Vložte URL z Google Apps Script — data se po každé změně automaticky zazálohují.
+                    <button onclick="openApiHelpModal()" class="text-sky-500 hover:underline font-semibold">Návod →</button>
+                </p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ═══════════════ MODAL: Google Sheets Návod ═══════════════ -->
+    <div id="api-modal" class="modal-backdrop hidden">
+        <div class="modal-box max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="modal-header">
+                <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                    <i data-lucide="sheet" class="w-4 h-4 text-emerald-500"></i>
+                    Propojení s Google Tabulkami
+                </h3>
+                <button onclick="closeApiHelpModal()" class="text-slate-500 hover:text-slate-200 hover:bg-slate-700 p-1.5 rounded transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto text-slate-400 text-xs space-y-4 flex-1">
+                <p>
+                    Tato funkce vám umožní mít <b class="text-slate-200">všechna nastavení penzijního plánu i ruční měsíční přepisy automaticky
+                    a bezpečně zazálohovaná</b> přímo ve vaší osobní Google Tabulce.
+                    Kdykoliv tu něco změníte, tabulka se sama ihned aktualizuje.
+                </p>
+
+                <div class="bg-amber-500/10 border-l-4 border-amber-500 p-4 rounded-r text-amber-300">
+                    <h4 class="font-bold mb-2 text-amber-200">Návod krok za krokem (zvládne každý za 2 minuty):</h4>
+                    <ol class="list-decimal pl-5 space-y-2 mt-2">
+                        <li>Otevřete si novou, prázdnou Google Tabulku.
+                            <br><a href="https://sheets.new" target="_blank" class="text-sky-400 hover:underline font-semibold">Klikněte sem pro vytvoření nové tabulky</a>.
+                        </li>
+                        <li>V horním menu klikněte na <b class="text-slate-200">Rozšíření</b> a vyberte <b class="text-slate-200">Apps Script</b>.</li>
+                        <li>Otevře se stránka s kódem. <b class="text-slate-200">Smažte vše</b>, co je v ní napsané.</li>
+                        <li>
+                            Vložte tam tento kód:
+                            <div class="relative mt-2 group">
+                                <pre class="code-block"><code id="api-script-code">function jsonOutput(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function parseJsonCell(value, fallback) {
+  if (!value) return fallback;
+  try { return JSON.parse(value); } catch (e) { return fallback; }
+}
+
+function valueToMonth(value) {
+  if (!value) return "";
+  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value)) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM");
+  }
+  const text = String(value);
+  const match = text.match(/\d{4}-\d{2}/);
+  return match ? match[0] : text;
+}
+
+function readLatestRawPlan(ss) {
+  const rawSheet = ss.getSheetByName("Hrubá data (Záloha)");
+  if (!rawSheet || rawSheet.getLastRow() < 2) return null;
+  const parsed = parseJsonCell(rawSheet.getRange(2, 2).getValue(), null);
+  return parsed && typeof parsed === "object" ? parsed : null;
+}
+
+function readSettings(ss) {
+  const sheet = ss.getSheetByName("Nastavení");
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const map = {
+    "Aktuální věk": "age",
+    "Počátek investování": "startMonth",
+    "Doba vkládání (let)": "sporeniRoky",
+    "Začátek renty (věk)": "rentaStart",
+    "Měsíční vklad (Kč)": "vklad",
+    "Úrok p.a. (%)": "urok",
+    "Základní RPSN (%)": "urok",
+    "Plánovaná renta (Kč)": "rentaSuma"
+  };
+  const values = sheet.getDataRange().getValues();
+  const settings = {};
+  for (let i = 1; i < values.length; i++) {
+    const key = map[String(values[i][1] || "")];
+    if (key === "startMonth") settings[key] = valueToMonth(values[i][2]);
+    else if (key) settings[key] = Number(values[i][2]) || 0;
+  }
+  return settings;
+}
+
+function readOverrides(ss) {
+  const sheet = ss.getSheetByName("Měsíční přepisy");
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const values = sheet.getDataRange().getValues();
+  const overrides = {};
+  for (let i = 1; i < values.length; i++) {
+    const month = parseInt(values[i][1], 10);
+    if (!month) continue;
+    const ov = {};
+    if (values[i][2] !== "" && values[i][2] !== null) ov.flow = Number(values[i][2]) || 0;
+    if (values[i][3] !== "" && values[i][3] !== null) ov.urok = Number(values[i][3]) || 0;
+    if (values[i][4] !== "" && values[i][4] !== null) ov.zustatek = Number(values[i][4]) || 0;
+    if (Object.keys(ov).length > 0) overrides[month] = ov;
+  }
+  return overrides;
+}
+
+function doGet() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const raw = readLatestRawPlan(ss) || {};
+    const settings = Object.assign({}, raw.settings || {}, readSettings(ss));
+    const overrides = Object.assign({}, raw.overrides || {}, readOverrides(ss));
+    const hasData = Object.keys(settings).length > 0 || Object.keys(overrides).length > 0;
+    return jsonOutput({ status: "success", data: { settings: settings, overrides: overrides }, hasData: hasData });
+  } catch (error) {
+    return jsonOutput({ status: "error", message: error.toString() });
+  }
+}
+
+function doPost(e) {
+  try {
+    let payload;
+    if (e && e.postData && e.postData.contents) {
+      payload = JSON.parse(e.postData.contents);
+    } else {
+      return jsonOutput({ status: "error", message: "Chybí data" });
+    }
+
+    if (payload.action !== 'sync_pension_plan') {
+      return jsonOutput({ status: "error", message: "Neznámá akce" });
+    }
+
+    const settings = payload.settings || {};
+    const overrides = payload.overrides || {};
+    const timestamp = payload.timestamp;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // 1. Hrubá data (Záloha)
+    let rawSheet = ss.getSheetByName("Hrubá data (Záloha)");
+    if (!rawSheet) {
+      rawSheet = ss.insertSheet("Hrubá data (Záloha)");
+      rawSheet.appendRow(["Čas uložení", "Kompletní JSON data"]);
+      rawSheet.getRange("A1:B1").setFontWeight("bold");
+    }
+    rawSheet.insertRowAfter(1);
+    rawSheet.getRange(2, 1, 1, 2).setValues([[timestamp, JSON.stringify({ settings: settings, overrides: overrides })]]);
+    if (rawSheet.getMaxRows() > 50) rawSheet.deleteRows(51, rawSheet.getMaxRows() - 50);
+
+    // 2. Nastavení penzijního plánu
+    let setSheet = ss.getSheetByName("Nastavení");
+    if (!setSheet) setSheet = ss.insertSheet("Nastavení");
+    setSheet.clearContents();
+    setSheet.appendRow(["Poslední Sync", "Parametr", "Hodnota"]);
+    setSheet.getRange("A1:C1").setFontWeight("bold").setBackground("#f3f4f6");
+    const rows = [
+      [timestamp, "Aktuální věk", settings.age || 0],
+      [timestamp, "Počátek investování", settings.startMonth || ""],
+      [timestamp, "Doba vkládání (let)", settings.sporeniRoky || 0],
+      [timestamp, "Začátek renty (věk)", settings.rentaStart || 0],
+      [timestamp, "Měsíční vklad (Kč)", settings.vklad || 0],
+      [timestamp, "Základní RPSN (%)", settings.urok || 0],
+      [timestamp, "Plánovaná renta (Kč)", settings.rentaSuma || 0]
+    ];
+    setSheet.getRange(2, 1, rows.length, 3).setValues(rows);
+
+    // 3. Měsíční přepisy
+    let ovrSheet = ss.getSheetByName("Měsíční přepisy");
+    if (!ovrSheet) ovrSheet = ss.insertSheet("Měsíční přepisy");
+    ovrSheet.clearContents();
+    ovrSheet.appendRow(["Poslední Sync", "Měsíc index", "Tok hotovosti (Kč)", "RPSN (%)", "Zůstatek (Kč)"]);
+    ovrSheet.getRange("A1:E1").setFontWeight("bold").setBackground("#f3f4f6");
+
+    const ovrEntries = Object.entries(overrides).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+    if (ovrEntries.length > 0) {
+      const ovrRows = ovrEntries.map(function(entry) {
+        const m = entry[0];
+        const ov = entry[1];
+        return [timestamp, parseInt(m), ov.flow !== undefined ? ov.flow : "", ov.urok !== undefined ? ov.urok : "", ov.zustatek !== undefined ? ov.zustatek : ""];
+      });
+      ovrSheet.getRange(2, 1, ovrRows.length, 5).setValues(ovrRows);
+    }
+
+    return jsonOutput({ status: "success", message: "OK" });
+  } catch (error) {
+    return jsonOutput({ status: "error", message: error.toString() });
+  }
+}</code></pre>
+                                <button onclick="copyApiScript()" class="absolute top-2 right-2 bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1.5 transition-colors">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> Kopírovat
+                                </button>
+                            </div>
+                        </li>
+                        <li>Nahoře vpravo klikněte na <b class="text-slate-200">Nasadit (Deploy)</b> → <b class="text-slate-200">Nové nasazení</b>.</li>
+                        <li>Klikněte na ozubené kolečko a zvolte <b class="text-slate-200">Webová aplikace (Web app)</b>.</li>
+                        <li class="text-rose-400 font-semibold">V kolonce "Kdo má přístup" MUSÍTE vybrat <b>Všichni (Anyone)</b>. Poté klikněte na Nasadit.</li>
+                        <li>Google vás vyzve k ověření oprávnění. Pokud se zobrazí varování, klikněte dole na <b class="text-slate-200">Rozšířené</b> a potvrďte Povolit.</li>
+                        <li>Zkopírujte vygenerovanou <b class="text-slate-200">URL adresu webové aplikace</b> (končí <code class="bg-slate-800 px-1 rounded text-sky-400">/exec</code>) a vložte ji do pole Google Sheets API.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button onclick="closeApiHelpModal()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded text-sm font-semibold transition-colors">
+                    Rozumím, zavřít
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ MODAL: AI Nastavení ═══════════════ -->
+    <div id="ai-settings-modal" class="modal-backdrop hidden">
+        <div class="modal-box max-w-md">
+            <div class="modal-header">
+                <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-violet-400"></i>
+                    Nastavení AI API
+                </h3>
+                <button onclick="closeAiSettingsModal()" class="text-slate-500 hover:text-slate-200 hover:bg-slate-700 p-1.5 rounded transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-semibold text-slate-300">AI Poskytovatel</label>
+                    <div class="flex gap-1 bg-slate-800 p-1 rounded border border-slate-700 text-xs font-semibold">
+                        <button id="btnAiGroq" onclick="switchAiProvider('groq')"
+                            class="px-3 py-1.5 rounded bg-violet-600 text-white transition-colors">Groq (Llama)</button>
+                        <button id="btnAiGemini" onclick="switchAiProvider('gemini')"
+                            class="px-3 py-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors">Gemini</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label id="lblAiKey" class="block text-sm font-semibold text-slate-300 mb-2">
+                        Groq API klíč <span class="font-normal text-xs text-slate-500">(zdarma na <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com</a>)</span>
+                    </label>
+                    <div class="flex gap-2">
+                        <input id="aiKeyInput" type="password" placeholder="Vlož klíč..."
+                            class="flex-1 px-3 py-2 text-sm rounded">
+                        <button onclick="saveAiKey()" class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-3 py-2 rounded transition-colors">Uložit</button>
+                    </div>
+                    <p id="aiKeyStatus" class="text-xs font-bold text-emerald-400 mt-2"></p>
+                    <p class="text-xs text-slate-500 mt-3">Klíč se uloží bezpečně do vašeho prohlížeče a je sdílen mezi všemi finančními nástroji v této složce.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════ JAVASCRIPT ═══════════════════════ -->
+    <script>
+        // --- KONFIGURACE ---
+        // Groq API klíč se čte z localStorage ('groq_api_key'), nastaví se v Fondy.html.
+
+        let sheetsSyncTimer = null;
+        let sheetsSyncReady = false;
+        let isApplyingSheetsData = false;
+
+        // --- COOKIE HELPERS ---
+        function setCookie(name, value, days) {
+            const d = new Date();
+            d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = name + "=" + encodeURIComponent(value) + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1);
+                if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length));
+            }
+            return null;
+        }
+
+        // --- AI SETTINGS MODAL ---
+        function openAiSettingsModal() {
+            document.getElementById('ai-settings-modal').classList.remove('hidden');
+            switchAiProvider(getCookie('ai_provider') || 'groq');
+        }
+
+        function closeAiSettingsModal() {
+            document.getElementById('ai-settings-modal').classList.add('hidden');
+        }
+
+        function switchAiProvider(provider) {
+            setCookie('ai_provider', provider, 365);
+            const groqBtn = document.getElementById('btnAiGroq');
+            const geminiBtn = document.getElementById('btnAiGemini');
+            const lbl = document.getElementById('lblAiKey');
+            const inp = document.getElementById('aiKeyInput');
+
+            if (provider === 'groq') {
+                groqBtn.className = 'px-3 py-1.5 rounded bg-violet-600 text-white transition-colors';
+                geminiBtn.className = 'px-3 py-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors';
+                lbl.innerHTML = 'Groq API klíč <span class="font-normal text-xs text-slate-500">(zdarma na <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com</a>)</span>';
+                inp.placeholder = 'gsk_...';
+                inp.value = getCookie('groq_api_key') || '';
+            } else {
+                groqBtn.className = 'px-3 py-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors';
+                geminiBtn.className = 'px-3 py-1.5 rounded bg-blue-600 text-white transition-colors';
+                lbl.innerHTML = 'Gemini API klíč <span class="font-normal text-xs text-slate-500">(zdarma na <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-400 hover:underline">aistudio.google.com</a>)</span>';
+                inp.placeholder = 'AIza...';
+                inp.value = getCookie('gemini_api_key') || '';
+            }
+        }
+
+        function saveAiKey() {
+            const provider = getCookie('ai_provider') || 'groq';
+            const key = document.getElementById('aiKeyInput').value.trim();
+            if (!key) return;
+            if (provider === 'groq') setCookie('groq_api_key', key, 365);
+            else setCookie('gemini_api_key', key, 365);
+            document.getElementById('aiKeyStatus').textContent = `✅ Klíč pro ${provider} uložen.`;
+            setTimeout(() => document.getElementById('aiKeyStatus').textContent = '', 3000);
+        }
+
+        // --- SHEETS API MODAL ---
+        function openApiHelpModal() {
+            document.getElementById('api-modal').classList.remove('hidden');
+        }
+
+        function closeApiHelpModal() {
+            document.getElementById('api-modal').classList.add('hidden');
+        }
+
+        function copyApiScript() {
+            const code = document.getElementById('api-script-code').innerText;
+            const fallback = () => {
+                const ta = document.createElement('textarea');
+                ta.value = code;
+                ta.style.position = 'fixed';
+                ta.style.top = '0';
+                ta.style.left = '0';
+                document.body.appendChild(ta);
+                ta.focus(); ta.select();
+                try { document.execCommand('copy'); } catch (e) { }
+                document.body.removeChild(ta);
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(code).catch(fallback);
+            } else {
+                fallback();
+            }
+            const btn = event.currentTarget;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i> Zkopírováno!';
+            lucide.createIcons();
+            setTimeout(() => { btn.innerHTML = orig; lucide.createIcons(); }, 1500);
+        }
+
+        // --- SHEETS SYNC ---
+        function handleApiUrlChange(url) {
+            const trimmed = (url || '').trim();
+            setCookie('google_sync_pension', trimmed, 365);
+            sheetsSyncReady = false;
+            if (trimmed) loadSheetsPlan({ seedIfEmpty: true });
+            else { sheetsSyncReady = true; updateSheetsSyncStatus('idle'); }
+        }
+
+        function updateSheetsSyncStatus(state = 'idle') {
+            const el = document.getElementById('sheets-sync-status');
+            if (!el) return;
+            const url = getCookie('google_sync_pension');
+            if (!url) {
+                el.className = 'sync-pill bg-slate-800 text-slate-500 border-slate-700';
+                el.innerHTML = '<i data-lucide="cloud-off" class="w-3 h-3"></i> Nepropojeno';
+                lucide.createIcons(); return;
+            }
+            switch (state) {
+                case 'loading':
+                    el.className = 'sync-pill bg-sky-500/10 text-sky-400 border-sky-500/30';
+                    el.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Načítám…'; break;
+                case 'saving':
+                    el.className = 'sync-pill bg-amber-500/10 text-amber-400 border-amber-500/30';
+                    el.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Ukládám…'; break;
+                case 'success':
+                    el.className = 'sync-pill bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                    el.innerHTML = '<i data-lucide="cloud-check" class="w-3 h-3"></i> Synchronizováno'; break;
+                case 'error':
+                    el.className = 'sync-pill bg-rose-500/10 text-rose-400 border-rose-500/30';
+                    el.innerHTML = '<i data-lucide="cloud-lightning" class="w-3 h-3"></i> Chyba spojení'; break;
+                default:
+                    el.className = 'sync-pill bg-emerald-500/10 text-emerald-400 border-emerald-500/30 opacity-70';
+                    el.innerHTML = '<i data-lucide="cloud" class="w-3 h-3"></i> Připraveno'; break;
+            }
+            lucide.createIcons();
+        }
+
+        function triggerSheetsAutoSync() {
+            const url = getCookie('google_sync_pension');
+            if (!url) { updateSheetsSyncStatus('idle'); return; }
+            if (!sheetsSyncReady || isApplyingSheetsData) return;
+
+            updateSheetsSyncStatus('saving');
+            clearTimeout(sheetsSyncTimer);
+
+            sheetsSyncTimer = setTimeout(async () => {
+                const payloadString = JSON.stringify({
+                    action: 'sync_pension_plan',
+                    timestamp: new Date().toISOString(),
+                    settings: app.settings,
+                    overrides: app.overrides
+                });
+
+                try {
+                    const response = await fetch(url, { method: 'POST', body: payloadString });
+                    if (!response.ok) throw new Error("Chyba API");
+                    updateSheetsSyncStatus('success');
+                    setTimeout(() => updateSheetsSyncStatus('idle'), 3000);
+                } catch (e) {
+                    try {
+                        await fetch(url, { method: 'POST', mode: 'no-cors', body: payloadString });
+                        updateSheetsSyncStatus('success');
+                        setTimeout(() => updateSheetsSyncStatus('idle'), 3000);
+                    } catch (fallbackErr) {
+                        updateSheetsSyncStatus('error');
+                    }
+                }
+            }, 1500);
+        }
+
+        function normalizeMonthInput(value, fallback = '') {
+            if (!value) return fallback;
+            const text = String(value);
+            const match = text.match(/\d{4}-\d{2}/);
+            return match ? match[0] : fallback;
+        }
+
+        function normalizePensionPlan(plan) {
+            const settings = plan && plan.settings ? plan.settings : {};
+            const overrides = plan && plan.overrides ? plan.overrides : {};
+            const normalizedOverrides = {};
+            Object.entries(overrides || {}).forEach(([month, ov]) => {
+                if (!ov || typeof ov !== 'object') return;
+                const normalized = {};
+                if (ov.flow !== undefined && ov.flow !== '') normalized.flow = Number(ov.flow) || 0;
+                if (ov.vklad !== undefined && normalized.flow === undefined && ov.vklad !== '') normalized.flow = Number(ov.vklad) || 0;
+                if (ov.urok !== undefined && ov.urok !== '') normalized.urok = Number(ov.urok) || 0;
+                if (ov.zustatek !== undefined && ov.zustatek !== '') normalized.zustatek = Number(ov.zustatek) || 0;
+                if (Object.keys(normalized).length > 0) normalizedOverrides[month] = normalized;
+            });
+            return {
+                settings: {
+                    age: Number(settings.age) || app.settings.age,
+                    startMonth: normalizeMonthInput(settings.startMonth, app.settings.startMonth || ''),
+                    sporeniRoky: Number(settings.sporeniRoky) || app.settings.sporeniRoky,
+                    rentaStart: Number(settings.rentaStart) || app.settings.rentaStart,
+                    vklad: Number(settings.vklad) || app.settings.vklad,
+                    urok: Number(settings.urok) || app.settings.urok,
+                    rentaSuma: Number(settings.rentaSuma) || app.settings.rentaSuma
+                },
+                overrides: normalizedOverrides
+            };
+        }
+
+        async function loadSheetsPlan({ seedIfEmpty = false } = {}) {
+            const url = getCookie('google_sync_pension');
+            if (!url) { sheetsSyncReady = true; updateSheetsSyncStatus('idle'); return; }
+
+            updateSheetsSyncStatus('loading');
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const payload = await response.json();
+                if (payload && payload.status === 'error') throw new Error(payload.message || 'Chyba API');
+                const plan = payload && payload.data ? payload.data : payload;
+                const hasData = plan && (plan.settings || plan.overrides);
+
+                if (hasData) {
+                    isApplyingSheetsData = true;
+                    app.applySheetsPlan(plan);
+                    updateSheetsSyncStatus('success');
+                    setTimeout(() => updateSheetsSyncStatus('idle'), 3000);
+                } else {
+                    updateSheetsSyncStatus('idle');
+                }
+
+                sheetsSyncReady = true;
+                if (!hasData && seedIfEmpty) triggerSheetsAutoSync();
+            } catch (e) {
+                console.warn('Cloud data se nepodařilo načíst:', e);
+                sheetsSyncReady = false;
+                updateSheetsSyncStatus('error');
+            } finally {
+                isApplyingSheetsData = false;
+            }
+        }
+
+        const app = {
+            settings: JSON.parse(localStorage.getItem('pension_settings')) || {
+                age: 30,
+                startMonth: '',
+                sporeniRoky: 35,
+                rentaStart: 65,
+                vklad: 5000,
+                urok: 8.5,
+                rentaSuma: 80000
+            },
+            overrides: JSON.parse(localStorage.getItem('pension_overrides')) || {},
+            expandedYears: new Set(),
+            hasInitializedYearExpansion: false,
+            aiForecastChart: null,
+            chart: null,
+            data: [],
+
+            init() {
+                this.applyTheme(getCookie('finance_theme') || getCookie('pension_theme') || localStorage.getItem('pension_theme') || localStorage.getItem('finance_theme') || 'dark');
+                document.getElementById('base-age').value = this.settings.age;
+                document.getElementById('base-start-month').value = this.settings.startMonth || '';
+                document.getElementById('base-sporeni-roky').value = this.settings.sporeniRoky;
+                document.getElementById('base-renta-start').value = this.settings.rentaStart;
+                document.getElementById('base-vklad').value = this.settings.vklad;
+                document.getElementById('base-urok').value = this.settings.urok;
+                document.getElementById('base-renta-suma').value = this.settings.rentaSuma;
+
+                const savedSheetsUrl = getCookie('google_sync_pension');
+                if (savedSheetsUrl) document.getElementById('api-url-input').value = savedSheetsUrl;
+                sheetsSyncReady = !savedSheetsUrl;
+                updateSheetsSyncStatus();
+
+                this.update();
+                if (savedSheetsUrl) loadSheetsPlan();
+                lucide.createIcons();
+            },
+
+            syncDuration() {
+                const age = parseInt(document.getElementById('base-age').value) || 0;
+                const retirementAge = parseInt(document.getElementById('base-renta-start').value) || 0;
+                const durationInput = document.getElementById('base-sporeni-roky');
+                const calculatedDuration = Math.max(0, retirementAge - age);
+                durationInput.value = calculatedDuration;
+            },
+
+            update() {
+                this.settings.age = parseInt(document.getElementById('base-age').value) || 0;
+                this.settings.startMonth = document.getElementById('base-start-month').value || '';
+                this.settings.sporeniRoky = parseInt(document.getElementById('base-sporeni-roky').value) || 0;
+                this.settings.rentaStart = parseInt(document.getElementById('base-renta-start').value) || 0;
+                this.settings.vklad = parseFloat(document.getElementById('base-vklad').value) || 0;
+                this.settings.urok = parseFloat(document.getElementById('base-urok').value) || 0;
+                this.settings.rentaSuma = parseFloat(document.getElementById('base-renta-suma').value) || 0;
+
+                this.calculate();
+                this.render();
+                this.renderChart();
+                this.save();
+            },
+
+            applyTheme(theme) {
+                const normalized = theme === 'dark' ? 'dark' : 'light';
+                document.documentElement.classList.toggle('light', normalized === 'light');
+                setCookie('finance_theme', normalized, 365);
+                setCookie('pension_theme', normalized, 365);
+                localStorage.setItem('pension_theme', normalized);
+                localStorage.setItem('finance_theme', normalized);
+                const btn = document.getElementById('theme-toggle');
+                if (btn) {
+                    btn.innerHTML = normalized === 'dark'
+                        ? '<i data-lucide="sun" class="w-3.5 h-3.5"></i>'
+                        : '<i data-lucide="moon" class="w-3.5 h-3.5"></i>';
+                    lucide.createIcons();
+                }
+                if (this.chart) this.renderChart();
+            },
+
+            toggleTheme() {
+                this.applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light');
+            },
+
+            getStartDate() {
+                const raw = this.settings.startMonth || '';
+                if (/^\d{4}-\d{2}$/.test(raw)) {
+                    const [year, month] = raw.split('-').map(Number);
+                    return new Date(year, month - 1, 1);
+                }
+                const today = new Date();
+                return new Date(today.getFullYear(), today.getMonth(), 1);
+            },
+
+            getPeriodEnd(monthIndex) {
+                const start = this.getStartDate();
+                return new Date(start.getFullYear(), start.getMonth() + monthIndex, 0);
+            },
+
+            syncExpandedYears(calendarYears) {
+                const validYears = new Set(calendarYears);
+                this.expandedYears = new Set([...this.expandedYears].filter(year => validYears.has(year)));
+
+                if (!this.hasInitializedYearExpansion) {
+                    const currentCalendarYear = new Date().getFullYear();
+                    this.expandedYears.clear();
+                    if (validYears.has(currentCalendarYear)) this.expandedYears.add(currentCalendarYear);
+                    this.hasInitializedYearExpansion = true;
+                }
+            },
+
+            formatPeriod(date) {
+                return date.toLocaleDateString('cs-CZ', { month: '2-digit', year: 'numeric' });
+            },
+
+            fmtMoney(value) {
+                return Math.round(Number(value) || 0).toLocaleString('cs-CZ') + ' Kč';
+            },
+
+            fmtSignedMoney(value) {
+                const amount = Math.round(Number(value) || 0);
+                return `${amount >= 0 ? '+ ' : '- '}${Math.abs(amount).toLocaleString('cs-CZ')} Kč`;
+            },
+
+            clamp(value, min, max) {
+                return Math.min(max, Math.max(min, value));
+            },
+
+            getBaseRpsn() {
+                const parsed = Number(this.settings.urok);
+                return Number.isFinite(parsed) ? parsed : 0;
+            },
+
+            getRpsnBounds() {
+                const base = this.getBaseRpsn();
+                const anchor = this.clamp(base, -5, 18);
+                return {
+                    anchor,
+                    forecastMin: this.clamp(anchor - 9, -8, 12),
+                    forecastMax: this.clamp(anchor + 6, 4, 18),
+                    observationMin: this.clamp(anchor - 16, -20, 12),
+                    observationMax: this.clamp(anchor + 14, 8, 28)
+                };
+            },
+
+            weightedRecentRate(points, bounds) {
+                const recent = points.slice(-18);
+                let weightedSum = 0;
+                let weightTotal = 0;
+
+                recent.forEach((point, index) => {
+                    const age = recent.length - 1 - index;
+                    const weight = Math.exp(-age / 5);
+                    const rate = this.clamp(Number(point.val) || 0, bounds.observationMin, bounds.observationMax);
+                    weightedSum += rate * weight;
+                    weightTotal += weight;
+                });
+
+                return weightTotal > 0 ? weightedSum / weightTotal : bounds.anchor;
+            },
+
+            getRecentRateTrend(points, bounds) {
+                const recent = points.slice(-12);
+                if (recent.length < 3) return 0;
+
+                const rates = recent.map(point => this.clamp(Number(point.val) || 0, bounds.observationMin, bounds.observationMax));
+                const firstAvg = rates.slice(0, Math.ceil(rates.length / 2)).reduce((sum, value) => sum + value, 0) / Math.ceil(rates.length / 2);
+                const secondHalf = rates.slice(Math.ceil(rates.length / 2));
+                const secondAvg = secondHalf.reduce((sum, value) => sum + value, 0) / Math.max(1, secondHalf.length);
+
+                return this.clamp((secondAvg - firstAvg) * 0.25, -1.2, 1.2);
+            },
+
+            getInterestForecast(month, ratePoints = []) {
+                const bounds = this.getRpsnBounds();
+                const points = (ratePoints.length > 0
+                    ? ratePoints.filter(p => p.m < month)
+                    : Object.entries(this.overrides)
+                        .filter(([m, ov]) => ov.urok !== undefined && parseInt(m) < month)
+                        .map(([m, ov]) => ({ m: parseInt(m), val: Number(ov.urok) || 0 })))
+                    .filter(point => Number.isFinite(point.m) && Number.isFinite(Number(point.val)))
+                    .sort((a, b) => a.m - b.m);
+
+                if (points.length === 0) return bounds.anchor;
+
+                const lastPoint = points[points.length - 1];
+                const monthsSinceLast = Math.max(0, month - lastPoint.m);
+                const recentRate = this.weightedRecentRate(points, bounds);
+                const confidence = this.clamp(0.25 + Math.min(points.length, 18) * 0.035, 0.25, 0.78);
+                const recency = Math.exp(-monthsSinceLast / 18);
+                const observedWeight = confidence * recency;
+                const trend = this.getRecentRateTrend(points, bounds) * recency;
+                const forecast = bounds.anchor * (1 - observedWeight) + recentRate * observedWeight + trend;
+
+                return this.clamp(forecast, bounds.forecastMin, bounds.forecastMax);
+            },
+
+            calculate() {
+                this.data = [];
+                let currentZustatek = 0;
+                let cumulativeDeposits = 0;
+                const mStartRenta = (this.settings.rentaStart - this.settings.age) * 12;
+                const mEndSporeni = this.settings.sporeniRoky * 12;
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+                const calendarYears = new Set();
+
+                const totalMonths = (100 - this.settings.age) * 12;
+                let rentaStartBalance = 0;
+                const rateHistory = [];
+
+                for (let m = 1; m <= totalMonths; m++) {
+                    const override = this.overrides[m] || {};
+                    const periodEnd = this.getPeriodEnd(m);
+                    const calendarYear = periodEnd.getFullYear();
+                    calendarYears.add(calendarYear);
+                    const monthInYear = periodEnd.getMonth() + 1;
+                    const currentAgeExact = this.settings.age + (m / 12);
+                    const currentYearOfInv = Math.ceil(m / 12);
+
+                    let flow = 0;
+                    if (override.flow !== undefined) flow = override.flow;
+                    else {
+                        if (m <= mEndSporeni) flow = this.settings.vklad;
+                        else if (m > mStartRenta) flow = -this.settings.rentaSuma;
+                        else flow = 0;
+                    }
+
+                    const isManualUrok = override.urok !== undefined;
+                    const isManualBalance = override.zustatek !== undefined;
+                    let annualRate = isManualUrok ? Number(override.urok) || 0 : this.getInterestForecast(m, rateHistory);
+                    let monthlyRate = (annualRate / 100) / 12;
+
+                    let prevZustatek = currentZustatek;
+                    let baseForInterest = prevZustatek + flow;
+                    let zisk = baseForInterest > 0 ? baseForInterest * monthlyRate : 0;
+                    let calculatedZustatek = baseForInterest + zisk;
+
+                    if (isManualBalance) {
+                        calculatedZustatek = Number(override.zustatek) || 0;
+                        zisk = calculatedZustatek - baseForInterest;
+                        annualRate = baseForInterest !== 0 ? (zisk / baseForInterest) * 12 * 100 : 0;
+                        monthlyRate = annualRate / 100 / 12;
+                    }
+
+                    if (flow > 0) cumulativeDeposits += flow;
+
+                    if (m > mStartRenta && calculatedZustatek <= 0 && !isManualBalance) {
+                        if (prevZustatek > 0) {
+                            this.data.push({
+                                month: m,
+                                year: currentYearOfInv,
+                                calendarYear,
+                                monthInYear,
+                                periodEnd,
+                                periodLabel: this.formatPeriod(periodEnd),
+                                age: currentAgeExact,
+                                actualAge: Math.floor(currentAgeExact),
+                                flow,
+                                cumulativeDeposits,
+                                urokRate: annualRate,
+                                monthlyRate,
+                                zisk: 0 - baseForInterest,
+                                zustatek: 0,
+                                isOverride: Object.keys(override).length > 0,
+                                isManualUrok,
+                                isManualBalance,
+                                isActualPeriod: periodEnd <= today,
+                                phase: 'KONEC'
+                            });
+                        }
+                        break;
+                    }
+
+                    currentZustatek = Math.max(0, calculatedZustatek);
+                    if (m === mStartRenta) rentaStartBalance = currentZustatek;
+                    if (isManualUrok || isManualBalance) rateHistory.push({ m, val: annualRate });
+
+                    this.data.push({
+                        month: m,
+                        year: currentYearOfInv,
+                        calendarYear,
+                        monthInYear,
+                        periodEnd,
+                        periodLabel: this.formatPeriod(periodEnd),
+                        age: currentAgeExact,
+                        actualAge: Math.floor(currentAgeExact),
+                        flow: flow,
+                        cumulativeDeposits,
+                        urokRate: annualRate,
+                        monthlyRate,
+                        zisk,
+                        zustatek: currentZustatek,
+                        isOverride: Object.keys(override).length > 0,
+                        isManualUrok: isManualUrok,
+                        isManualBalance,
+                        isActualPeriod: periodEnd <= today,
+                        phase: (m <= mEndSporeni) ? 'VKLAD' : (m <= mStartRenta ? 'ČEKÁNÍ' : 'RENTA')
+                    });
+                }
+
+                this.syncExpandedYears([...calendarYears]);
+
+                document.getElementById('stat-max').textContent = this.fmtMoney(rentaStartBalance);
+                document.getElementById('stat-death').textContent = (this.data.length > 0 ? Math.floor(this.data[this.data.length - 1].age) : this.settings.age) + ' let';
+                const eternalRenta = rentaStartBalance * ((this.settings.urok / 100) / 12);
+                document.getElementById('stat-eternal').textContent = this.fmtMoney(eternalRenta);
+            },
+
+            render() {
+                const tbody = document.getElementById('table-body');
+                tbody.innerHTML = '';
+                let lastYear = -1;
+
+                this.data.forEach(d => {
+                    if (d.calendarYear !== lastYear) {
+                        lastYear = d.calendarYear;
+                        const trHead = document.createElement('tr');
+                        const isExpanded = this.expandedYears.has(d.calendarYear);
+                        const is65 = d.actualAge === 65;
+
+                        trHead.className = `year-header ${is65 ? 'bg-rose-900/20' : (isExpanded ? 'active-year bg-sky-900/10' : 'bg-slate-900')}`;
+                        trHead.onclick = () => this.toggleYear(d.calendarYear);
+
+                        const yData = this.data.filter(x => x.calendarYear === d.calendarYear);
+                        const yEnd = yData[yData.length - 1];
+                        const avgRate = yData.reduce((sum, row) => sum + row.urokRate, 0) / Math.max(1, yData.length);
+                        const avgProfit = yData.reduce((sum, row) => sum + row.zisk, 0) / Math.max(1, yData.length);
+
+                        trHead.innerHTML = `
+                            <td class="px-4 py-3 text-center align-middle">
+                                <div class="flex items-center justify-center gap-2">
+                                    <span class="year-badge">${d.calendarYear}</span>
+                                    <span class="age-badge">${d.actualAge} let</span>
+                                </div>
+                                <div class="mt-0.5 text-[9px] font-semibold text-slate-600">Rok investice ${yEnd.year}</div>
+                            </td>
+                            <td class="px-4 py-3 text-center align-middle">
+                                <span class="phase-tag ${d.phase === 'VKLAD' ? 'bg-sky-500/15 text-sky-400' : d.phase === 'RENTA' ? 'bg-amber-500/15 text-amber-400' : d.phase === 'KONEC' ? 'bg-rose-500/15 text-rose-400' : 'bg-slate-700 text-slate-400'}">${d.phase}</span>
+                            </td>
+                            <td class="px-4 py-3 text-right align-middle font-mono font-semibold text-slate-200 whitespace-nowrap">
+                                ${this.fmtMoney(yEnd.cumulativeDeposits)}
+                            </td>
+                            <td class="px-4 py-3 align-middle"></td>
+                            <td class="px-4 py-3 text-right align-middle whitespace-nowrap">
+                                <div class="text-[9px] font-bold uppercase tracking-widest text-slate-600">Prům.</div>
+                                <div class="font-mono font-semibold text-emerald-400">${avgRate.toFixed(2)} %</div>
+                            </td>
+                            <td class="px-4 py-3 text-right align-middle whitespace-nowrap">
+                                <div class="text-[9px] font-bold uppercase tracking-widest text-slate-600">Prům.</div>
+                                <div class="font-mono font-semibold ${avgProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${this.fmtSignedMoney(avgProfit)}</div>
+                            </td>
+                            <td class="px-4 py-3 text-right align-middle font-mono font-bold text-slate-100 whitespace-nowrap">
+                                ${this.fmtMoney(yEnd.zustatek)}
+                            </td>
+                            <td class="px-4 py-3 text-center align-middle">
+                                <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="w-4 h-4 text-slate-600 mx-auto"></i>
+                            </td>
+                        `;
+                        tbody.appendChild(trHead);
+                    }
+
+                    if (this.expandedYears.has(d.calendarYear)) {
+                        const tr = document.createElement('tr');
+                        const isOv = d.isOverride;
+                        const statusLabel = d.isManualBalance ? 'Skutečnost' : (isOv ? 'Upraveno' : (d.isActualPeriod ? 'Plán' : 'Predikce'));
+                        const statusClass = d.isManualBalance
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : (isOv ? 'bg-amber-500/15 text-amber-400' : 'bg-slate-800 text-slate-500');
+                        const ziskClass = d.zisk >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                        tr.className = `border-b border-slate-800/60 transition-colors ${isOv ? 'manual-entry' : ''}`;
+                        tr.innerHTML = `
+                            <td class="px-4 py-2 text-center">
+                                <div class="font-mono text-xs text-slate-300">${d.periodLabel}</div>
+                                <div class="text-[9px] text-slate-600">konec měsíce</div>
+                            </td>
+                            <td class="px-4 py-2">
+                                <span class="phase-tag ${statusClass}">${statusLabel}</span>
+                            </td>
+                            <td class="px-4 py-2 text-right font-mono text-slate-300">${this.fmtMoney(d.cumulativeDeposits)}</td>
+                            <td class="px-4 py-2 text-right">
+                                <input type="number" value="${Math.round(d.flow)}" onchange="app.setOverride(${d.month}, 'flow', this.value)"
+                                    class="inline-input w-full max-w-[120px] text-right font-mono text-xs p-0.5">
+                            </td>
+                            <td class="px-4 py-2 text-right">
+                                <input type="number" step="0.01" value="${d.urokRate.toFixed(2)}" onchange="app.setOverride(${d.month}, 'urok', this.value)"
+                                    class="inline-input w-16 text-right font-mono text-xs p-0.5 ${d.isManualUrok || d.isManualBalance ? 'manual-input' : 'prediction-input'}">
+                            </td>
+                            <td class="px-4 py-2 text-right font-mono ${ziskClass}">${this.fmtSignedMoney(d.zisk)}</td>
+                            <td class="px-4 py-2 text-right">
+                                <input type="number" value="${Math.round(d.zustatek)}" onchange="app.setOverride(${d.month}, 'zustatek', this.value)"
+                                    class="inline-input w-full max-w-[150px] text-right font-mono text-xs font-bold p-0.5 balance-input">
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                ${isOv ? `<button onclick="app.clearOverride(${d.month})" class="text-amber-500 hover:text-amber-300 transition-colors"><i data-lucide="refresh-ccw" class="w-3.5 h-3.5"></i></button>` : ''}
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+                });
+                lucide.createIcons();
+            },
+
+            renderChart() {
+                const ctx = document.getElementById('mainChart').getContext('2d');
+                const yearlyPoints = this.data.filter((d, idx) => d.monthInYear === 12 || idx === this.data.length - 1);
+                const labels = yearlyPoints.map(d => `${d.calendarYear} (${Math.floor(d.age)} l.)`);
+                const values = yearlyPoints.map(d => d.zustatek);
+                const deposits = yearlyPoints.map(d => d.cumulativeDeposits);
+
+                const lastAccIndex = yearlyPoints.findLastIndex(d => d.phase === 'VKLAD' || d.phase === 'ČEKÁNÍ');
+
+                if (this.chart) this.chart.destroy();
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Akumulace',
+                                data: values.map((v, i) => (i <= lastAccIndex) ? v : null),
+                                borderColor: '#0ea5e9',
+                                backgroundColor: 'rgba(14,165,233,0.07)',
+                                fill: true,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? 6 : 1,
+                                pointBackgroundColor: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? '#f87171' : '#0ea5e9'
+                            },
+                            {
+                                label: 'Čerpání',
+                                data: values.map((v, i) => (i >= lastAccIndex) ? v : null),
+                                borderColor: '#fb923c',
+                                backgroundColor: 'rgba(251,146,60,0.06)',
+                                fill: true,
+                                tension: 0.3,
+                                borderWidth: 2,
+                                pointRadius: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? 6 : 1,
+                                pointBackgroundColor: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? '#f87171' : '#fb923c'
+                            },
+                            {
+                                label: 'Vloženo',
+                                data: deposits,
+                                borderColor: '#475569',
+                                backgroundColor: 'rgba(71,85,105,0.04)',
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0.2,
+                                borderWidth: 1.5,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#0f172a',
+                                borderColor: '#334155',
+                                borderWidth: 1,
+                                titleColor: '#94a3b8',
+                                bodyColor: '#e2e8f0',
+                                callbacks: {
+                                    title: (items) => {
+                                        const p = yearlyPoints[items[0].dataIndex];
+                                        return `Rok: ${p.year} | Věk: ${p.actualAge} let`;
+                                    },
+                                    label: (ctx) => ` Zůstatek: ${Math.round(ctx.raw).toLocaleString()} Kč`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                grid: { color: 'rgba(148,163,184,0.1)' },
+                                ticks: { color: '#64748b', callback: v => (v / 1000000).toFixed(1) + 'M', font: { family: "'JetBrains Mono'" } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#64748b', font: { size: 10 } }
+                            }
+                        }
+                    }
+                });
+            },
+
+            async callAI(prompt, systemInstruction = "Jsi expertní finanční poradce specializující se na český trh.") {
+                const provider = getCookie('ai_provider') || 'groq';
+                if (provider === 'groq') {
+                    const apiKey = getCookie('groq_api_key') || '';
+                    if (!apiKey) throw new Error("Chybí Groq API klíč. Klikněte na ozubené kolečko pro nastavení klíče.");
+
+                    const url = 'https://api.groq.com/openai/v1/chat/completions';
+                    const payload = { model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemInstruction }, { role: 'user', content: prompt }], max_tokens: 1024 };
+
+                    for (let i = 0; i < 3; i++) {
+                        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify(payload) });
+                        if (response.ok) return (await response.json()).choices?.[0]?.message?.content || "Model nevrátil odpověď.";
+                        if (response.status === 401) throw new Error("Chyba 401: Neplatný Groq API klíč.");
+                        if (response.status === 429) {
+                            if (i === 2) throw new Error("Překročen limit Groq API (429).");
+                            await new Promise(r => setTimeout(r, parseInt(response.headers.get('Retry-After') || '60', 10) * 1000));
+                            continue;
+                        }
+                        throw new Error(`Chyba API (${response.status})`);
+                    }
+                } else {
+                    const apiKey = getCookie('gemini_api_key') || '';
+                    if (!apiKey) throw new Error("Chybí Gemini API klíč. Klikněte na ozubené kolečko pro nastavení klíče.");
+
+                    const model = 'gemini-2.5-flash';
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+                    const payload = { contents: [{ role: 'user', parts: [{ text: `${systemInstruction}\n\n${prompt}` }] }], generationConfig: { maxOutputTokens: 1024 } };
+
+                    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload) });
+                    if (response.ok) return (await response.json()).candidates?.[0]?.content?.parts?.[0]?.text || "Model nevrátil odpověď.";
+                    if (response.status === 401) throw new Error("Chyba 401: Neplatný Gemini API klíč.");
+                    if (response.status === 404) throw new Error(`Chyba 404: model Gemini ${model} není pro tento API klíč dostupný.`);
+                    throw new Error(`Chyba API (${response.status})`);
+                }
+            },
+
+            async geminiAnalyze() {
+                const loading = document.getElementById('ai-loading');
+                const content = document.getElementById('ai-content');
+                loading.classList.remove('hidden');
+                content.innerHTML = '<div class="flex items-center gap-2 italic text-slate-500"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Analyzuji vaše data...</div>';
+                lucide.createIcons();
+
+                const stats = {
+                    age: this.settings.age,
+                    startMonth: this.settings.startMonth || 'aktuální měsíc',
+                    duration: this.settings.sporeniRoky,
+                    rentaStart: this.settings.rentaStart,
+                    vklad: this.settings.vklad,
+                    urok: this.settings.urok,
+                    targetRenta: this.settings.rentaSuma,
+                    finalBalance: document.getElementById('stat-max').innerText,
+                    lastAge: document.getElementById('stat-death').innerText,
+                    eternal: document.getElementById('stat-eternal').innerText
+                };
+                const forecastSummary = this.buildForecastSummary();
+
+                const prompt = `Parametry plánu: počátek ${stats.startMonth}, věk ${stats.age}, vkládání ${stats.duration} let, renta v ${stats.rentaStart}. Měsíční vklad ${stats.vklad} Kč, základní RPSN ${stats.urok} %, renta ${stats.targetRenta} Kč. Naspořeno k rentě ${stats.finalBalance}, vydrží do ${stats.lastAge}, věčná renta ${stats.eternal}. Aktuální a predikční data: ${JSON.stringify(forecastSummary)}. Úrok je vždy RPSN, v měsíci počítaný jako RPSN/12. Stručná analýza česky.`;
+
+                try {
+                    const advice = await this.callAI(prompt);
+                    content.innerHTML = advice.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-sky-400">$1</b>');
+                } catch (e) {
+                    content.innerHTML = `<span class="text-rose-400 text-xs">${e.message}</span>`;
+                } finally {
+                    loading.classList.add('hidden');
+                }
+            },
+
+            async geminiMarketContext() {
+                const loading = document.getElementById('ai-loading');
+                const content = document.getElementById('ai-content');
+                loading.classList.remove('hidden');
+                content.innerHTML = '<div class="flex items-center gap-2 italic text-slate-500"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Skenuji trh...</div>';
+                lucide.createIcons();
+
+                const prompt = `Krátký výhled pro rok 2025/26 ohledně inflace a ČNB pro investora s výnosem ${this.settings.urok}% p.a. v Česku. Odpovídej česky.`;
+
+                try {
+                    const outlook = await this.callAI(prompt, "Jsi ekonomický analytik.");
+                    content.innerHTML = outlook.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-sky-400">$1</b>');
+                } catch (e) {
+                    content.innerHTML = `<span class="text-rose-400 text-xs">${e.message}</span>`;
+                } finally {
+                    loading.classList.add('hidden');
+                }
+            },
+
+            escapeHtml(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            },
+
+            formatAiResponse(value) {
+                return this.escapeHtml(value)
+                    .replace(/\*\*(.*?)\*\*/g, '<b class="text-sky-300">$1</b>')
+                    .replace(/\n/g, '<br>');
+            },
+
+            buildForecastSummary() {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const actualRows = this.data
+                    .filter(d => d.isManualBalance || d.isManualUrok || d.periodEnd < today)
+                    .slice(-18)
+                    .map(d => ({
+                        obdobi: d.periodLabel,
+                        rpsn: Number(d.urokRate.toFixed(2)),
+                        zisk: Math.round(d.zisk),
+                        zustatek: Math.round(d.zustatek),
+                        vlozeno: Math.round(d.cumulativeDeposits),
+                        zdroj: d.isManualBalance ? 'skutecny zustatek' : (d.isManualUrok ? 'rucni RPSN' : 'model')
+                    }));
+
+                const forecastRows = this.data
+                    .filter(d => d.periodEnd >= today)
+                    .slice(0, 36)
+                    .map(d => ({
+                        obdobi: d.periodLabel,
+                        rok: d.calendarYear,
+                        rpsn: Number(d.urokRate.toFixed(2)),
+                        zisk: Math.round(d.zisk),
+                        zustatek: Math.round(d.zustatek),
+                        vlozeno: Math.round(d.cumulativeDeposits)
+                    }));
+
+                const yearlyMap = new Map();
+                forecastRows.forEach(row => {
+                    if (!yearlyMap.has(row.rok)) yearlyMap.set(row.rok, { rok: row.rok, rpsnSum: 0, count: 0, zisk: 0, zustatek: 0, vlozeno: 0 });
+                    const y = yearlyMap.get(row.rok);
+                    y.rpsnSum += row.rpsn;
+                    y.count += 1;
+                    y.zisk += row.zisk;
+                    y.zustatek = row.zustatek;
+                    y.vlozeno = row.vlozeno;
+                });
+
+                const yearly = Array.from(yearlyMap.values()).map(y => ({
+                    rok: y.rok,
+                    prumerRpsn: Number((y.rpsnSum / Math.max(1, y.count)).toFixed(2)),
+                    zisk: Math.round(y.zisk),
+                    zustatek: Math.round(y.zustatek),
+                    vlozeno: Math.round(y.vlozeno)
+                }));
+
+                return { actualRows, forecastRows, yearly };
+            },
+
+            renderForecastVisualization(summary, advice) {
+                const content = document.getElementById('ai-content');
+                const yearlyRows = summary.yearly.map(row => `
+                    <tr class="border-b border-slate-800">
+                        <td class="py-1.5 pr-3 font-bold text-slate-200 font-mono">${row.rok}</td>
+                        <td class="py-1.5 px-3 text-right text-emerald-400 font-mono">${row.prumerRpsn.toFixed(2)} %</td>
+                        <td class="py-1.5 px-3 text-right font-mono ${row.zisk >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${this.fmtSignedMoney(row.zisk)}</td>
+                        <td class="py-1.5 pl-3 text-right text-sky-400 font-mono">${this.fmtMoney(row.zustatek)}</td>
+                    </tr>
+                `).join('');
+
+                const monthlyRows = summary.forecastRows.slice(0, 12).map(row => `
+                    <tr class="border-b border-slate-800/60">
+                        <td class="py-1 pr-3 font-mono text-slate-400">${row.obdobi}</td>
+                        <td class="py-1 px-3 text-right text-emerald-400 font-mono">${row.rpsn.toFixed(2)} %</td>
+                        <td class="py-1 px-3 text-right font-mono ${row.zisk >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${this.fmtSignedMoney(row.zisk)}</td>
+                        <td class="py-1 pl-3 text-right text-sky-400 font-mono">${this.fmtMoney(row.zustatek)}</td>
+                    </tr>
+                `).join('');
+
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="text-slate-300 leading-relaxed text-xs">${this.formatAiResponse(advice)}</div>
+                        <div class="h-44 bg-slate-950/60 border border-slate-800 rounded p-2">
+                            <canvas id="ai-forecast-chart"></canvas>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest text-slate-600 font-bold mb-1.5">Pravděpodobné RPSN a roční zisky</div>
+                            <table class="w-full text-xs">
+                                <thead class="text-slate-600 uppercase text-[9px]">
+                                    <tr><th class="py-1.5 text-left">Rok</th><th class="py-1.5 text-right">RPSN</th><th class="py-1.5 text-right">Zisk</th><th class="py-1.5 text-right">Zůstatek</th></tr>
+                                </thead>
+                                <tbody>${yearlyRows || '<tr><td colspan="4" class="py-3 text-slate-600">Chybí predikční data.</td></tr>'}</tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest text-slate-600 font-bold mb-1.5">Nejbližších 12 měsíců</div>
+                            <table class="w-full text-xs">
+                                <thead class="text-slate-600 uppercase text-[9px]">
+                                    <tr><th class="py-1.5 text-left">Období</th><th class="py-1.5 text-right">RPSN</th><th class="py-1.5 text-right">Zisk</th><th class="py-1.5 text-right">Zůstatek</th></tr>
+                                </thead>
+                                <tbody>${monthlyRows || '<tr><td colspan="4" class="py-3 text-slate-600">Chybí predikční data.</td></tr>'}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                const canvas = document.getElementById('ai-forecast-chart');
+                if (!canvas) return;
+                if (this.aiForecastChart) this.aiForecastChart.destroy();
+                this.aiForecastChart = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: summary.forecastRows.map(r => r.obdobi),
+                        datasets: [
+                            {
+                                label: 'Zůstatek',
+                                data: summary.forecastRows.map(r => r.zustatek),
+                                borderColor: '#0ea5e9',
+                                backgroundColor: 'rgba(14,165,233,0.1)',
+                                fill: true,
+                                tension: 0.25,
+                                pointRadius: 1
+                            },
+                            {
+                                label: 'Vloženo',
+                                data: summary.forecastRows.map(r => r.vlozeno),
+                                borderColor: '#475569',
+                                borderDash: [4, 4],
+                                fill: false,
+                                tension: 0.25,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#64748b', boxWidth: 10, font: { size: 10 } } }
+                        },
+                        scales: {
+                            y: { grid: { color: 'rgba(148,163,184,0.1)' }, ticks: { color: '#64748b', callback: v => (v / 1000000).toFixed(1) + 'M', font: { size: 9 } } },
+                            x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 6, font: { size: 9 } } }
+                        }
+                    }
+                });
+                lucide.createIcons();
+            },
+
+            async aiInterestForecast() {
+                const loading = document.getElementById('ai-loading');
+                const content = document.getElementById('ai-content');
+                loading.classList.remove('hidden');
+                content.innerHTML = '<div class="flex items-center gap-2 italic text-slate-500"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Připravuji predikci RPSN...</div>';
+                lucide.createIcons();
+
+                const summary = this.buildForecastSummary();
+                const prompt = `Pracuj s těmito aktuálními daty investičního deníku. Úrok je vždy RPSN; v měsíčním výpočtu se používá poměrně jako RPSN/12. Vrať stručný český komentář do 180 slov: pravděpodobný vývoj RPSN, co znamená pro zisky, a na co si dát pozor. Data: ${JSON.stringify(summary)}`;
+
+                try {
+                    const advice = await this.callAI(prompt, "Jsi finanční analytik. Neuváděj investiční doporučení jako jistotu. Piš česky, konkrétně, stručně.");
+                    this.renderForecastVisualization(summary, advice);
+                } catch (e) {
+                    const fallback = `Predikce je vykreslena lokálně z aktuální tabulky. AI komentář se nepodařilo načíst: ${e.message}`;
+                    this.renderForecastVisualization(summary, fallback);
+                } finally {
+                    loading.classList.add('hidden');
+                }
+            },
+
+            setOverride(month, key, value) {
+                if (!this.overrides[month]) this.overrides[month] = {};
+                const trimmed = String(value ?? '').trim();
+                if (trimmed === '') {
+                    delete this.overrides[month][key];
+                } else {
+                    const parsed = parseFloat(trimmed);
+                    if (!Number.isFinite(parsed)) return;
+                    this.overrides[month][key] = parsed;
+                    if (key === 'zustatek') delete this.overrides[month].urok;
+                    if (key === 'urok') delete this.overrides[month].zustatek;
+                }
+                if (Object.keys(this.overrides[month]).length === 0) delete this.overrides[month];
+                this.update();
+            },
+
+            clearOverride(month) {
+                delete this.overrides[month];
+                this.update();
+            },
+
+            toggleYear(yIdx) {
+                if (this.expandedYears.has(yIdx)) this.expandedYears.delete(yIdx);
+                else this.expandedYears.add(yIdx);
+                this.render();
+            },
+
+            save() {
+                localStorage.setItem('pension_settings', JSON.stringify(this.settings));
+                localStorage.setItem('pension_overrides', JSON.stringify(this.overrides));
+                const status = document.getElementById('sync-status');
+                status.style.opacity = '1';
+                setTimeout(() => status.style.opacity = '0', 2000);
+                if (!isApplyingSheetsData) triggerSheetsAutoSync();
+            },
+
+            applySheetsPlan(plan) {
+                const normalized = normalizePensionPlan(plan);
+                this.settings = normalized.settings;
+                this.overrides = normalized.overrides;
+                document.getElementById('base-age').value = this.settings.age;
+                document.getElementById('base-start-month').value = this.settings.startMonth || '';
+                document.getElementById('base-sporeni-roky').value = this.settings.sporeniRoky;
+                document.getElementById('base-renta-start').value = this.settings.rentaStart;
+                document.getElementById('base-vklad').value = this.settings.vklad;
+                document.getElementById('base-urok').value = this.settings.urok;
+                document.getElementById('base-renta-suma').value = this.settings.rentaSuma;
+                this.update();
+            },
+
+            exportData() {
+                const blob = new Blob([JSON.stringify({ settings: this.settings, overrides: this.overrides }, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `plan_investic_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+            },
+
+            importData(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (data.settings) this.settings = data.settings;
+                        if (data.overrides) this.overrides = data.overrides;
+                        this.init();
+                    } catch (err) { alert('Chyba importu.'); }
+                };
+                reader.readAsText(file);
+            }
+        };
+
+        function resetAll() {
+            if (confirm('Opravdu chcete vymazat všechna data?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        window.onload = () => app.init();
+
+        window.addEventListener('message', e => {
+            if (e.data?.type === 'finance-theme') app.applyTheme(e.data.theme);
+        });
+    </script>
+</body>
+
+</html>

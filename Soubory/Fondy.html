@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="cs" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sledování vývoje fondů Conseq vůči inflaci ČNB v profi dark módu s AI.">
+    <title>Conseq Terminal | Investice & Inflace s AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            /* slate-950 */
+            color: #f8fafc;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .panel {
+            background-color: #0f172a;
+            /* slate-900 */
+            border: 1px solid #1e293b;
+            /* slate-800 */
+            border-radius: 0.5rem;
+            /* Zmenšeno zaoblení */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Scrollbar styling pro dark mode */
+        ::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Custom inputs for dark mode */
+        input[type="date"],
+        input[type="number"] {
+            background-color: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            color-scheme: dark;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            /* sky-500 */
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+        }
+
+        .table-link {
+            color: #38bdf8;
+            text-decoration: none;
+            transition: color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .table-link:hover {
+            color: #7dd3fc;
+            text-decoration: underline;
+        }
+
+        /* Odsazení tabulky u Akcí */
+        .action-cell {
+            min-width: 70px;
+        }
+
+        /* ─── STICKY HEADER STYLING ─── */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background-color: #0f172a;
+            box-shadow: inset 0 -1px 0 0 #334155;
+            /* Spodní okraj */
+        }
+
+        .sticky-corner {
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 30;
+            background-color: #0f172a;
+            box-shadow: inset 0 -1px 0 0 #334155, inset -1px 0 0 0 #1e293b;
+            /* Spodní a pravý okraj */
+        }
+
+        /* Plné barvy pro hlavičky namísto průhledných (aby přes ně neprosvítal text při scrollování) */
+        .sticky-header.bg-sky-tint {
+            background-color: #12233a;
+        }
+
+        .sticky-header.bg-rose-tint {
+            background-color: #1e1b29;
+        }
+
+
+        /* AI Gradient Button */
+        .btn-ai {
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            background-size: 200% 200%;
+            animation: gradientMove 5s ease infinite;
+        }
+
+        .btn-ai:hover {
+            opacity: 0.9;
+        }
+
+        @keyframes gradientMove {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* AI Markdown formatting */
+        .ai-prose strong {
+            color: #f8fafc;
+            font-weight: 600;
+        }
+
+        .ai-prose ul {
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            list-style-type: disc;
+        }
+
+        .ai-prose li {
+            margin-bottom: 0.25rem;
+        }
+
+        .ai-prose p {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+    </style>
+    <!-- finance-common.js: sjednocené nastavení mezi Nastavení.html a moduly -->
+    <script src="finance-common.js" defer></script>
+</head>
+
+<body class="min-h-screen flex flex-col text-sm">
+
+    <!-- Top Navigation -->
+    <nav id="topNav" class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-screen-2xl mx-auto px-4 py-2 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="flex items-center gap-2">
+                <div class="bg-sky-500/10 p-1.5 rounded-lg border border-sky-500/20">
+                    <i data-lucide="activity" class="w-5 h-5 text-sky-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-slate-100 leading-tight">Portfolio Terminal</h1>
+                    <p class="text-[10px] text-slate-400 leading-tight">Conseq Fondy vs. Inflace ČNB</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                <button onclick="generateAIReport()"
+                    class="flex-1 sm:flex-none btn-ai text-white px-3 py-1.5 text-xs rounded-lg font-medium transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-1.5">
+                    ✨ AI Analýza
+                </button>
+                <div class="w-px h-4 bg-slate-700 hidden sm:block"></div>
+                <a href="https://github.com/Martin-CHT/web/raw/refs/heads/main/finance/Conseq.fondy.github.user.js"
+                    title="Instalace skriptu do Tampermonkey"
+                    class="flex-1 sm:flex-none bg-amber-600/80 hover:bg-amber-500 text-white px-3 py-1.5 text-xs rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5">
+                    <i data-lucide="plug" class="w-3.5 h-3.5"></i>
+                    Instalovat skript
+                </a>
+                <div class="w-px h-4 bg-slate-700 hidden sm:block"></div>
+                <button onclick="openModalForNew()"
+                    class="flex-1 sm:flex-none bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 text-xs rounded-lg font-medium transition-colors shadow-lg shadow-sky-900/20 flex items-center justify-center gap-1.5">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    Přidat měsíc
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-3 md:p-4 max-w-screen-2xl mx-auto w-full flex flex-col gap-3">
+
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="panel p-3 flex items-center gap-3 border-l-4 border-l-sky-500">
+                <div class="bg-sky-500/20 p-2 rounded-full text-sky-400">
+                    <i data-lucide="trending-up" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 font-medium leading-none">Aktuální průměrný výnos</p>
+                    <h3 class="text-xl font-bold text-slate-100 font-mono mt-1 leading-none" id="statReturn">-- %</h3>
+                </div>
+            </div>
+            <div class="panel p-3 flex items-center gap-3 border-l-4 border-l-rose-500">
+                <div class="bg-rose-500/20 p-2 rounded-full text-rose-400">
+                    <i data-lucide="flame" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 font-medium leading-none">Kumulovaná inflace</p>
+                    <h3 class="text-xl font-bold text-slate-100 font-mono mt-1 leading-none" id="statInf">-- %</h3>
+                </div>
+            </div>
+            <div class="panel p-3 flex items-center gap-3 border-l-4 border-l-emerald-500">
+                <div class="bg-emerald-500/20 p-2 rounded-full text-emerald-400">
+                    <i data-lucide="scale" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 font-medium leading-none">Reálný výnos (očištěný)</p>
+                    <h3 class="text-xl font-bold text-slate-100 font-mono mt-1 leading-none" id="statReal">-- %</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <section class="panel p-1 border border-slate-800 flex flex-col">
+            <div
+                class="px-3 py-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 rounded-t-lg">
+                <h2 class="text-sm font-semibold flex items-center gap-1.5">
+                    <i data-lucide="line-chart" class="w-4 h-4 text-slate-400"></i>
+                    Kompletní vývoj fondů
+                </h2>
+            </div>
+            <div class="relative h-[320px] min-h-[200px] max-h-[80vh] w-full p-2 resize-y overflow-hidden">
+                <canvas id="terminalChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Data Grid Section -->
+        <section class="panel overflow-hidden flex flex-col flex-grow">
+            <div class="px-3 py-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h2 class="text-sm font-semibold flex items-center gap-1.5">
+                    <i data-lucide="database" class="w-4 h-4 text-slate-400"></i>
+                    Detailní přehled dat
+                </h2>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleAllYears()"
+                        class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition-colors border border-slate-700 text-xs">
+                        <i data-lucide="unfold-vertical" id="iconToggleYears" class="w-3.5 h-3.5"></i>
+                        <span id="textToggleYears">Rozbalit vše</span>
+                    </button>
+                    <span class="text-[10px] text-slate-500 font-mono hidden sm:inline uppercase">Údaje v %</span>
+                </div>
+            </div>
+
+            <div class="overflow-auto w-full max-h-[55vh]">
+                <table class="w-full text-left">
+                    <thead class="text-[11px] uppercase tracking-wider text-slate-400 leading-tight">
+                        <tr>
+                            <!-- Zde jsou aplikovány sticky třídy pro pevné záhlaví -->
+                            <th class="px-2 py-2 font-semibold sticky-corner align-bottom">Období</th>
+                            <th class="px-2 py-2 font-semibold text-right sticky-header align-bottom"><a
+                                    href="https://www.conseq.cz/investice/prehled-fondu/ff-world-fund-hedged-czk"
+                                    target="_blank" class="table-link flex-wrap justify-end">World Fund<i
+                                        data-lucide="external-link" class="w-2.5 h-2.5"></i></a></th>
+                            <th class="px-2 py-2 font-semibold text-right sticky-header align-bottom"><a
+                                    href="https://www.conseq.cz/investice/prehled-fondu/amundi-cpr-global-silver-age-hedged-czk"
+                                    target="_blank" class="table-link flex-wrap justify-end">Amundi Silver Age<i
+                                        data-lucide="external-link" class="w-2.5 h-2.5"></i></a></th>
+                            <th class="px-2 py-2 font-semibold text-right sticky-header align-bottom"><a
+                                    href="https://www.conseq.cz/investice/prehled-fondu/conseq-invest-akcie-nove-evropy-a-cs"
+                                    target="_blank" class="table-link flex-wrap justify-end">Nová Evropa A<i
+                                        data-lucide="external-link" class="w-2.5 h-2.5"></i></a></th>
+                            <th class="px-2 py-2 font-semibold text-right sticky-header align-bottom"><a
+                                    href="https://www.conseq.cz/investice/prehled-fondu/conseq-invest-dluhopisovy-fond-a"
+                                    target="_blank" class="table-link flex-wrap justify-end">Dluhopisový A<i
+                                        data-lucide="external-link" class="w-2.5 h-2.5"></i></a></th>
+                            <th class="px-2 py-2 font-semibold text-right sticky-header align-bottom"><a
+                                    href="https://www.conseq.cz/investice/prehled-fondu/active-invest-vyvazeny"
+                                    target="_blank" class="table-link flex-wrap justify-end">Vyvážený<i
+                                        data-lucide="external-link" class="w-2.5 h-2.5"></i></a></th>
+                            <th class="px-2 py-2 font-semibold text-right sticky-header align-bottom"><a
+                                    href="https://www.conseq.cz/investice/prehled-fondu/conseq-realitni-czk"
+                                    target="_blank" class="table-link flex-wrap justify-end">Realitní<i
+                                        data-lucide="external-link" class="w-2.5 h-2.5"></i></a></th>
+                            <th
+                                class="px-2 py-2 font-semibold text-right sticky-header bg-sky-tint text-sky-400 align-bottom">
+                                Celkem</th>
+                            <th
+                                class="px-2 py-2 font-semibold text-right sticky-header bg-rose-tint text-rose-400 align-bottom">
+                                <a href="https://data.csu.gov.cz/datastat/data/VYBER/CEN0101HT02?vSel=1" target="_blank"
+                                    class="table-link !text-rose-400 hover:!text-rose-300 flex-wrap justify-end">Inflace
+                                    (p.a.)<i data-lucide="external-link" class="w-2.5 h-2.5"></i></a>
+                            </th>
+                            <th class="px-2 py-2 font-semibold text-right sticky-header bg-rose-tint text-rose-400 align-bottom"
+                                title="Dopočítává se automaticky z Inflace (p.a.)">Inflace / měs. <i
+                                    data-lucide="calculator" class="w-2.5 h-2.5 inline text-rose-500"></i></th>
+                            <th class="px-2 py-2 font-semibold text-center sticky-header action-cell align-bottom">Akce
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-xs font-mono divide-y divide-slate-800 whitespace-nowrap">
+                        <!-- Generováno JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal: Přidat/Upravit -->
+    <div id="addModal"
+        class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300"
+        onclick="if(event.target === this) closeModal('addModal')">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300"
+            id="addModalContent">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <i data-lucide="plus-square" class="w-4 h-4 text-sky-400" id="modalIcon"></i>
+                    <span id="modalTitleText">Nový měsíční záznam</span>
+                </h3>
+                <button onclick="closeModal('addModal')" class="text-slate-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="addForm" class="p-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Datum záznamu</label>
+                    <input type="date" id="inputDate" required class="w-full rounded-md p-2 text-sm">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-medium text-slate-300 mb-1.5 border-b border-slate-800 pb-1.5">Hodnoty
+                        fondů (%)</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div><span class="text-[10px] text-slate-400 block mb-0.5">World Fund</span><input type="number"
+                                step="0.01" id="inputF1" class="w-full rounded-md p-1.5 text-xs font-mono"></div>
+                        <div><span class="text-[10px] text-slate-400 block mb-0.5">Amundi CPR</span><input type="number"
+                                step="0.01" id="inputF2" class="w-full rounded-md p-1.5 text-xs font-mono"></div>
+                        <div><span class="text-[10px] text-slate-400 block mb-0.5">Nová Evropa</span><input
+                                type="number" step="0.01" id="inputF3"
+                                class="w-full rounded-md p-1.5 text-xs font-mono"></div>
+                        <div><span class="text-[10px] text-slate-400 block mb-0.5">Dluhopisový</span><input
+                                type="number" step="0.01" id="inputF4"
+                                class="w-full rounded-md p-1.5 text-xs font-mono"></div>
+                        <div><span class="text-[10px] text-slate-400 block mb-0.5">Vyvážený</span><input type="number"
+                                step="0.01" id="inputF5" class="w-full rounded-md p-1.5 text-xs font-mono"></div>
+                        <div><span class="text-[10px] text-slate-400 block mb-0.5">Realitní</span><input type="number"
+                                step="0.01" id="inputF6" class="w-full rounded-md p-1.5 text-xs font-mono"></div>
+                    </div>
+                </div>
+
+                <div class="bg-rose-950/20 border border-rose-900/30 rounded-md p-3">
+                    <label class="block text-xs font-medium text-rose-300 mb-1">Makroekonomika ČNB</label>
+                    <div>
+                        <span class="text-[10px] text-rose-400 block mb-0.5">Zadejte roční Inflaci (p.a.)</span>
+                        <input type="number" step="0.1" id="inputInf"
+                            class="w-full rounded-md p-1.5 text-xs font-mono bg-slate-900">
+                    </div>
+                </div>
+
+                <div class="pt-1 flex gap-2">
+                    <button type="button" onclick="closeModal('addModal')"
+                        class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg transition-colors font-medium text-sm">Zrušit</button>
+                    <button type="submit"
+                        class="flex-1 bg-sky-600 hover:bg-sky-500 text-white py-2 rounded-lg transition-all shadow-lg shadow-sky-900/40 font-bold text-sm">Uložit
+                        záznam</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: AI Analytik -->
+    <div id="aiModal"
+        class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300"
+        onclick="if(event.target === this) closeModal('aiModal')">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]"
+            id="aiModalContent">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center btn-ai text-white">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-white"></i>
+                    AI Finanční Analytik
+                </h3>
+                <button onclick="closeModal('aiModal')" class="text-white/80 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-4 border-b border-slate-800/60 bg-slate-950/40">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="block text-xs text-slate-400">AI Poskytovatel</label>
+                    <div class="flex gap-1 bg-slate-800 p-1 rounded text-xs">
+                        <button id="btnAiGroq" onclick="switchAiProvider('groq')" class="px-2 py-1 rounded bg-purple-600 text-white font-medium transition-colors">Groq (Llama)</button>
+                        <button id="btnAiGemini" onclick="switchAiProvider('gemini')" class="px-2 py-1 rounded text-slate-400 hover:text-white transition-colors">Gemini</button>
+                    </div>
+                </div>
+
+                <label id="lblAiKey" class="block text-xs text-slate-400 mb-1.5">Groq API klíč <span class="text-slate-500">(zdarma na <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com</a>)</span></label>
+                <div class="flex gap-2">
+                    <input id="aiKeyInput" type="password" placeholder="Vlož klíč..."
+                        class="flex-1 bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-purple-500" />
+                    <button onclick="saveAiKey()"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">Uložit
+                        klíč</button>
+                </div>
+                <p id="aiKeyStatus" class="text-[10px] text-slate-500 mt-1"></p>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-grow ai-prose text-slate-300 text-xs" id="aiResponseContainer">
+                <div id="aiLoading" class="hidden flex flex-col items-center justify-center py-10 text-slate-400">
+                    <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-purple-500 mb-3"></i>
+                    <p class="animate-pulse">Gemini analyzuje tvoje portfolio a počítá trendy...</p>
+                </div>
+                <div id="aiOutput" class="hidden"></div>
+                <div id="aiError" class="hidden text-rose-400 bg-rose-950/30 border border-rose-900/50 p-3 rounded-lg">
+                </div>
+                <div id="aiWelcome" class="flex flex-col items-center justify-center py-8 text-slate-500 text-center">
+                    <i data-lucide="key-round" class="w-8 h-8 mb-3 text-slate-600"></i>
+                    <p class="text-sm">Vlož API klíč výše a klikni na <b class="text-slate-400">Analyzovat</b>. Klíč se sdílí mezi aplikacemi.</p>
+                </div>
+            </div>
+
+            <div class="p-3 border-t border-slate-800 bg-slate-800/50 flex justify-between items-center">
+                <button onclick="runAIAnalysis()"
+                    class="btn-ai text-white px-5 py-1.5 rounded-lg font-medium text-sm flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Analyzovat
+                </button>
+                <button onclick="closeModal('aiModal')"
+                    class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-1.5 rounded-lg transition-colors font-medium text-sm">Zavřít</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="fixed bottom-4 right-4 transform translate-y-20 opacity-0 transition-all duration-300 z-50 bg-slate-800 border border-slate-700 text-white px-4 py-2.5 rounded-lg shadow-2xl flex items-center gap-2">
+        <span id="toastIcon"></span>
+        <span id="toastMessage" class="font-medium text-xs"></span>
+    </div>
+
+    <script>
+        // Inicializace ikon
+        lucide.createIcons();
+
+        // ======= URL Z GOOGLE APPS SCRIPT =======
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQdnc-4EARYgf4jmH5IFOLMLDM2FSaAbBDwtRnWQfFR3gv3tR5qVmF78MPGNZnP68/exec";
+        // ========================================
+
+        function setCookie(name, value, days = 365) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
+        }
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for(let i=0;i < ca.length;i++) {
+                let c = ca[i];
+                while (c.charAt(0)===' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+
+        let currentEditId = null;
+        let tableData = [];
+        let chartInstance = null;
+        let collapsedYears = new Set();
+        let isDataInitialized = false;
+
+        // --- ZÁLOŽNÍ DATA ---
+        const initialData = [
+            { id: '1', date: '2024-02-01', f1: null, f2: null, f3: null, f4: null, f5: null, f6: null, inf: 2.4 },
+            { id: '2', date: '2024-03-01', f1: 1.3, f2: -0.16, f3: -1.27, f4: -0.02, f5: 0.22, f6: null, inf: 2.1 }
+        ];
+
+        // ─── LOGIKA VÝPOČTŮ ───
+        function recalculateData() {
+            tableData.sort((a, b) => new Date(a.date) - new Date(b.date));
+            let currentMultiplier = 1;
+
+            tableData.forEach(row => {
+                const funds = [row.f1, row.f2, row.f3, row.f4, row.f5, row.f6].filter(v => v !== null && v !== undefined && v !== '');
+                if (funds.length > 0) {
+                    row.celkem = funds.reduce((a, b) => a + Number(b), 0) / funds.length;
+                } else {
+                    row.celkem = null;
+                }
+
+                if (row.inf !== null && row.inf !== undefined && row.inf !== '') {
+                    const annualInf = Number(row.inf);
+                    const monthlyMultiplier = Math.pow(1 + (annualInf / 100), 1 / 12);
+                    currentMultiplier *= monthlyMultiplier;
+                }
+                row.infM = (currentMultiplier - 1) * 100;
+            });
+        }
+
+        // ─── GOOGLE SHEETS CLOUD SYNCHRONIZACE ───
+        async function loadData() {
+            showToast('Načítám data z cloudu...', 'info');
+            try {
+                if (SCRIPT_URL === "SEM_VLOZ_SVOJ_ODKAZ_Z_GOOGLE_APPS_SCRIPT") {
+                    throw new Error("Nebyla vložena SCRIPT_URL!");
+                }
+
+                const response = await fetch(SCRIPT_URL);
+                const rawData = await response.json();
+
+                tableData = rawData.map(row => {
+                    let parsedDate = row.date;
+                    if (row.date) {
+                        let d = new Date(row.date);
+                        if (!isNaN(d.getTime())) {
+                            d.setHours(d.getHours() + 12);
+                            parsedDate = d.toISOString().split('T')[0];
+                        }
+                    }
+
+                    return {
+                        ...row,
+                        id: String(row.id),
+                        date: parsedDate,
+                        f1: row.f1 !== null && row.f1 !== "" ? Number(row.f1) : null,
+                        f2: row.f2 !== null && row.f2 !== "" ? Number(row.f2) : null,
+                        f3: row.f3 !== null && row.f3 !== "" ? Number(row.f3) : null,
+                        f4: row.f4 !== null && row.f4 !== "" ? Number(row.f4) : null,
+                        f5: row.f5 !== null && row.f5 !== "" ? Number(row.f5) : null,
+                        f6: row.f6 !== null && row.f6 !== "" ? Number(row.f6) : null,
+                        inf: row.inf !== null && row.inf !== "" ? Number(row.inf) : null
+                    }
+                });
+
+                if (!isDataInitialized) {
+                    const currentYear = new Date().getFullYear().toString();
+                    collapsedYears.clear();
+
+                    const uniqueYears = [...new Set(tableData.map(r => r.date.substring(0, 4)))];
+                    uniqueYears.forEach(year => {
+                        if (year !== currentYear) {
+                            collapsedYears.add(year);
+                        }
+                    });
+                    isDataInitialized = true;
+                }
+
+                recalculateData();
+                renderAll();
+                showToast('Data načtena', 'success');
+            } catch (error) {
+                console.error("Chyba při načítání:", error);
+                showToast('Chyba spojení!', 'error');
+                tableData = JSON.parse(JSON.stringify(initialData));
+                recalculateData();
+                renderAll();
+            }
+        }
+
+        async function syncWithCloud(action, data) {
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: action, data: data })
+                });
+            } catch (error) {
+                console.error("Chyba synchronizace:", error);
+                showToast('Chyba ukládání!', 'error');
+            }
+        }
+
+        // ─── UI / MODALS ───
+        function openModalForNew() {
+            currentEditId = null;
+            document.getElementById('modalTitleText').textContent = 'Nový měsíční záznam';
+            document.getElementById('modalIcon').setAttribute('data-lucide', 'plus-square');
+
+            if (tableData.length > 0) {
+                let lastD = new Date(tableData[tableData.length - 1].date);
+                lastD.setMonth(lastD.getMonth() + 1);
+                document.getElementById('inputDate').value = lastD.toISOString().split('T')[0];
+            } else {
+                document.getElementById('inputDate').value = '';
+                document.getElementById('inputF1').value = '';
+                document.getElementById('inputF2').value = '';
+                document.getElementById('inputF3').value = '';
+                document.getElementById('inputF4').value = '';
+                document.getElementById('inputF5').value = '';
+                document.getElementById('inputF6').value = '';
+                document.getElementById('inputInf').value = '';
+            }
+
+            lucide.createIcons();
+            showModal('addModal');
+        }
+
+        function editRow(id) {
+            currentEditId = id;
+            const row = tableData.find(r => r.id === id);
+            if (!row) return;
+
+            document.getElementById('modalTitleText').textContent = 'Úprava: ' + formatD(row.date);
+            document.getElementById('modalIcon').setAttribute('data-lucide', 'edit');
+
+            document.getElementById('inputDate').value = row.date;
+            document.getElementById('inputF1').value = row.f1 ?? '';
+            document.getElementById('inputF2').value = row.f2 ?? '';
+            document.getElementById('inputF3').value = row.f3 ?? '';
+            document.getElementById('inputF4').value = row.f4 ?? '';
+            document.getElementById('inputF5').value = row.f5 ?? '';
+            document.getElementById('inputF6').value = row.f6 ?? '';
+            document.getElementById('inputInf').value = row.inf ?? '';
+
+            lucide.createIcons();
+            showModal('addModal');
+        }
+
+        function showModal(modalId) {
+            const modal = document.getElementById(modalId);
+            const content = modal.firstElementChild;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            const content = modal.firstElementChild;
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // ─── FORMATTERS ───
+        function formatNum(num, digits = 2) {
+            if (num === null || num === undefined || num === '') return '<span class="text-slate-600">-</span>';
+            const val = Number(num).toLocaleString('cs-CZ', { minimumFractionDigits: digits, maximumFractionDigits: 4 });
+            if (num < 0) return `<span class="text-rose-400">${val}</span>`;
+            if (num > 0) return `<span class="text-emerald-400">${val}</span>`;
+            return val;
+        }
+
+        function formatD(dateStr) {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('cs-CZ', { month: '2-digit', year: 'numeric' });
+        }
+
+        // ─── RENDERERS ───
+        function toggleYear(year) {
+            if (collapsedYears.has(year)) {
+                collapsedYears.delete(year);
+            } else {
+                collapsedYears.add(year);
+            }
+            renderTable();
+        }
+
+        function toggleAllYears() {
+            const uniqueYears = [...new Set(tableData.map(r => r.date.substring(0, 4)))];
+
+            if (collapsedYears.size > 0) {
+                collapsedYears.clear();
+            } else {
+                uniqueYears.forEach(y => collapsedYears.add(y));
+            }
+            renderTable();
+        }
+
+        async function deleteRow(id) {
+            if (confirm('Opravdu smazat? Zmizí i z cloudu.')) {
+                tableData = tableData.filter(row => row.id !== id);
+                recalculateData();
+                renderAll();
+                showToast('Mažu...', 'info');
+
+                await syncWithCloud('delete', { id: id });
+                showToast('Smazáno', 'success');
+            }
+        }
+
+        function renderStats() {
+            let lastReturn = null;
+            let lastInf = null;
+
+            for (let i = tableData.length - 1; i >= 0; i--) {
+                if (tableData[i].celkem !== null && lastReturn === null) lastReturn = tableData[i].celkem;
+                if (tableData[i].infM !== null && lastInf === null) lastInf = tableData[i].infM;
+            }
+
+            document.getElementById('statReturn').innerHTML = lastReturn !== null ?
+                (lastReturn > 0 ? '+' : '') + lastReturn.toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' %' : '-- %';
+            document.getElementById('statReturn').className = `text-xl font-bold font-mono mt-1 leading-none ${lastReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            document.getElementById('statInf').innerText = lastInf !== null ?
+                lastInf.toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' %' : '-- %';
+
+            if (lastReturn !== null && lastInf !== null) {
+                const real = lastReturn - lastInf;
+                document.getElementById('statReal').innerHTML = (real > 0 ? '+' : '') + real.toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' %';
+                document.getElementById('statReal').className = `text-xl font-bold font-mono mt-1 leading-none ${real >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+            }
+        }
+
+        function formatDiff(curr, prev) {
+            if (curr === null || curr === undefined || curr === '' ||
+                prev === null || prev === undefined || prev === '') return '';
+            const diff = curr - prev;
+            if (Math.abs(diff) < 0.005) return '';
+            const diffStr = diff.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (diff > 0) return ` <span class="text-[9px] text-slate-300/60 ml-0.5 font-normal">(+${diffStr})</span>`;
+            return ` <span class="text-[9px] text-rose-400 ml-0.5 font-normal">(${diffStr})</span>`;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const groupedByYear = {};
+            tableData.forEach((row, index) => {
+                const year = row.date.substring(0, 4);
+                if (!groupedByYear[year]) groupedByYear[year] = [];
+                groupedByYear[year].push({ row, prev: index > 0 ? tableData[index - 1] : null });
+            });
+
+            const years = Object.keys(groupedByYear).sort();
+
+            years.forEach(year => {
+                const isCollapsed = collapsedYears.has(year);
+
+                const yearHeader = document.createElement('tr');
+                yearHeader.className = 'bg-slate-800/80 hover:bg-slate-700/80 transition-colors cursor-pointer border-y border-slate-700';
+                yearHeader.onclick = () => toggleYear(year);
+                yearHeader.innerHTML = `
+                    <td colspan="11" class="px-2 py-1.5 font-bold text-slate-200 sticky left-0 z-10 bg-slate-800/90 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <i data-lucide="${isCollapsed ? 'chevron-right' : 'chevron-down'}" class="w-3.5 h-3.5 text-sky-400"></i>
+                            Rok ${year}
+                            <span class="font-normal text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded ml-2 text-[10px]">${groupedByYear[year].length} záznamů</span>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(yearHeader);
+
+                if (!isCollapsed) {
+                    groupedByYear[year].forEach(({ row, prev }) => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-800/50 transition-colors group';
+                        const d = (f) => formatDiff(row[f], prev ? prev[f] : null);
+
+                        tr.innerHTML = `
+                            <td class="px-2 py-1 border-r border-slate-800 sticky left-0 bg-slate-900 group-hover:bg-slate-800 transition-colors text-slate-300 font-sans font-medium">${formatD(row.date)}</td>
+                            <td class="px-2 py-1 text-right">${formatNum(row.f1)}${d('f1')}</td>
+                            <td class="px-2 py-1 text-right">${formatNum(row.f2)}${d('f2')}</td>
+                            <td class="px-2 py-1 text-right">${formatNum(row.f3)}${d('f3')}</td>
+                            <td class="px-2 py-1 text-right">${formatNum(row.f4)}${d('f4')}</td>
+                            <td class="px-2 py-1 text-right">${formatNum(row.f5)}${d('f5')}</td>
+                            <td class="px-2 py-1 text-right">${formatNum(row.f6)}${d('f6')}</td>
+                            <td class="px-2 py-1 text-right bg-sky-950/10 font-bold border-l border-slate-800">${formatNum(row.celkem, 3)}${d('celkem')}</td>
+                            <td class="px-2 py-1 text-right bg-rose-950/10">${formatNum(row.inf)}</td>
+                            <td class="px-2 py-1 text-right bg-rose-950/10 border-r border-slate-800">${formatNum(row.infM, 4)}</td>
+                            <td class="px-2 py-1 text-center flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="editRow('${row.id}')" class="text-slate-400 hover:text-sky-400 transition-colors p-1 bg-slate-800 rounded" title="Upravit">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteRow('${row.id}')" class="text-slate-400 hover:text-rose-500 transition-colors p-1 bg-slate-800 rounded" title="Smazat">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            });
+
+            const btnText = document.getElementById('textToggleYears');
+            const btnIcon = document.getElementById('iconToggleYears');
+            if (btnText && btnIcon) {
+                if (collapsedYears.size === 0) {
+                    btnText.textContent = 'Sbalit vše';
+                    btnIcon.setAttribute('data-lucide', 'fold-vertical');
+                } else {
+                    btnText.textContent = 'Rozbalit vše';
+                    btnIcon.setAttribute('data-lucide', 'unfold-vertical');
+                }
+            }
+
+            lucide.createIcons();
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('terminalChart').getContext('2d');
+            const labels = tableData.map(r => formatD(r.date));
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = "'JetBrains Mono', monospace";
+            Chart.defaults.font.size = 10;
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Výnos Celkem',
+                            data: tableData.map(r => r.celkem),
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#0284c7',
+                            pointBorderColor: '#38bdf8',
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.2,
+                            fill: true,
+                            spanGaps: true,
+                            order: 1
+                        },
+                        {
+                            label: 'Inflace',
+                            data: tableData.map(r => r.infM),
+                            borderColor: '#fb7185',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            pointBackgroundColor: '#e11d48',
+                            pointBorderColor: '#fb7185',
+                            pointRadius: 2,
+                            pointHoverRadius: 4,
+                            tension: 0.1,
+                            spanGaps: true,
+                            order: 2
+                        },
+                        { label: 'World Fund', data: tableData.map(r => r.f1), borderColor: '#f59e0b', borderWidth: 1, pointRadius: 0, pointHoverRadius: 3, tension: 0.3, spanGaps: true, order: 3 },
+                        { label: 'Amundi CPR', data: tableData.map(r => r.f2), borderColor: '#a855f7', borderWidth: 1, pointRadius: 0, pointHoverRadius: 3, tension: 0.3, spanGaps: true, order: 4 },
+                        { label: 'Nová Evropa', data: tableData.map(r => r.f3), borderColor: '#10b981', borderWidth: 1, pointRadius: 0, pointHoverRadius: 3, tension: 0.3, spanGaps: true, order: 5 },
+                        { label: 'Dluhopis', data: tableData.map(r => r.f4), borderColor: '#f97316', borderWidth: 1, pointRadius: 0, pointHoverRadius: 3, tension: 0.3, spanGaps: true, order: 6 },
+                        { label: 'Vyvážený', data: tableData.map(r => r.f5), borderColor: '#6366f1', borderWidth: 1, pointRadius: 0, pointHoverRadius: 3, tension: 0.3, spanGaps: true, order: 7 },
+                        { label: 'Realitní', data: tableData.map(r => r.f6), borderColor: '#14b8a6', borderWidth: 1, pointRadius: 0, pointHoverRadius: 3, tension: 0.3, spanGaps: true, order: 8 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { family: "'Inter', sans-serif", size: 10 }, usePointStyle: true, boxWidth: 6, padding: 10 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            borderColor: '#334155', borderWidth: 1,
+                            titleFont: { family: "'Inter', sans-serif", size: 11 },
+                            bodyFont: { family: "'JetBrains Mono', monospace", size: 10 },
+                            padding: 8, cornerRadius: 6,
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        let y = context.parsed.y;
+                                        label += (y > 0 ? '+' : '') + y.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' %';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { callback: function (value) { return value + '%'; } } },
+                        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { maxTicksLimit: 12 } }
+                    }
+                }
+            });
+        }
+
+        // ─── ULOŽENÍ FORMULÁŘE ───
+        document.getElementById('addForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const getVal = (id) => {
+                const val = document.getElementById(id).value;
+                return val === '' ? null : parseFloat(val);
+            };
+
+            const newRow = {
+                id: currentEditId || Date.now().toString(),
+                date: document.getElementById('inputDate').value,
+                f1: getVal('inputF1'), f2: getVal('inputF2'), f3: getVal('inputF3'),
+                f4: getVal('inputF4'), f5: getVal('inputF5'), f6: getVal('inputF6'),
+                inf: getVal('inputInf')
+            };
+
+            if (currentEditId) {
+                const index = tableData.findIndex(r => r.id === currentEditId);
+                if (index >= 0) tableData[index] = newRow;
+            } else {
+                const existingIdx = tableData.findIndex(r => r.date.substring(0, 7) === newRow.date.substring(0, 7));
+                if (existingIdx >= 0) {
+                    newRow.id = tableData[existingIdx].id;
+                    tableData[existingIdx] = newRow;
+                } else {
+                    tableData.push(newRow);
+                }
+            }
+
+            recalculateData();
+            renderAll();
+            closeModal('addModal');
+            showToast('Ukládám...', 'info');
+
+            await syncWithCloud('save', newRow);
+            showToast('Uloženo', 'success');
+        });
+
+        // ─── AI INTEGRACE ───
+        function switchAiProvider(provider) {
+            setCookie('ai_provider', provider);
+            const groqBtn = document.getElementById('btnAiGroq');
+            const geminiBtn = document.getElementById('btnAiGemini');
+            const lbl = document.getElementById('lblAiKey');
+            const inp = document.getElementById('aiKeyInput');
+            
+            if (provider === 'groq') {
+                groqBtn.className = 'px-2 py-1 rounded bg-purple-600 text-white font-medium transition-colors';
+                geminiBtn.className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition-colors';
+                lbl.innerHTML = 'Groq API klíč <span class="text-slate-500">(zdarma na <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com</a>)</span>';
+                inp.placeholder = 'gsk_...';
+                inp.value = getCookie('groq_api_key') || '';
+            } else {
+                groqBtn.className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition-colors';
+                geminiBtn.className = 'px-2 py-1 rounded bg-blue-600 text-white font-medium transition-colors';
+                lbl.innerHTML = 'Gemini API klíč <span class="text-slate-500">(zdarma na <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-400 hover:underline">aistudio.google.com</a>)</span>';
+                inp.placeholder = 'AIza...';
+                inp.value = getCookie('gemini_api_key') || '';
+            }
+        }
+
+        function saveAiKey() {
+            const provider = getCookie('ai_provider') || 'groq';
+            const key = document.getElementById('aiKeyInput').value.trim();
+            if (!key) return;
+            if (provider === 'groq') setCookie('groq_api_key', key);
+            else setCookie('gemini_api_key', key);
+            document.getElementById('aiKeyStatus').textContent = `✅ Klíč pro ${provider} uložen.`;
+            document.getElementById('aiKeyStatus').className = 'text-[10px] text-emerald-400 mt-1';
+        }
+
+        function generateAIReport() {
+            showModal('aiModal');
+            switchAiProvider(getCookie('ai_provider') || 'groq');
+            const provider = getCookie('ai_provider') || 'groq';
+            const savedKey = provider === 'groq' ? getCookie('groq_api_key') : getCookie('gemini_api_key');
+            if (savedKey) {
+                document.getElementById('aiKeyStatus').textContent = '✅ Klíč je uložen. Klikni na Analyzovat.';
+                document.getElementById('aiKeyStatus').className = 'text-[10px] text-emerald-400 mt-1';
+            } else {
+                document.getElementById('aiKeyStatus').textContent = '';
+            }
+            lucide.createIcons();
+        }
+
+        async function callGroq(prompt, systemInstruction) {
+            const apiKey = getCookie('groq_api_key') || '';
+            if (!apiKey) throw new Error("Chybí Groq API klíč.");
+            const url = 'https://api.groq.com/openai/v1/chat/completions';
+            const payload = { model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemInstruction }, { role: 'user', content: prompt }], max_tokens: 1024 };
+            for (let i = 0; i < 3; i++) {
+                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify(payload) });
+                if (res.ok) return (await res.json()).choices?.[0]?.message?.content || "";
+                if (res.status === 401) throw new Error("Neplatný Groq API klíč.");
+                if (res.status === 429) {
+                    if (i === 2) throw new Error("Překročen limit Groq API (429).");
+                    await new Promise(r => setTimeout(r, parseInt(res.headers.get('Retry-After') || '60', 10) * 1000));
+                    continue;
+                }
+                throw new Error(`Chyba API: ${res.status}`);
+            }
+        }
+
+        async function callGemini(prompt, systemInstruction) {
+            const apiKey = getCookie('gemini_api_key') || '';
+            if (!apiKey) throw new Error("Chybí Gemini API klíč.");
+            const model = 'gemini-2.5-flash';
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+            const payload = { contents: [{ role: 'user', parts: [{ text: `${systemInstruction}\n\n${prompt}` }] }], generationConfig: { maxOutputTokens: 1024 } };
+            const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload) });
+            if (res.ok) return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (res.status === 401) throw new Error("Neplatný Gemini API klíč.");
+            if (res.status === 404) throw new Error(`Model Gemini ${model} není pro tento API klíč dostupný.`);
+            throw new Error(`Chyba API: ${res.status}`);
+        }
+
+        async function runAIAnalysis() {
+            const provider = getCookie('ai_provider') || 'groq';
+            const apiKey = provider === 'groq' ? getCookie('groq_api_key') : getCookie('gemini_api_key');
+            if (!apiKey) {
+                document.getElementById('aiKeyStatus').textContent = `❌ Nejprve vlož a ulož ${provider} API klíč.`;
+                document.getElementById('aiKeyStatus').className = 'text-[10px] text-rose-400 mt-1';
+                return;
+            }
+            document.getElementById('aiLoading').classList.remove('hidden');
+            document.getElementById('aiWelcome').classList.add('hidden');
+            document.getElementById('aiOutput').classList.add('hidden');
+            document.getElementById('aiError').classList.add('hidden');
+
+            const recentData = tableData.slice(-12).map(r => {
+                return `Datum: ${formatD(r.date)} | World Fund: ${r.f1 ?? 'N/A'}% | Amundi: ${r.f2 ?? 'N/A'}% | Nová Evropa: ${r.f3 ?? 'N/A'}% | Dluhopis: ${r.f4 ?? 'N/A'}% | Vyvážený: ${r.f5 ?? 'N/A'}% | Realitní: ${r.f6 ?? 'N/A'}% | CELKEM VÝNOS: ${r.celkem ? r.celkem.toFixed(2) : 'N/A'}% | KUMULATIVNÍ INFLACE: ${r.infM ? r.infM.toFixed(2) : 'N/A'}%`;
+            }).join('\n');
+
+            const promptText = `Jsi profesionální investiční analytik z České republiky. Zanalyzuj data portfolia podílových fondů Conseq (hodnoty v %).\n\nData:\n${recentData}\n\nNapiš stručné (max 3 odstavce) profesionální zhodnocení v češtině:\n1. Výnos portfolia vs. kumulativní inflace (reálný zisk/ztráta?)\n2. Které fondy táhnou portfolio nahoru a které zaostávají\n3. Závěrečné doporučení nebo trend\n\nPoužívej markdown pro zvýraznění. Buď přímý a věcný.`;
+            const systemInst = 'Jsi expert na finance. Odpovídáš profesionálně a pouze v češtině.';
+
+            try {
+                let aiText = '';
+                if (provider === 'gemini') {
+                    aiText = await callGemini(promptText, systemInst);
+                } else {
+                    aiText = await callGroq(promptText, systemInst);
+                }
+                document.getElementById('aiOutput').innerHTML = parseMarkdown(aiText);
+                document.getElementById('aiLoading').classList.add('hidden');
+                document.getElementById('aiOutput').classList.remove('hidden');
+            } catch (error) {
+                console.error("AI Error:", error);
+                document.getElementById('aiLoading').classList.add('hidden');
+                document.getElementById('aiError').classList.remove('hidden');
+                document.getElementById('aiError').innerText = 'Chyba: ' + error.message;
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toastMessage');
+            const iconEl = document.getElementById('toastIcon');
+
+            msgEl.textContent = message;
+
+            if (type === 'success') {
+                iconEl.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>';
+            } else if (type === 'error') {
+                iconEl.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i>';
+            } else {
+                iconEl.innerHTML = '<i data-lucide="info" class="w-4 h-4 text-sky-400"></i>';
+            }
+
+            lucide.createIcons();
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function renderAll() {
+            renderTable();
+            renderChart();
+            renderStats();
+        }
+
+        window.onload = () => {
+            loadData();
+        };
+    </script>
+</body>
+
+</html>
