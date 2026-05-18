@@ -26,6 +26,7 @@
     var CLOUD_KEYS = [
         'groq_api_key',
         'gemini_api_key',
+        'chatgpt_api_key',
         'ai_provider',
         'finance_sheets_url',
         'finance_sheets_id',
@@ -75,7 +76,7 @@
 
     /* AI klíče jsou ve všech modulech pojmenované shodně, ale některé je
        drží jen v cookie, jiné jen v localStorage. Sjednotíme do obojího. */
-    ['groq_api_key', 'gemini_api_key', 'ai_provider'].forEach(function (key) {
+    ['groq_api_key', 'gemini_api_key', 'chatgpt_api_key', 'ai_provider'].forEach(function (key) {
         var v = readUnified(key);
         if (v) writeUnified(key, v);
     });
@@ -115,6 +116,11 @@
     /* ════════════  2) PLOVOUCÍ TLAČÍTKO "NASTAVENÍ"  ════════════ */
     function injectSettingsButton() {
         if (document.getElementById('fc-settings-fab')) return;
+        // V iframe (modul otevřený přes Index.html) FAB nepotřebujeme — Nastavení
+        // už je v top navu Index.html. FAB injektujeme jen ve standalone režimu.
+        try {
+            if (window.self !== window.top) return;
+        } catch (e) { return; }
 
         var style = document.createElement('style');
         style.id = 'fc-settings-fab-style';
@@ -369,7 +375,9 @@
         getSheetsUrl:  function () { return readUnified('finance_sheets_url'); },
         getSheetsToken: function () { return readUnified('finance_sheets_token'); },
         getApiKey: function (provider) {
-            return readUnified(provider === 'gemini' ? 'gemini_api_key' : 'groq_api_key');
+            if (provider === 'gemini')  return readUnified('gemini_api_key');
+            if (provider === 'chatgpt' || provider === 'openai') return readUnified('chatgpt_api_key');
+            return readUnified('groq_api_key');
         },
         getCookie: getCookie,
         setCookie: setCookie,

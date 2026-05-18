@@ -173,7 +173,7 @@
     <!-- Top Navigation -->
     <nav id="topNav" class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-40">
         <div class="max-w-screen-2xl mx-auto px-4 py-2 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <div class="flex items-center gap-2">
+            <a href="../index.html" class="flex items-center gap-2 text-inherit no-underline hover:opacity-90 transition-opacity" title="Přejít na Dashboard">
                 <div class="bg-sky-500/10 p-1.5 rounded-lg border border-sky-500/20">
                     <i data-lucide="activity" class="w-5 h-5 text-sky-400"></i>
                 </div>
@@ -181,7 +181,7 @@
                     <h1 class="text-lg font-bold tracking-tight text-slate-100 leading-tight">Portfolio Terminal</h1>
                     <p class="text-[10px] text-slate-400 leading-tight">Conseq Fondy vs. Inflace ČNB</p>
                 </div>
-            </div>
+            </a>
             <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
                 <button onclick="generateAIReport()"
                     class="flex-1 sm:flex-none btn-ai text-white px-3 py-1.5 text-xs rounded-lg font-medium transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-1.5">
@@ -405,23 +405,16 @@
             </div>
 
             <div class="p-4 border-b border-slate-800/60 bg-slate-950/40">
-                <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center justify-between mb-2">
                     <label class="block text-xs text-slate-400">AI Poskytovatel</label>
                     <div class="flex gap-1 bg-slate-800 p-1 rounded text-xs">
                         <button id="btnAiGroq" onclick="switchAiProvider('groq')" class="px-2 py-1 rounded bg-purple-600 text-white font-medium transition-colors">Groq (Llama)</button>
                         <button id="btnAiGemini" onclick="switchAiProvider('gemini')" class="px-2 py-1 rounded text-slate-400 hover:text-white transition-colors">Gemini</button>
                     </div>
                 </div>
-
-                <label id="lblAiKey" class="block text-xs text-slate-400 mb-1.5">Groq API klíč <span class="text-slate-500">(zdarma na <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com</a>)</span></label>
-                <div class="flex gap-2">
-                    <input id="aiKeyInput" type="password" placeholder="Vlož klíč..."
-                        class="flex-1 bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-purple-500" />
-                    <button onclick="saveAiKey()"
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">Uložit
-                        klíč</button>
-                </div>
-                <p id="aiKeyStatus" class="text-[10px] text-slate-500 mt-1"></p>
+                <p class="text-[11px] text-slate-500">
+                    API klíče se nastavují v <a href="Nastavení.html" target="_top" class="text-sky-400 hover:underline">globálním Nastavení</a> — sdílí je všechny moduly.
+                </p>
             </div>
 
             <div class="p-5 overflow-y-auto flex-grow ai-prose text-slate-300 text-xs" id="aiResponseContainer">
@@ -943,45 +936,22 @@
             setCookie('ai_provider', provider);
             const groqBtn = document.getElementById('btnAiGroq');
             const geminiBtn = document.getElementById('btnAiGemini');
-            const lbl = document.getElementById('lblAiKey');
-            const inp = document.getElementById('aiKeyInput');
-            
             if (provider === 'groq') {
-                groqBtn.className = 'px-2 py-1 rounded bg-purple-600 text-white font-medium transition-colors';
-                geminiBtn.className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition-colors';
-                lbl.innerHTML = 'Groq API klíč <span class="text-slate-500">(zdarma na <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com</a>)</span>';
-                inp.placeholder = 'gsk_...';
-                inp.value = getCookie('groq_api_key') || '';
+                if (groqBtn)   groqBtn.className = 'px-2 py-1 rounded bg-purple-600 text-white font-medium transition-colors';
+                if (geminiBtn) geminiBtn.className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition-colors';
             } else {
-                groqBtn.className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition-colors';
-                geminiBtn.className = 'px-2 py-1 rounded bg-blue-600 text-white font-medium transition-colors';
-                lbl.innerHTML = 'Gemini API klíč <span class="text-slate-500">(zdarma na <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-400 hover:underline">aistudio.google.com</a>)</span>';
-                inp.placeholder = 'AIza...';
-                inp.value = getCookie('gemini_api_key') || '';
+                if (groqBtn)   groqBtn.className = 'px-2 py-1 rounded text-slate-400 hover:text-white transition-colors';
+                if (geminiBtn) geminiBtn.className = 'px-2 py-1 rounded bg-blue-600 text-white font-medium transition-colors';
             }
         }
 
-        function saveAiKey() {
-            const provider = getCookie('ai_provider') || 'groq';
-            const key = document.getElementById('aiKeyInput').value.trim();
-            if (!key) return;
-            if (provider === 'groq') setCookie('groq_api_key', key);
-            else setCookie('gemini_api_key', key);
-            document.getElementById('aiKeyStatus').textContent = `✅ Klíč pro ${provider} uložen.`;
-            document.getElementById('aiKeyStatus').className = 'text-[10px] text-emerald-400 mt-1';
-        }
+        // Klíče se nastavují v globálním Nastavení; saveAiKey ponecháno jako no-op
+        // pro případnou zpětnou kompatibilitu se starým UI.
+        function saveAiKey() { /* no-op */ }
 
         function generateAIReport() {
             showModal('aiModal');
             switchAiProvider(getCookie('ai_provider') || 'groq');
-            const provider = getCookie('ai_provider') || 'groq';
-            const savedKey = provider === 'groq' ? getCookie('groq_api_key') : getCookie('gemini_api_key');
-            if (savedKey) {
-                document.getElementById('aiKeyStatus').textContent = '✅ Klíč je uložen. Klikni na Analyzovat.';
-                document.getElementById('aiKeyStatus').className = 'text-[10px] text-emerald-400 mt-1';
-            } else {
-                document.getElementById('aiKeyStatus').textContent = '';
-            }
             lucide.createIcons();
         }
 

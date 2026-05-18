@@ -479,10 +479,6 @@
                     <span class="hidden sm:inline">Import</span>
                     <input type="file" class="hidden" accept=".json" onchange="app.importData(event)">
                 </label>
-                <button onclick="app.toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
-                    class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-transparent hover:border-slate-700 transition-colors">
-                    <i data-lucide="sun" class="w-3.5 h-3.5"></i>
-                </button>
                 <button onclick="app.resetData()" class="btn-danger">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                     <span class="hidden sm:inline">Reset</span>
@@ -547,9 +543,6 @@
             </button>
             <button onclick="app.setTab('ai')" id="tab-ai" class="tab-btn">
                 AI Rádce
-            </button>
-            <button onclick="app.setTab('settings')" id="tab-settings" class="tab-btn">
-                Nastavení
             </button>
         </div>
 
@@ -796,120 +789,6 @@
             </div>
         </div>
 
-        <!-- ───────────────── TAB: SETTINGS ───────────────── -->
-        <div id="section-settings" class="hidden max-w-3xl mx-auto space-y-4 animate-fade-in">
-
-            <!-- Cloud API -->
-            <div class="panel p-6">
-                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-5">
-                    <i data-lucide="cloud" class="w-4 h-4 text-sky-400"></i> Cloud API &amp; Live Sync
-                </h3>
-                <div class="space-y-3">
-                    <label class="section-label block">Google Apps Script URL</label>
-                    <input id="api-url" type="text" onchange="app.saveApiUrl()"
-                        placeholder="https://script.google.com/macros/s/..."
-                        class="pro-input font-mono text-xs">
-                    <p class="text-xs text-slate-600 mt-1">Aplikace bude automaticky odesílat každou změnu na toto URL (Live Sync).</p>
-                </div>
-            </div>
-
-            <!-- Apps Script Guide -->
-            <div class="panel p-6">
-                <h4 class="section-label text-sky-400 mb-5 flex items-center gap-2">
-                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Návod k nastavení Google Sheets
-                </h4>
-                <div class="space-y-4 text-sm text-slate-400">
-                    <p>1. Otevřete novou Google Tabulku a klikněte na <b class="text-slate-300">Rozšíření &gt; Apps Script</b>.</p>
-                    <p>2. Vložte do editoru tento kód a uložte:</p>
-                    <pre class="code-block select-all">function jsonOutput(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
-}
-
-function getDataSheet() {
-  return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-}
-
-function doGet() {
-  var sheet = getDataSheet();
-  var data = sheet.getDataRange().getValues();
-  if (data.length &lt; 2) return jsonOutput({ status: "success", data: [] });
-
-  var headers = data[0].map(String);
-  var res = [];
-  for (var i = 1; i &lt; data.length; i++) {
-    if (data[i].join("") === "") continue;
-    var obj = {};
-    for (var j = 0; j &lt; headers.length; j++) obj[headers[j]] = data[i][j];
-    res.push(obj);
-  }
-  return jsonOutput({ status: "success", data: res });
-}
-
-function doPost(e) {
-  var payload = JSON.parse(e.postData.contents || "[]");
-  var txs = Array.isArray(payload) ? payload : (payload.data || []);
-  if (!Array.isArray(txs)) return jsonOutput({ status: "error", message: "Neplatná data" });
-
-  var sheet = getDataSheet();
-  if (txs.length === 0 &amp;&amp; sheet.getLastRow() > 1) {
-    return jsonOutput({ status: "skipped", message: "Prázdný zápis přeskočen kvůli ochraně existujících dat" });
-  }
-
-  var headers = ["id", "date", "pohyb", "info", "suma", "ucet", "saving", "isExcluded", "origSuma", "origMena"];
-  txs.forEach(function(t) {
-    Object.keys(t).forEach(function(k) {
-      if (headers.indexOf(k) === -1) headers.push(k);
-    });
-  });
-
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  if (txs.length > 0) {
-    var rows = txs.map(function(t) {
-      return headers.map(function(h) { return t[h] !== undefined ? t[h] : ""; });
-    });
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
-  }
-  return jsonOutput({ status: "success", message: "OK" });
-}</pre>
-                    <p>3. Klikněte na <b class="text-slate-300">Nasadit &gt; Nové nasazení</b>.</p>
-                    <p>4. Vyberte typ <b class="text-slate-300">Webová aplikace</b> a přístup <b class="text-slate-300">Kdokoliv (Anyone)</b>.</p>
-                    <p>5. Zkopírujte zobrazenou URL a vložte ji do políčka výše.</p>
-                </div>
-            </div>
-
-            <!-- AI API Key -->
-            <div class="panel p-6">
-                <div class="flex items-center justify-between mb-5">
-                    <button onclick="openAIHelpModal()" class="flex items-center gap-2 text-slate-200 hover:text-sky-400 transition-colors group">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-purple-400 group-hover:text-sky-400 transition-colors"></i>
-                        <span class="text-sm font-semibold">AI API Klíč</span>
-                        <i data-lucide="help-circle" class="w-3.5 h-3.5 text-slate-600 group-hover:text-sky-400 transition-colors"></i>
-                    </button>
-                    <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-0.5">
-                        <button onclick="app.setAIProvider('groq')" id="btn-provider-groq"
-                            class="provider-btn" style="background:#a855f7;color:#fff;">Groq</button>
-                        <button onclick="app.setAIProvider('gemini')" id="btn-provider-gemini"
-                            class="provider-btn" style="color:#475569;background:transparent;">Gemini</button>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    <label class="section-label block">Groq API klíč (gsk_...)</label>
-                    <input id="groq-api-input" type="password" onchange="app.handleGroqKeyChange(this.value)"
-                        placeholder="gsk_..." class="pro-input font-mono text-xs">
-
-                    <label class="section-label block mt-4">Gemini API klíč (AIza...)</label>
-                    <input id="gemini-api-input" type="password" onchange="app.handleGeminiKeyChange(this.value)"
-                        placeholder="AIza..." class="pro-input font-mono text-xs hidden">
-
-                    <div id="ai-status"
-                        class="flex items-center justify-center gap-2 px-4 py-2.5 rounded text-xs font-mono transition-colors bg-slate-900 text-slate-500 border border-slate-800 mt-2">
-                        <i data-lucide="key-round" class="w-3.5 h-3.5"></i> Bez klíče
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </main>
 
     <!-- ───────────────── EDIT MODAL ───────────────── -->
@@ -1097,8 +976,7 @@ function doPost(e) {
                 const provider = getCookie('ai_provider') || localStorage.getItem('ai_provider') || 'groq';
                 const groqKey = getCookie('groq_api_key') || localStorage.getItem('groq_api_key') || '';
                 const geminiKey = getCookie('gemini_api_key') || localStorage.getItem('gemini_api_key') || '';
-                if (groqKey) document.getElementById('groq-api-input').value = groqKey;
-                if (geminiKey) document.getElementById('gemini-api-input').value = geminiKey;
+                // AI klíče se zadávají v globálním Nastavení; tady jen čteme z cookies.
                 this.updateAIProviderUI(provider);
                 this.updateAIStatus();
 
@@ -1124,7 +1002,7 @@ function doPost(e) {
                     if (e.key === 'Escape') this.closeEdit();
                 });
 
-                document.getElementById('api-url').value = this.apiUrl;
+                // Google Sheets URL se nastavuje v globálním Nastavení.
                 this.render();
                 if (this.apiUrl) await this.syncFromCloud({ seedIfEmpty: true });
                 else this.cloudReady = true;
@@ -1405,9 +1283,13 @@ function doPost(e) {
             },
 
             async saveApiUrl() {
-                this.apiUrl = document.getElementById('api-url').value.trim();
-                localStorage.setItem('FinanceAI_api', this.apiUrl);
+                /* URL se nastavuje v globálním Nastavení (Soubory/Nastavení.html).
+                   finance-common.js zrcadlí finance_sheets_url do legacy klíčů,
+                   takže this.apiUrl se naplní automaticky při dalším načtení. */
+                const inp = document.getElementById('api-url');
+                if (inp) this.apiUrl = inp.value.trim();
                 if (this.apiUrl) {
+                    localStorage.setItem('FinanceAI_api', this.apiUrl);
                     setCookie('FinanceAI_api', this.apiUrl, 365);
                     setCookie('google_sync_finance_ai', this.apiUrl, 365);
                 } else {

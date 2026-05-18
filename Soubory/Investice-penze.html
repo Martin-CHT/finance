@@ -300,22 +300,16 @@
     <nav class="sticky top-0 z-40 bg-slate-900/50 backdrop-blur-md border-b border-slate-800">
         <div class="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between gap-2">
 
-            <!-- Left: logo + title -->
-            <div class="flex items-center gap-3 min-w-0">
-                <a href="../index.html" class="flex items-center justify-center w-7 h-7 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-sky-400 hover:border-sky-500 transition-colors flex-shrink-0" title="Zpět na přehled">
-                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
-                </a>
-                <div class="w-px h-5 bg-slate-700 flex-shrink-0"></div>
-                <div class="flex items-center gap-2 min-w-0">
-                    <div class="bg-sky-500/10 border border-sky-500/20 p-1.5 rounded flex-shrink-0">
-                        <i data-lucide="shield-check" class="w-4 h-4 text-sky-400"></i>
-                    </div>
-                    <div class="min-w-0">
-                        <h1 class="text-sm font-bold text-slate-100 leading-tight truncate">Investice &amp; Penze</h1>
-                        <p class="text-[10px] text-slate-500 leading-tight hidden sm:block">Finance Terminal · Penzijní kalkulátor</p>
-                    </div>
+            <!-- Left: logo + title (klik = zpět na Dashboard) -->
+            <a href="../index.html" class="flex items-center gap-2 min-w-0 text-inherit no-underline hover:opacity-90 transition-opacity" title="Přejít na Dashboard">
+                <div class="bg-sky-500/10 border border-sky-500/20 p-1.5 rounded flex-shrink-0">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-sky-400"></i>
                 </div>
-            </div>
+                <div class="min-w-0">
+                    <h1 class="text-sm font-bold text-slate-100 leading-tight truncate">Investice &amp; Penze</h1>
+                    <p class="text-[10px] text-slate-500 leading-tight hidden sm:block">Finance Terminal · Penzijní kalkulátor</p>
+                </div>
+            </a>
 
             <!-- Right: actions -->
             <div class="flex items-center gap-1 flex-shrink-0">
@@ -328,11 +322,6 @@
                     <span class="hidden sm:inline">Import</span>
                     <input type="file" class="hidden" accept=".json" onchange="app.importData(event)">
                 </label>
-                <div class="w-px h-4 bg-slate-700 mx-1"></div>
-                <button onclick="app.toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
-                    class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-transparent hover:border-slate-700 transition-colors">
-                    <i data-lucide="sun" class="w-3.5 h-3.5"></i>
-                </button>
                 <div class="w-px h-4 bg-slate-700 mx-1"></div>
                 <button onclick="resetAll()" class="px-2.5 py-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded border border-transparent hover:border-rose-500/20 transition-colors uppercase tracking-wide">
                     Reset
@@ -451,9 +440,9 @@
                                 <span class="w-1.5 h-1.5 bg-sky-500 rounded-full animate-bounce" style="animation-delay:.4s"></span>
                             </div>
                         </div>
-                        <button onclick="openAiSettingsModal()" class="text-slate-600 hover:text-slate-300 transition-colors" title="Nastavení AI">
+                        <a href="Nastavení.html" target="_top" class="text-slate-600 hover:text-slate-300 transition-colors" title="Nastavení AI (globální)">
                             <i data-lucide="settings" class="w-3.5 h-3.5"></i>
-                        </button>
+                        </a>
                     </div>
                 </div>
 
@@ -745,45 +734,8 @@ function doPost(e) {
         </div>
     </div>
 
-    <!-- ═══════════════ MODAL: AI Nastavení ═══════════════ -->
-    <div id="ai-settings-modal" class="modal-backdrop hidden">
-        <div class="modal-box max-w-md">
-            <div class="modal-header">
-                <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-                    <i data-lucide="sparkles" class="w-4 h-4 text-violet-400"></i>
-                    Nastavení AI API
-                </h3>
-                <button onclick="closeAiSettingsModal()" class="text-slate-500 hover:text-slate-200 hover:bg-slate-700 p-1.5 rounded transition-colors">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
+    <!-- AI nastavení odebráno — viz globální Nastavení.html -->
 
-            <div class="p-5 space-y-4">
-                <div class="flex items-center justify-between">
-                    <label class="text-sm font-semibold text-slate-300">AI Poskytovatel</label>
-                    <div class="flex gap-1 bg-slate-800 p-1 rounded border border-slate-700 text-xs font-semibold">
-                        <button id="btnAiGroq" onclick="switchAiProvider('groq')"
-                            class="px-3 py-1.5 rounded bg-violet-600 text-white transition-colors">Groq (Llama)</button>
-                        <button id="btnAiGemini" onclick="switchAiProvider('gemini')"
-                            class="px-3 py-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors">Gemini</button>
-                    </div>
-                </div>
-
-                <div>
-                    <label id="lblAiKey" class="block text-sm font-semibold text-slate-300 mb-2">
-                        Groq API klíč <span class="font-normal text-xs text-slate-500">(zdarma na <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 hover:underline">console.groq.com</a>)</span>
-                    </label>
-                    <div class="flex gap-2">
-                        <input id="aiKeyInput" type="password" placeholder="Vlož klíč..."
-                            class="flex-1 px-3 py-2 text-sm rounded">
-                        <button onclick="saveAiKey()" class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-3 py-2 rounded transition-colors">Uložit</button>
-                    </div>
-                    <p id="aiKeyStatus" class="text-xs font-bold text-emerald-400 mt-2"></p>
-                    <p class="text-xs text-slate-500 mt-3">Klíč se uloží bezpečně do vašeho prohlížeče a je sdílen mezi všemi finančními nástroji v této složce.</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- ═══════════════════════ JAVASCRIPT ═══════════════════════ -->
     <script>

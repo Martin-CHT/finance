@@ -285,7 +285,9 @@
     <!-- ══════════════ TOP NAV ══════════════ -->
     <nav id="topNav">
         <div class="px-4 py-2 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2.5">
+            <a href="#" onclick="event.preventDefault(); goHome();" id="brandLink"
+               class="flex items-center gap-2.5 text-inherit no-underline hover:opacity-90 transition-opacity"
+               title="Přejít na Dashboard">
                 <div class="bg-sky-500/10 p-1.5 rounded-lg border border-sky-500/20">
                     <i data-lucide="layout-dashboard" class="w-5 h-5 text-sky-400"></i>
                 </div>
@@ -293,7 +295,7 @@
                     <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Finance Terminal</h1>
                     <p class="text-[10px] text-slate-500 leading-tight font-mono">Finanční centrum · v2025</p>
                 </div>
-            </div>
+            </a>
 
             <div id="breadcrumb" class="hidden sm:flex items-center gap-1.5">
                 <span>Centrum</span>
@@ -302,24 +304,22 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <span class="status-dot"></span>
-                <span class="text-[10px] text-slate-500 font-mono hidden sm:inline">localStorage · online</span>
+                <span class="status-dot" title="Spojení s lokálním úložištěm (cookies + localStorage). Zelená = data se ukládají v prohlížeči."></span>
+                <span class="text-[10px] text-slate-500 font-mono hidden sm:inline"
+                      title="Aplikace běží zcela lokálně v prohlížeči. Data jsou v localStorage; cloud synchronizace je volitelná v Nastavení.">localStorage · online</span>
                 <a id="loginChip" href="Soubory/Nastavení.html" title="Cloud účet — kliknutím otevřete Nastavení">
                     <span class="ldot"></span>
                     <span class="luser" id="loginChipLabel">Přihlásit</span>
                 </a>
                 <div class="w-px h-4 bg-slate-800"></div>
-                <button onclick="toggleReorderMode()" id="reorder-toggle" title="Ručně seřadit moduly"
-                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
-                    <i data-lucide="arrow-up-down" class="w-4 h-4"></i>
-                </button>
                 <button onclick="toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
                     class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
                     <i data-lucide="sun" class="w-4 h-4"></i>
                 </button>
-                <button onclick="goHome()" title="Zpět na dashboard"
-                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
-                    <i data-lucide="home" class="w-4 h-4"></i>
+                <button onclick="switchTab('nastaveni')" id="settings-btn" title="Nastavení (AI klíče, Google Sheets, pořadí, téma)"
+                    class="inline-flex items-center gap-1.5 text-slate-300 hover:text-slate-100 transition-colors px-2.5 py-1.5 rounded-md border border-slate-800 hover:border-slate-700 hover:bg-slate-800 text-xs font-medium">
+                    <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Nastavení</span>
                 </button>
             </div>
         </div>
@@ -338,7 +338,7 @@
                 <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
                     <div>
                         <h2 class="text-xl font-bold text-slate-100 tracking-tight">Finanční centrum</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Všechny finanční nástroje na jednom místě. Klikni na modul pro spuštění. Pořadí dlaždic lze ručně přeskupit ikonou <i data-lucide="arrow-up-down" class="inline w-3 h-3"></i> nahoře.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Všechny finanční nástroje na jednom místě. Klikni na modul pro spuštění. Pořadí dlaždic lze upravit v <a href="#" onclick="event.preventDefault(); switchTab('nastaveni');" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">Nastavení</a>.</p>
                     </div>
                     <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5">
                         <i data-lucide="calendar" class="w-3 h-3 text-slate-600"></i>
@@ -363,7 +363,7 @@
 
                 <!-- Footer note -->
                 <p class="text-[11px] text-slate-600 text-center pb-6 max-w-2xl mx-auto leading-relaxed">
-                    Finance Terminal sjednocuje rozpočet, spoření, investice, půjčky, fondy a evidenci majetku do jednoho rozhraní. Data zůstávají soukromá ve vašem prohlížeči, AI poradce a synchronizace s Google Sheets jsou volitelné a konfigurují se v sekci <a href="Soubory/Nastavení.html" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">Nastavení</a>.
+                    Finance Terminal sjednocuje rozpočet, spoření, investice, půjčky, fondy, evidenci majetku a Bitcoin DCA do jednoho rozhraní. Data zůstávají soukromá ve vašem prohlížeči, AI poradce a synchronizace s Google Sheets jsou volitelné a konfigurují se v sekci <a href="#" onclick="event.preventDefault(); switchTab('nastaveni');" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">Nastavení</a>.
                 </p>
             </div>
         </div>
@@ -434,19 +434,30 @@
                 desc: 'Evidence elektroniky, lineární odpisy, hlídání záruční doby a statistiky portfolia majetku.',
                 tags: ['Odpisy', 'Záruka', 'Charts']
             },
+            btc: {
+                label: 'BTC Investice',
+                shortBadge: 'BTC',
+                icon: 'bitcoin',
+                color: 'orange',
+                file: 'BTC/index.html',
+                desc: 'Chytré DCA do Bitcoinu — matematický model (Mayer Multiple, z-score) plus AI vrstva navrhuje, kolik investovat v daném intervalu.',
+                tags: ['AI', 'DCA', 'Crypto']
+            },
             nastaveni: {
                 label: 'Nastavení',
                 shortBadge: 'NS',
                 icon: 'settings',
                 color: 'slate',
                 file: 'Soubory/Nastavení.html',
-                desc: 'Sjednocené nastavení: AI API klíče (Groq / Gemini), Google Sheets synchronizace, pořadí modulů a téma. Vše ukládáno do cookies a volitelně do Sheets.',
+                desc: 'Sjednocené nastavení: AI API klíče (Groq / Gemini / ChatGPT), Google Sheets synchronizace, pořadí modulů a téma.',
                 tags: ['AI', 'Sheets', 'Cookies'],
-                isSettings: true
+                isSettings: true,
+                hideFromDashboard: true,
+                hideFromTabs: true
             }
         };
 
-        const DEFAULT_ORDER = ['prijmy', 'sporeni', 'investice', 'pujcky', 'fondy', 'majetek', 'nastaveni'];
+        const DEFAULT_ORDER = ['prijmy', 'sporeni', 'investice', 'pujcky', 'fondy', 'majetek', 'btc'];
 
         /* Barevné mapy pro Tailwind (musíme je psát staticky, jinak by je tw purge odstranil – při CDN se to nestává, ale pro jistotu necháme přímo třídy) */
         const COLOR_CLASSES = {
@@ -456,6 +467,7 @@
             rose:    { bg: 'bg-rose-500/10',    border: 'border-rose-500/20',    text: 'text-rose-400' },
             amber:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   text: 'text-amber-400' },
             teal:    { bg: 'bg-teal-500/10',    border: 'border-teal-500/20',    text: 'text-teal-400' },
+            orange:  { bg: 'bg-orange-500/10',  border: 'border-orange-500/20',  text: 'text-orange-400' },
             slate:   { bg: 'bg-slate-500/10',   border: 'border-slate-500/30',   text: 'text-slate-300' }
         };
 
@@ -480,8 +492,8 @@
                 if (!raw) return [...DEFAULT_ORDER];
                 const parsed = JSON.parse(raw);
                 if (!Array.isArray(parsed)) return [...DEFAULT_ORDER];
-                // doplň chybějící klíče, odstraň neznámé
-                const filtered = parsed.filter(k => MODULES[k]);
+                // doplň chybějící klíče, odstraň neznámé a moduly skryté z dashboardu/tab baru
+                const filtered = parsed.filter(k => MODULES[k] && !MODULES[k].hideFromDashboard);
                 DEFAULT_ORDER.forEach(k => { if (!filtered.includes(k)) filtered.push(k); });
                 return filtered;
             } catch (e) { return [...DEFAULT_ORDER]; }
@@ -547,17 +559,20 @@
             attachDragHandlers();
         }
 
-        /* ── Render iframes ── */
+        /* ── Render iframes ──
+           Vytvoříme iframe pro každý známý modul (i pro ty skryté z dashboardu,
+           např. Nastavení), aby přechod přes top-nav tlačítko fungoval. */
         function renderFrames(order) {
             const container = document.getElementById('iframeContainer');
-            // smazat staré framy
             container.querySelectorAll('.app-frame').forEach(f => f.remove());
-            order.forEach(key => {
+            const allKeys = Array.from(new Set([...order, ...Object.keys(MODULES)]));
+            allKeys.forEach(key => {
                 const m = MODULES[key];
+                if (!m) return;
                 const f = document.createElement('iframe');
                 f.id = 'frame-' + key;
                 f.className = 'app-frame';
-                f.dataset.src = m.file; // lazy load (atribut, naplníme src až při switchTab)
+                f.dataset.src = m.file;
                 f.title = m.label;
                 container.appendChild(f);
             });

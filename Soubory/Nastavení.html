@@ -219,7 +219,7 @@
     <!-- ══════════════ TOP NAV ══════════════ -->
     <nav id="topNav">
         <div class="px-4 py-2 flex items-center justify-between gap-3 max-w-6xl mx-auto">
-            <div class="flex items-center gap-2.5">
+            <a href="../index.html" class="flex items-center gap-2.5 text-inherit no-underline hover:opacity-90 transition-opacity" title="Přejít na Dashboard">
                 <div class="bg-slate-500/10 p-1.5 rounded-lg border border-slate-500/30">
                     <i data-lucide="settings" class="w-5 h-5 text-slate-300"></i>
                 </div>
@@ -227,17 +227,7 @@
                     <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Nastavení</h1>
                     <p class="text-[10px] text-slate-500 leading-tight font-mono">Finance Terminal · sjednocená konfigurace</p>
                 </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <button onclick="toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
-                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
-                    <i data-lucide="sun" class="w-4 h-4"></i>
-                </button>
-                <a href="../Index.html" title="Zpět na dashboard"
-                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800 inline-flex">
-                    <i data-lucide="home" class="w-4 h-4"></i>
-                </a>
-            </div>
+            </a>
         </div>
     </nav>
 
@@ -265,12 +255,12 @@
                 <div class="grid sm:grid-cols-2 gap-3">
                     <div>
                         <label class="fld">Uživatelské jméno <span class="text-[9px] text-slate-600">(3–32 znaků, a-z 0-9 . _ -)</span></label>
-                        <input id="authUser" type="text" class="input" placeholder="napr. martin" autocomplete="username" autocapitalize="none" spellcheck="false">
+                        <input id="authUser" type="text" class="input" placeholder="jméno" autocomplete="username" autocapitalize="none" spellcheck="false">
                     </div>
                     <div>
                         <label class="fld">Heslo <span class="text-[9px] text-slate-600">(min. 6 znaků)</span></label>
                         <div class="flex gap-2">
-                            <input id="authPw" type="password" class="input secret" placeholder="••••••••" autocomplete="current-password">
+                            <input id="authPw" type="password" class="input secret" placeholder="heslo" autocomplete="current-password">
                             <button class="btn btn-ghost" onclick="togglePw('authPw', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                         </div>
                     </div>
@@ -306,8 +296,8 @@
         <section class="panel">
             <h2><i data-lucide="brain-circuit" class="w-4 h-4 text-violet-400"></i> AI API klíče <span id="aiStatus" class="badge-status">načítám…</span></h2>
             <p class="panel-desc">
-                Klíče slouží AI funkcím ve všech modulech (rychlý vstup transakcí, finanční coach, analýza fondů).
-                Klíče se ukládají pouze ve vašem prohlížeči. Sdílí je všechny moduly Finance Terminalu.
+                Klíče slouží AI funkcím ve všech modulech (rychlý vstup transakcí, finanční coach, analýza fondů, BTC doporučení).
+                Klíče se ukládají pouze ve vašem prohlížeči (cookies + localStorage). Sdílí je všechny moduly Finance Terminalu, takže stačí zadat jednou.
             </p>
 
             <div class="grid sm:grid-cols-2 gap-4">
@@ -327,6 +317,23 @@
                     </div>
                     <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-[10px] text-sky-400 hover:underline mt-1 inline-block">Získat Gemini klíč →</a>
                 </div>
+                <div>
+                    <label class="fld">ChatGPT (OpenAI) API klíč <span class="text-[9px] text-slate-600">(sk-...)</span></label>
+                    <div class="flex gap-2">
+                        <input id="inpChatgpt" type="password" class="input secret" placeholder="sk-..." autocomplete="off">
+                        <button class="btn btn-ghost" onclick="togglePw('inpChatgpt', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                    <a href="https://platform.openai.com/api-keys" target="_blank" class="text-[10px] text-sky-400 hover:underline mt-1 inline-block">Získat OpenAI klíč →</a>
+                </div>
+                <div>
+                    <label class="fld">Výchozí poskytovatel</label>
+                    <select id="inpAiProvider" class="input">
+                        <option value="groq">Groq (rychlý, zdarma)</option>
+                        <option value="gemini">Gemini (Google, zdarma)</option>
+                        <option value="chatgpt">ChatGPT (OpenAI, placený)</option>
+                    </select>
+                    <span class="text-[10px] text-slate-600 mt-1 inline-block">Použije se, pokud má modul víc dostupných klíčů.</span>
+                </div>
             </div>
 
             <div class="mt-4 flex flex-wrap items-center gap-2">
@@ -340,21 +347,33 @@
         <section class="panel">
             <h2><i data-lucide="database" class="w-4 h-4 text-emerald-400"></i> Google Sheets synchronizace <span id="sheetsStatus" class="badge-status">načítám…</span></h2>
             <p class="panel-desc">
-                Jeden společný Google Sheet pro všechny moduly. Volitelná synchronizace (záloha transakcí, cílů, investic, majetku) i možnost zálohovat sem AI klíče,
-                aby šly nahrát na jiném zařízení.
+                Jeden společný Google Sheet pro všechny moduly. Volitelná synchronizace (záloha transakcí, cílů, investic, majetku, BTC historie) i možnost zálohovat sem AI klíče,
+                aby šly nahrát na jiném zařízení. <b class="text-slate-300">Funguje pouze přes vlastní Apps Script</b> — žádný backend Finance Terminalu vaše data nevidí.
             </p>
 
             <label class="fld">Web App URL <span class="text-[9px] text-slate-600">(Google Apps Script „/exec")</span></label>
             <input id="inpSheets" type="text" class="input" placeholder="https://script.google.com/macros/s/AKfycbx.../exec">
+            <p class="text-[11px] text-slate-500 mt-1">
+                <i data-lucide="info" class="w-3 h-3 inline align-text-bottom"></i>
+                Toto je <b class="text-slate-300">vaše vlastní</b> Apps Script URL. Vygenerujete ji podle návodu níže — Finance Terminal sem nepřednastavuje žádnou cizí adresu. Pokud zde vidíte starou URL, je z předchozího nastavení (cookies). Kliknutím sem ji můžete vyčistit.
+            </p>
 
             <div class="grid sm:grid-cols-2 gap-4 mt-3">
                 <div>
                     <label class="fld">Google Sheet ID <span class="text-[9px] text-slate-600">(volitelné, najdete v URL)</span></label>
                     <input id="inpSheetId" type="text" class="input" placeholder="1AbCdEf...">
+                    <p class="text-[11px] text-slate-500 mt-1">
+                        ID je dlouhý kód mezi <span class="font-mono text-slate-300">/d/</span> a <span class="font-mono text-slate-300">/edit</span> v URL Google Sheetu, např.<br>
+                        <span class="font-mono text-slate-400 text-[10px]">docs.google.com/spreadsheets/d/<b class="text-emerald-400">1AbCdEf...XyZ</b>/edit</span><br>
+                        Pole je nepovinné — Apps Script Web App automaticky používá Sheet, ke kterému je připojený. ID se hodí jen pro speciální skripty, které explicitně otevírají Sheet podle ID.
+                    </p>
                 </div>
                 <div>
                     <label class="fld">Sdílený token <span class="text-[9px] text-slate-600">(volitelné, slouží jako ochrana webhooku)</span></label>
                     <input id="inpSheetToken" type="password" class="input secret" placeholder="vlastní heslo / token" autocomplete="off">
+                    <p class="text-[11px] text-slate-500 mt-1">
+                        Web App URL je veřejně dostupná (musí být — jinak by ji nevolal prohlížeč). Token je <b class="text-slate-300">vámi zvolené heslo</b>, které prohlížeč přidává jako parametr ke každému volání (<span class="font-mono">?token=xyz</span>). Apps Script vás ověří podle stejné hodnoty v konstantě <span class="font-mono text-slate-300">TOKEN</span> — pokud nesouhlasí, žádost odmítne. Bez tokenu by kdokoliv se znalostí URL mohl číst nebo přepisovat vaše data.
+                    </p>
                 </div>
             </div>
 
@@ -524,6 +543,8 @@ function _json(o) {
         const KEYS = {
             groq:        'groq_api_key',
             gemini:      'gemini_api_key',
+            chatgpt:     'chatgpt_api_key',
+            aiProvider:  'ai_provider',
             sheetsUrl:   'finance_sheets_url',
             sheetsId:    'finance_sheets_id',
             sheetsToken: 'finance_sheets_token',
@@ -536,38 +557,47 @@ function _json(o) {
         function loadAiKeys() {
             document.getElementById('inpGroq').value = getUnified(KEYS.groq);
             document.getElementById('inpGemini').value = getUnified(KEYS.gemini);
+            document.getElementById('inpChatgpt').value = getUnified(KEYS.chatgpt);
+            document.getElementById('inpAiProvider').value = getUnified(KEYS.aiProvider) || 'groq';
             updateAiStatus();
         }
         function saveAiKeys() {
             const g = document.getElementById('inpGroq').value.trim();
             const m = document.getElementById('inpGemini').value.trim();
+            const c = document.getElementById('inpChatgpt').value.trim();
+            const p = document.getElementById('inpAiProvider').value || 'groq';
             setUnified(KEYS.groq, g);
             setUnified(KEYS.gemini, m);
+            setUnified(KEYS.chatgpt, c);
+            setUnified(KEYS.aiProvider, p);
             updateAiStatus();
             toast('AI klíče uloženy do cookies', 'success');
         }
         function clearAiKeys() {
-            if (!confirm('Opravdu smazat oba AI klíče z tohoto prohlížeče?')) return;
-            setUnified(KEYS.groq, '');
-            setUnified(KEYS.gemini, '');
-            try { localStorage.removeItem(KEYS.groq); localStorage.removeItem(KEYS.gemini); } catch(e) {}
-            delCookie(KEYS.groq); delCookie(KEYS.gemini);
+            if (!confirm('Opravdu smazat všechny AI klíče (Groq, Gemini, ChatGPT) z tohoto prohlížeče?')) return;
+            [KEYS.groq, KEYS.gemini, KEYS.chatgpt].forEach(k => {
+                setUnified(k, '');
+                try { localStorage.removeItem(k); } catch(e) {}
+                delCookie(k);
+            });
             document.getElementById('inpGroq').value = '';
             document.getElementById('inpGemini').value = '';
+            document.getElementById('inpChatgpt').value = '';
             updateAiStatus();
             toast('AI klíče smazány', 'info');
         }
         function updateAiStatus() {
-            const g = getUnified(KEYS.groq); const m = getUnified(KEYS.gemini);
+            const g = getUnified(KEYS.groq); const m = getUnified(KEYS.gemini); const c = getUnified(KEYS.chatgpt);
             const el = document.getElementById('aiStatus');
-            if (g && m) { el.textContent = 'Groq + Gemini nastaveno'; el.className = 'badge-status ok'; }
-            else if (g) { el.textContent = 'Pouze Groq'; el.className = 'badge-status warn'; }
-            else if (m) { el.textContent = 'Pouze Gemini'; el.className = 'badge-status warn'; }
-            else { el.textContent = 'nenastaveno'; el.className = 'badge-status err'; }
+            const set = [g && 'Groq', m && 'Gemini', c && 'ChatGPT'].filter(Boolean);
+            if (set.length === 3)      { el.textContent = 'Groq + Gemini + ChatGPT'; el.className = 'badge-status ok'; }
+            else if (set.length === 2) { el.textContent = set.join(' + ');           el.className = 'badge-status ok'; }
+            else if (set.length === 1) { el.textContent = 'Pouze ' + set[0];         el.className = 'badge-status warn'; }
+            else                       { el.textContent = 'nenastaveno';             el.className = 'badge-status err'; }
         }
         async function testAiKeys() {
-            const g = getUnified(KEYS.groq); const m = getUnified(KEYS.gemini);
-            if (!g && !m) { toast('Není uložen žádný klíč', 'error'); return; }
+            const g = getUnified(KEYS.groq); const m = getUnified(KEYS.gemini); const c = getUnified(KEYS.chatgpt);
+            if (!g && !m && !c) { toast('Není uložen žádný klíč', 'error'); return; }
             toast('Testuji klíče…', 'info');
             const results = [];
             if (g) {
@@ -581,6 +611,12 @@ function _json(o) {
                     const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(m));
                     results.push('Gemini: ' + (r.ok ? 'OK' : 'CHYBA ' + r.status));
                 } catch (e) { results.push('Gemini: ' + e.message); }
+            }
+            if (c) {
+                try {
+                    const r = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: 'Bearer ' + c } });
+                    results.push('ChatGPT: ' + (r.ok ? 'OK' : 'CHYBA ' + r.status));
+                } catch (e) { results.push('ChatGPT: ' + e.message); }
             }
             toast(results.join(' · '), results.every(r => r.includes('OK')) ? 'success' : 'error');
         }
@@ -636,11 +672,13 @@ function _json(o) {
             const payload = {
                 action: 'saveConfig',
                 data: {
-                    groq_api_key:  getUnified(KEYS.groq),
-                    gemini_api_key: getUnified(KEYS.gemini),
+                    groq_api_key:     getUnified(KEYS.groq),
+                    gemini_api_key:   getUnified(KEYS.gemini),
+                    chatgpt_api_key:  getUnified(KEYS.chatgpt),
+                    ai_provider:      getUnified(KEYS.aiProvider) || 'groq',
                     finance_sheets_id: getUnified(KEYS.sheetsId),
-                    finance_theme: getUnified(KEYS.theme) || 'dark',
-                    fc_module_order: getUnified(KEYS.order)
+                    finance_theme:    getUnified(KEYS.theme) || 'dark',
+                    fc_module_order:  getUnified(KEYS.order)
                 }
             };
             try {
@@ -657,11 +695,13 @@ function _json(o) {
                 const j = await r.json();
                 if (!j || !j.ok) { toast('Chyba: ' + JSON.stringify(j), 'error'); return; }
                 const c = j.config || {};
-                if (c.groq_api_key)     setUnified(KEYS.groq, c.groq_api_key);
-                if (c.gemini_api_key)   setUnified(KEYS.gemini, c.gemini_api_key);
+                if (c.groq_api_key)      setUnified(KEYS.groq, c.groq_api_key);
+                if (c.gemini_api_key)    setUnified(KEYS.gemini, c.gemini_api_key);
+                if (c.chatgpt_api_key)   setUnified(KEYS.chatgpt, c.chatgpt_api_key);
+                if (c.ai_provider)       setUnified(KEYS.aiProvider, c.ai_provider);
                 if (c.finance_sheets_id) setUnified(KEYS.sheetsId, c.finance_sheets_id);
-                if (c.finance_theme)    setUnified(KEYS.theme, c.finance_theme);
-                if (c.fc_module_order)  setUnified(KEYS.order, c.fc_module_order);
+                if (c.finance_theme)     setUnified(KEYS.theme, c.finance_theme);
+                if (c.fc_module_order)   setUnified(KEYS.order, c.fc_module_order);
                 loadAiKeys(); loadSheets(); renderModules();
                 applyTheme(getUnified(KEYS.theme) || 'dark');
                 toast('Konfigurace načtena z Google Sheets', 'success');
@@ -676,9 +716,9 @@ function _json(o) {
             pujcky:    { label: 'Půjčky & Splátky',  file: 'Půjčky.html',           icon: 'credit-card',  color: 'text-rose-400' },
             fondy:     { label: 'Fondy Conseq',      file: 'Fondy.html',            icon: 'activity',     color: 'text-amber-400' },
             majetek:   { label: 'Majetek & Odpisy',  file: 'Majetek-odpisy.html',   icon: 'package',      color: 'text-teal-400' },
-            nastaveni: { label: 'Nastavení',         file: 'Nastavení.html',        icon: 'settings',     color: 'text-slate-300' }
+            btc:       { label: 'BTC Investice',     file: '../BTC/index.html',     icon: 'bitcoin',      color: 'text-orange-400' }
         };
-        const DEFAULT_ORDER = ['prijmy','sporeni','investice','pujcky','fondy','majetek','nastaveni'];
+        const DEFAULT_ORDER = ['prijmy','sporeni','investice','pujcky','fondy','majetek','btc'];
 
         function loadOrder() {
             try {
@@ -772,6 +812,8 @@ function _json(o) {
             return {
                 groq_api_key:        getUnified(KEYS.groq),
                 gemini_api_key:      getUnified(KEYS.gemini),
+                chatgpt_api_key:     getUnified(KEYS.chatgpt),
+                ai_provider:         getUnified(KEYS.aiProvider) || 'groq',
                 finance_sheets_url:  getUnified(KEYS.sheetsUrl),
                 finance_sheets_id:   getUnified(KEYS.sheetsId),
                 finance_sheets_token: getUnified(KEYS.sheetsToken),
