@@ -19,17 +19,13 @@ function init() {
   wireHistory();
   wireAI();
   wireHelp();
-<<<<<<< HEAD
   wireStrategies();
   renderStrategies();
-=======
->>>>>>> 184d82e75548ca05800db460da54f61366431ab7
   applyStateToUI();
   $('#startDate').value = state.plan?.startDate || todayISO();
   refresh();
 }
 
-<<<<<<< HEAD
 // --- Strategies ---
 function renderStrategies() {
   const sel = $('#strategySelect');
@@ -87,8 +83,6 @@ function wireStrategies() {
 }
 function escapeHtml(s) { return String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-=======
->>>>>>> 184d82e75548ca05800db460da54f61366431ab7
 function displayCurrency() {
   return (state.settings.displayCurrency || 'USD').toUpperCase();
 }

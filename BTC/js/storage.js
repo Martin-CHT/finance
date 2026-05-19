@@ -12,7 +12,6 @@ const defaultState = {
     sensitivity: 1.5,
   },
   customAssets: [],
-<<<<<<< HEAD
   // ─── Multi-strategy ───
   // Každá strategie je pojmenovaná konfigurace s vlastním plánem a historií.
   // Sdílí se settings a customAssets. plan/investments na top-levelu jsou aliasy
@@ -64,24 +63,6 @@ function migrate(state) {
   return state;
 }
 
-=======
-};
-
-/* Čte AI klíče sdílené s ostatními moduly Finance Terminalu
-   (groq_api_key, gemini_api_key) z localStorage nebo cookies. */
-function readSharedKey(name) {
-  try {
-    const ls = localStorage.getItem(name);
-    if (ls) return ls;
-  } catch (_) { /* ignore */ }
-  try {
-    const m = document.cookie.split('; ').find((r) => r.startsWith(name + '='));
-    if (m) return decodeURIComponent(m.split('=')[1]);
-  } catch (_) { /* ignore */ }
-  return '';
-}
-
->>>>>>> 184d82e75548ca05800db460da54f61366431ab7
 export function load() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -91,11 +72,7 @@ export function load() {
       ...base,
       settings: { ...defaultState.settings, ...(base.settings || {}) },
     };
-<<<<<<< HEAD
     migrate(merged);
-=======
-    // Fallback na sdílené klíče z globálního Nastavení Finance Terminalu
->>>>>>> 184d82e75548ca05800db460da54f61366431ab7
     if (!merged.settings.groqKey)   merged.settings.groqKey   = readSharedKey('groq_api_key');
     if (!merged.settings.geminiKey) merged.settings.geminiKey = readSharedKey('gemini_api_key');
     return merged;
@@ -105,7 +82,6 @@ export function load() {
   }
 }
 
-<<<<<<< HEAD
 /* Před uložením synchronizuj aktivní strategii s top-level plan/investments,
    protože zbytek app.js manipuluje s nimi přímo. */
 export function save(state) {
@@ -118,17 +94,12 @@ export function save(state) {
         state.strategies[i].sensitivity = state.settings.sensitivity;
       }
     }
-=======
-export function save(state) {
-  try {
->>>>>>> 184d82e75548ca05800db460da54f61366431ab7
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch (err) {
     console.error('storage.save failed', err);
   }
 }
 
-<<<<<<< HEAD
 /* Strategy management */
 export function listStrategies(state) {
   return Array.isArray(state.strategies) ? state.strategies : [];
@@ -182,8 +153,6 @@ export function deleteStrategy(state, id) {
   return true;
 }
 
-=======
->>>>>>> 184d82e75548ca05800db460da54f61366431ab7
 export function clearAll() {
   localStorage.removeItem(KEY);
 }
@@ -196,11 +165,7 @@ export function exportJSON() {
 export function importJSON(text) {
   const parsed = JSON.parse(text);
   if (typeof parsed !== 'object' || parsed === null) throw new Error('Invalid JSON');
-<<<<<<< HEAD
   const merged = { ...structuredClone(defaultState), ...parsed };
   migrate(merged);
   save(merged);
-=======
-  save({ ...structuredClone(defaultState), ...parsed });
->>>>>>> 184d82e75548ca05800db460da54f61366431ab7
 }
