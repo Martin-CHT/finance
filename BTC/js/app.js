@@ -19,11 +19,76 @@ function init() {
   wireHistory();
   wireAI();
   wireHelp();
+<<<<<<< HEAD
+  wireStrategies();
+  renderStrategies();
+=======
+>>>>>>> 184d82e75548ca05800db460da54f61366431ab7
   applyStateToUI();
   $('#startDate').value = state.plan?.startDate || todayISO();
   refresh();
 }
 
+<<<<<<< HEAD
+// --- Strategies ---
+function renderStrategies() {
+  const sel = $('#strategySelect');
+  if (!sel) return;
+  const list = storage.listStrategies(state);
+  sel.innerHTML = list.map(s => `<option value="${s.id}" ${s.id === state.activeStrategyId ? 'selected' : ''}>${escapeHtml(s.label)}</option>`).join('');
+  const delBtn = $('#btnDeleteStrategy');
+  if (delBtn) delBtn.disabled = list.length <= 1;
+}
+function wireStrategies() {
+  const sel = $('#strategySelect');
+  if (!sel) return;
+  sel.addEventListener('change', () => {
+    storage.switchStrategy(state, sel.value);
+    storage.save(state);
+    applyStateToUI();
+    $('#startDate').value = state.plan?.startDate || todayISO();
+    renderStrategies();
+    refresh();
+    toast('Přepnuto na: ' + (storage.getActiveStrategy(state)?.label || '?'));
+  });
+  $('#btnNewStrategy')?.addEventListener('click', () => {
+    const name = prompt('Název nové strategie:', 'Nová DCA');
+    if (!name) return;
+    const s = storage.createStrategy(state, name);
+    storage.switchStrategy(state, s.id);
+    storage.save(state);
+    applyStateToUI();
+    renderStrategies();
+    refresh();
+    toast('Vytvořena: ' + s.label);
+  });
+  $('#btnRenameStrategy')?.addEventListener('click', () => {
+    const active = storage.getActiveStrategy(state);
+    if (!active) return;
+    const name = prompt('Přejmenovat strategii:', active.label);
+    if (!name) return;
+    storage.renameStrategy(state, active.id, name);
+    storage.save(state);
+    renderStrategies();
+    toast('Přejmenováno');
+  });
+  $('#btnDeleteStrategy')?.addEventListener('click', () => {
+    const active = storage.getActiveStrategy(state);
+    if (!active) return;
+    if (storage.listStrategies(state).length <= 1) { toast('Poslední strategii nelze smazat'); return; }
+    if (!confirm(`Smazat strategii "${active.label}"? Plán a historie investic této strategie budou ztraceny.`)) return;
+    storage.deleteStrategy(state, active.id);
+    storage.save(state);
+    applyStateToUI();
+    renderStrategies();
+    refresh();
+    toast('Smazáno');
+  });
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+=======
+>>>>>>> 184d82e75548ca05800db460da54f61366431ab7
 function displayCurrency() {
   return (state.settings.displayCurrency || 'USD').toUpperCase();
 }

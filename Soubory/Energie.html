@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Energie — odečty měřidel Finance Terminal.">
+    <title>Energie | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+    <script src="finance-common.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; }
+        body { font-family:'Inter',sans-serif; background:#020617; color:#f8fafc; margin:0; min-height:100vh; }
+        .font-mono { font-family:'JetBrains Mono',monospace; }
+        ::-webkit-scrollbar { width:6px; height:6px; } ::-webkit-scrollbar-track { background:#0f172a; } ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+
+        #topNav { background:rgba(15,23,42,.85); backdrop-filter:blur(12px); border-bottom:1px solid #1e293b; position:sticky; top:0; z-index:50; }
+        .panel { background:#0f172a; border:1px solid #1e293b; border-radius:.75rem; padding:1.25rem; }
+        .kpi-card { background:#0f172a; border:1px solid #1e293b; border-radius:.5rem; padding:.9rem 1.1rem; }
+        .kpi-label { font-size:.65rem; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+        .kpi-value { font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:700; }
+        label.fld { display:block; font-size:.7rem; color:#94a3b8; margin-bottom:.3rem; font-weight:500; }
+        .input { width:100%; background:#020617; border:1px solid #1e293b; border-radius:.4rem; padding:.5rem .7rem; font-size:.8rem; color:#f8fafc; font-family:'JetBrains Mono',monospace; }
+        .input:focus { outline:none; border-color:#f59e0b; box-shadow:0 0 0 2px rgba(245,158,11,.2); }
+        .btn { display:inline-flex; align-items:center; gap:.4rem; padding:.5rem .9rem; font-size:.75rem; font-weight:500; border-radius:.4rem; cursor:pointer; transition:all .15s; border:1px solid transparent; }
+        .btn-primary { background:#f59e0b; color:#1a1a1a; } .btn-primary:hover { background:#d97706; }
+        .btn-secondary { background:#1e293b; color:#e2e8f0; border-color:#334155; } .btn-secondary:hover { background:#334155; }
+        .btn-danger { background:rgba(244,63,94,.12); color:#fb7185; border-color:rgba(244,63,94,.3); }
+        .btn-ghost { background:transparent; color:#94a3b8; border-color:#1e293b; } .btn-ghost:hover { background:#0f172a; color:#e2e8f0; }
+
+        .meter-tabs { display:flex; gap:.3rem; border-bottom:1px solid #1e293b; padding:.5rem .75rem 0; }
+        .meter-tab { padding:.7rem 1.1rem; font-size:.8rem; color:#64748b; cursor:pointer; background:transparent; border:none; border-bottom:2px solid transparent; transition:all .15s; display:inline-flex; align-items:center; gap:.4rem; }
+        .meter-tab:hover { color:#e2e8f0; }
+        .meter-tab.active.elec { color:#fbbf24; border-bottom-color:#fbbf24; }
+        .meter-tab.active.water { color:#38bdf8; border-bottom-color:#38bdf8; }
+        .meter-tab.active.gas { color:#fb923c; border-bottom-color:#fb923c; }
+        .meter-tab.active.overview { color:#a3e635; border-bottom-color:#a3e635; }
+
+        table.t { width:100%; border-collapse:separate; border-spacing:0; font-size:.78rem; }
+        table.t th { text-align:left; font-size:.65rem; color:#64748b; text-transform:uppercase; letter-spacing:.05em; padding:.6rem .5rem; border-bottom:1px solid #1e293b; }
+        table.t td { padding:.55rem .5rem; border-bottom:1px solid #1e293b; }
+        table.t tr:hover td { background:rgba(245,158,11,.04); }
+
+        .modal-bg { position:fixed; inset:0; background:rgba(2,6,23,.78); z-index:60; display:none; align-items:center; justify-content:center; padding:1rem; }
+        .modal-bg.show { display:flex; }
+        .modal-box { background:#0f172a; border:1px solid #1e293b; border-radius:.75rem; padding:1.5rem; width:100%; max-width:28rem; max-height:90vh; overflow-y:auto; }
+
+        html.light body { background:#f1f5f9; color:#0f172a; }
+        html.light #topNav { background:rgba(255,255,255,.92)!important; border-bottom-color:#e2e8f0!important; }
+        html.light .panel, html.light .kpi-card, html.light .modal-box { background:#fff!important; border-color:#e2e8f0!important; }
+        html.light .input { background:#f8fafc; color:#0f172a; border-color:#e2e8f0; }
+        html.light .btn-secondary { background:#f1f5f9; color:#0f172a; border-color:#cbd5e1; }
+        html.light table.t th, html.light table.t td { border-color:#e2e8f0; }
+        html.light .text-slate-100 { color:#0f172a!important; }
+        html.light .text-slate-400 { color:#475569!important; }
+        html.light .text-slate-500 { color:#64748b!important; }
+        html.light .text-slate-600 { color:#94a3b8!important; }
+    </style>
+</head>
+<body>
+
+<nav id="topNav">
+    <div class="px-4 py-2 flex items-center justify-between gap-3 max-w-6xl mx-auto">
+        <a href="../index.html" class="flex items-center gap-2.5 text-inherit no-underline hover:opacity-90 transition-opacity" title="Přejít na Dashboard">
+            <div class="bg-amber-500/10 p-1.5 rounded-lg border border-amber-500/20"><i data-lucide="plug-zap" class="w-5 h-5 text-amber-400"></i></div>
+            <div>
+                <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Energie</h1>
+                <p class="text-[10px] text-slate-500 leading-tight font-mono">Finance Terminal · odečty měřidel</p>
+            </div>
+        </a>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-secondary" onclick="openTariff()" title="Tarify a fixní poplatky"><i data-lucide="settings-2" class="w-3.5 h-3.5"></i> Tarify</button>
+            <button class="btn btn-primary" onclick="openAdd()"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Přidat odečet</button>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-6xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- Meter tabs -->
+    <section class="panel p-0 overflow-hidden">
+        <div class="meter-tabs">
+            <button class="meter-tab overview" data-m="overview" onclick="setMeter('overview')"><i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Přehled</button>
+            <button class="meter-tab elec active" data-m="electricity" onclick="setMeter('electricity')"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Elektřina</button>
+            <button class="meter-tab water" data-m="water" onclick="setMeter('water')"><i data-lucide="droplet" class="w-3.5 h-3.5"></i> Voda</button>
+            <button class="meter-tab gas" data-m="gas" onclick="setMeter('gas')"><i data-lucide="flame" class="w-3.5 h-3.5"></i> Plyn</button>
+        </div>
+
+        <!-- Single meter view (electricity/water/gas) -->
+        <div id="view-meter" class="p-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div class="kpi-card"><div class="kpi-label">Poslední odečet</div><div id="mLast" class="kpi-value text-amber-400">—</div><div class="text-[10px] text-slate-600" id="mLastDate">—</div></div>
+                <div class="kpi-card"><div class="kpi-label">Denní průměr</div><div id="mDaily" class="kpi-value text-sky-400">—</div><div class="text-[10px] text-slate-600" id="mDailyUnit">jedn./den</div></div>
+                <div class="kpi-card"><div class="kpi-label">Měsíční náklad</div><div id="mCost" class="kpi-value text-rose-400">0 Kč</div><div class="text-[10px] text-slate-600">spotřeba × cena + fix</div></div>
+                <div class="kpi-card"><div class="kpi-label">Trend Y/Y</div><div id="mYoY" class="kpi-value text-emerald-400">—</div><div class="text-[10px] text-slate-600">vs. minulý rok</div></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <div class="panel lg:col-span-2" style="background:#020617;">
+                    <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-2"><i data-lucide="line-chart" class="w-3.5 h-3.5"></i> Spotřeba v čase</h3>
+                    <div style="height:240px;"><canvas id="chartMeter"></canvas></div>
+                </div>
+                <div class="panel" style="background:#020617;">
+                    <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-2"><i data-lucide="settings-2" class="w-3.5 h-3.5"></i> Aktuální tarif</h3>
+                    <div id="tariffSummary" class="text-xs text-slate-400 space-y-1.5"></div>
+                    <button class="btn btn-ghost mt-3 w-full justify-center" onclick="openTariff()"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i> Upravit tarif</button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="t">
+                    <thead><tr>
+                        <th>Datum</th><th class="text-right">Stav měřiče</th>
+                        <th class="text-right">Spotřeba</th><th class="text-right">Dní</th>
+                        <th class="text-right">Náklad</th><th>Poznámka</th><th class="text-right">Akce</th>
+                    </tr></thead>
+                    <tbody id="readingsBody"></tbody>
+                </table>
+            </div>
+            <p id="emptyReadings" class="text-center text-slate-500 text-xs py-8 hidden">Zatím žádné odečty. Klikni „+ Přidat odečet".</p>
+        </div>
+
+        <!-- Overview view -->
+        <div id="view-overview" class="p-4 hidden">
+            <p class="text-xs text-slate-500 mb-4">Srovnání měsíčních nákladů všech tří médií. Klikni na záložku konkrétního média pro detaily.</p>
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="kpi-card"><div class="kpi-label">Elektřina (rok)</div><div id="ovElec" class="kpi-value text-amber-400">0 Kč</div></div>
+                <div class="kpi-card"><div class="kpi-label">Voda (rok)</div><div id="ovWater" class="kpi-value text-sky-400">0 Kč</div></div>
+                <div class="kpi-card"><div class="kpi-label">Plyn (rok)</div><div id="ovGas" class="kpi-value text-orange-400">0 Kč</div></div>
+            </div>
+            <div class="panel" style="background:#020617;">
+                <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Měsíční náklady (Kč)</h3>
+                <div style="height:320px;"><canvas id="chartOverview"></canvas></div>
+            </div>
+        </div>
+    </section>
+
+    <p class="text-[10px] text-slate-600 text-center font-mono py-4">
+        Data v localStorage <code>energie_v1</code> · jednotka: kWh / m³
+    </p>
+</main>
+
+<!-- ───────────── Modal: Reading ───────────── -->
+<div id="modalRead" class="modal-bg" onclick="if(event.target===this) closeModal('Read')">
+    <div class="modal-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="modalReadTitle" class="text-base font-bold text-slate-100">Nový odečet</h3>
+            <button onclick="closeModal('Read')" class="text-slate-500 hover:text-slate-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Datum *</label><input id="rDate" type="date" class="input"></div>
+                <div><label class="fld">Stav měřiče *</label><input id="rValue" type="number" step="0.01" class="input" placeholder="12345.67"></div>
+            </div>
+            <div>
+                <label class="fld">Médium *</label>
+                <select id="rType" class="input">
+                    <option value="electricity">Elektřina (kWh)</option>
+                    <option value="water">Voda (m³)</option>
+                    <option value="gas">Plyn (m³)</option>
+                </select>
+            </div>
+            <div>
+                <label class="fld">Jednotková cena (volitelné, jinak z tarifu)</label>
+                <input id="rPrice" type="number" step="0.01" class="input" placeholder="z tarifu se převezme automaticky">
+            </div>
+            <div><label class="fld">Poznámka</label><input id="rNote" class="input" placeholder="po vyúčtování / odhad"></div>
+        </div>
+        <div class="flex justify-between gap-2 mt-5">
+            <button id="rDelete" class="btn btn-danger hidden" onclick="removeReading()"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Smazat</button>
+            <div class="flex gap-2 ml-auto">
+                <button class="btn btn-secondary" onclick="closeModal('Read')">Zrušit</button>
+                <button class="btn btn-primary" onclick="saveReading()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ───────────── Modal: Tariff ───────────── -->
+<div id="modalTariff" class="modal-bg" onclick="if(event.target===this) closeModal('Tariff')">
+    <div class="modal-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-bold text-slate-100">Tarif — <span id="tariffMeterLabel" class="text-amber-400">Elektřina</span></h3>
+            <button onclick="closeModal('Tariff')" class="text-slate-500 hover:text-slate-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="space-y-3">
+            <div><label class="fld">Název tarifu</label><input id="tName" class="input" placeholder="D02d / KO1"></div>
+            <div><label class="fld">Dodavatel</label><input id="tSupplier" class="input" placeholder="EG.D / innogy / SčVK"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Cena za jednotku (Kč)</label><input id="tUnit" type="number" step="0.01" class="input" placeholder="4.80"></div>
+                <div><label class="fld">Fixní poplatek (Kč / měs.)</label><input id="tFix" type="number" step="1" class="input" placeholder="250"></div>
+            </div>
+            <p class="text-[11px] text-slate-500">Náklad za období = spotřeba × cena/jednotka + fix × (dní/30.44).</p>
+        </div>
+        <div class="flex justify-end gap-2 mt-5">
+            <button class="btn btn-secondary" onclick="closeModal('Tariff')">Zrušit</button>
+            <button class="btn btn-primary" onclick="saveTariff()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit tarif</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+    function getCookie(name) { try { const m=document.cookie.split('; ').find(r=>r.startsWith(name+'=')); return m ? decodeURIComponent(m.split('=')[1]) : ''; } catch(e){ return ''; } }
+
+    const KEY = 'energie_v1';
+    const META = {
+        electricity: { label: 'Elektřina', unit: 'kWh', color: '#fbbf24', tabClass: 'elec' },
+        water:       { label: 'Voda',      unit: 'm³',  color: '#38bdf8', tabClass: 'water' },
+        gas:         { label: 'Plyn',      unit: 'm³',  color: '#fb923c', tabClass: 'gas' }
+    };
+
+    let DB = {
+        meters: {
+            electricity: { tariff: { name:'D02d', supplier:'', unit: 4.80, fixedMonthly: 250 }, readings: [] },
+            water:       { tariff: { name:'',     supplier:'', unit: 110,  fixedMonthly: 100 }, readings: [] },
+            gas:         { tariff: { name:'',     supplier:'', unit: 30,   fixedMonthly: 180 }, readings: [] }
+        }
+    };
+
+    let currentMeter = 'electricity';
+    let editingDate = null;
+    let chartMeter, chartOverview;
+
+    function load() {
+        try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.meters) DB = s; } catch(e){}
+        ['electricity','water','gas'].forEach(k => {
+            if (!DB.meters[k]) DB.meters[k] = { tariff:{name:'',supplier:'',unit:0,fixedMonthly:0}, readings: [] };
+            if (!Array.isArray(DB.meters[k].readings)) DB.meters[k].readings = [];
+        });
+    }
+    function save() { localStorage.setItem(KEY, JSON.stringify(DB)); }
+    function fmtCZK(n) { if (!isFinite(n)) return '—'; return new Intl.NumberFormat('cs-CZ',{maximumFractionDigits:0}).format(Math.round(n)) + ' Kč'; }
+    function fmtN(n, d=2) { if (!isFinite(n)) return '—'; return new Intl.NumberFormat('cs-CZ',{maximumFractionDigits:d}).format(n); }
+    function esc(s) { return String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+
+    function readingsSorted(meter) {
+        return (DB.meters[meter].readings || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+    }
+    function consumptionRows(meter) {
+        const rs = readingsSorted(meter);
+        const tariff = DB.meters[meter].tariff;
+        const rows = [];
+        for (let i = 0; i < rs.length; i++) {
+            const r = rs[i];
+            const prev = rs[i - 1];
+            let cons = null, days = null, cost = null;
+            if (prev) {
+                cons = r.value - prev.value;
+                days = daysBetween(prev.date, r.date);
+                const unit = r.manualPrice || tariff.unit || 0;
+                cost = cons * unit + (tariff.fixedMonthly || 0) * (days / 30.44);
+            }
+            rows.push({ ...r, consumption: cons, days, cost });
+        }
+        return rows;
+    }
+
+    // ─── Meter selection ───
+    function setMeter(m) {
+        currentMeter = m;
+        document.querySelectorAll('.meter-tab').forEach(b => {
+            b.classList.remove('active','elec','water','gas','overview');
+            if (b.dataset.m === m) {
+                b.classList.add('active');
+                if (META[m]) b.classList.add(META[m].tabClass);
+                else b.classList.add('overview');
+            } else {
+                if (META[b.dataset.m]) b.classList.add(META[b.dataset.m].tabClass);
+                else b.classList.add('overview');
+            }
+        });
+        // Reset to just adding the colored class to active one too
+        document.querySelectorAll('.meter-tab').forEach(b => {
+            b.classList.remove('elec','water','gas','overview');
+            const tab = b.dataset.m;
+            if (tab === 'overview') b.classList.add('overview');
+            else if (META[tab]) b.classList.add(META[tab].tabClass);
+        });
+        document.getElementById('view-meter').classList.toggle('hidden', m === 'overview');
+        document.getElementById('view-overview').classList.toggle('hidden', m !== 'overview');
+        if (m === 'overview') renderOverview();
+        else renderMeter();
+        lucide.createIcons();
+    }
+
+    // ─── Render single meter ───
+    function renderMeter() {
+        const m = currentMeter;
+        const meta = META[m];
+        const tariff = DB.meters[m].tariff;
+        const rows = consumptionRows(m);
+
+        // KPI
+        const last = rows[rows.length - 1];
+        const prev = rows[rows.length - 2];
+        document.getElementById('mLast').textContent = last ? `${fmtN(last.value)} ${meta.unit}` : '—';
+        document.getElementById('mLastDate').textContent = last ? new Date(last.date).toLocaleDateString('cs-CZ') : '—';
+        document.getElementById('mDailyUnit').textContent = `${meta.unit}/den`;
+
+        if (last && last.consumption !== null && last.days) {
+            document.getElementById('mDaily').textContent = fmtN(last.consumption / last.days, 2);
+            document.getElementById('mCost').textContent = fmtCZK(last.cost / Math.max(last.days, 1) * 30.44);
+        } else {
+            document.getElementById('mDaily').textContent = '—';
+            document.getElementById('mCost').textContent = '—';
+        }
+
+        // YoY trend
+        const yoy = computeYoY(m);
+        const yEl = document.getElementById('mYoY');
+        if (yoy === null) { yEl.textContent = '—'; yEl.className = 'kpi-value text-slate-500'; }
+        else {
+            yEl.textContent = (yoy > 0 ? '+' : '') + yoy.toFixed(1) + '%';
+            yEl.className = 'kpi-value ' + (yoy > 5 ? 'text-rose-400' : yoy < -5 ? 'text-emerald-400' : 'text-amber-400');
+        }
+
+        // Tariff summary
+        document.getElementById('tariffSummary').innerHTML = `
+            <div><span class="text-slate-600">Název:</span> <b class="text-slate-200">${esc(tariff.name || '—')}</b></div>
+            <div><span class="text-slate-600">Dodavatel:</span> ${esc(tariff.supplier || '—')}</div>
+            <div><span class="text-slate-600">Cena/jednotka:</span> <b class="text-amber-400 font-mono">${fmtN(tariff.unit, 2)} Kč/${meta.unit}</b></div>
+            <div><span class="text-slate-600">Fixní/měs:</span> <span class="font-mono">${fmtN(tariff.fixedMonthly, 0)} Kč</span></div>
+        `;
+
+        // Table
+        const tbody = document.getElementById('readingsBody');
+        const empty = document.getElementById('emptyReadings');
+        if (!rows.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); }
+        else {
+            empty.classList.add('hidden');
+            tbody.innerHTML = rows.slice().reverse().map(r => `
+                <tr>
+                    <td class="font-mono">${esc(r.date)}</td>
+                    <td class="text-right font-mono">${fmtN(r.value, 2)} ${meta.unit}</td>
+                    <td class="text-right font-mono ${r.consumption !== null ? '' : 'text-slate-600'}">${r.consumption !== null ? fmtN(r.consumption, 2) + ' ' + meta.unit : '—'}</td>
+                    <td class="text-right font-mono ${r.days !== null ? '' : 'text-slate-600'}">${r.days !== null ? r.days : '—'}</td>
+                    <td class="text-right font-mono ${r.cost !== null ? 'text-rose-400' : 'text-slate-600'}">${r.cost !== null ? fmtCZK(r.cost) : '—'}</td>
+                    <td class="text-[11px] text-slate-500">${esc(r.note || '')}</td>
+                    <td class="text-right"><button class="btn btn-ghost p-1.5" onclick="editReading('${esc(r.date)}')"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i></button></td>
+                </tr>
+            `).join('');
+        }
+
+        // Chart
+        if (chartMeter) chartMeter.destroy();
+        const ctx = document.getElementById('chartMeter').getContext('2d');
+        const isLight = document.documentElement.classList.contains('light');
+        const labels = rows.filter(r => r.days !== null).map(r => r.date);
+        const data = rows.filter(r => r.days !== null).map(r => r.consumption / r.days);
+        chartMeter = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [{ label: `${meta.unit}/den`, data, borderColor: meta.color, backgroundColor: meta.color + '20', fill: true, tension: .3 }] },
+            options: { responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: isLight ? '#475569' : '#94a3b8' } } },
+                scales: { x: { ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } }, y: { ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } } }
+            }
+        });
+        lucide.createIcons();
+    }
+
+    function computeYoY(meter) {
+        const rows = consumptionRows(meter).filter(r => r.consumption !== null && r.days);
+        if (rows.length < 2) return null;
+        const lastDate = new Date(rows[rows.length - 1].date);
+        const yearAgo = new Date(lastDate); yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+        const lastDailyAvg = rows.slice(-3).reduce((s,r) => s + r.consumption/r.days, 0) / Math.min(3, rows.length);
+        const yearAgoRows = rows.filter(r => Math.abs(new Date(r.date) - yearAgo) < 60 * 86400000);
+        if (!yearAgoRows.length) return null;
+        const yearAgoDaily = yearAgoRows.reduce((s,r) => s + r.consumption/r.days, 0) / yearAgoRows.length;
+        if (!yearAgoDaily) return null;
+        return ((lastDailyAvg - yearAgoDaily) / yearAgoDaily) * 100;
+    }
+
+    function renderOverview() {
+        const sums = { electricity: 0, water: 0, gas: 0 };
+        const year = new Date().getFullYear();
+        ['electricity','water','gas'].forEach(m => {
+            const rows = consumptionRows(m).filter(r => r.cost !== null && r.date.startsWith(year + '-'));
+            sums[m] = rows.reduce((s,r) => s + r.cost, 0);
+        });
+        document.getElementById('ovElec').textContent  = fmtCZK(sums.electricity);
+        document.getElementById('ovWater').textContent = fmtCZK(sums.water);
+        document.getElementById('ovGas').textContent   = fmtCZK(sums.gas);
+
+        // Build month-by-month bars
+        const months = []; // YYYY-MM
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+            months.push(d.toISOString().slice(0,7));
+        }
+        const series = {};
+        ['electricity','water','gas'].forEach(m => {
+            series[m] = months.map(mo => {
+                const rows = consumptionRows(m).filter(r => r.cost !== null && r.date.startsWith(mo.slice(0,7)));
+                return rows.reduce((s,r) => s + r.cost, 0);
+            });
+        });
+
+        if (chartOverview) chartOverview.destroy();
+        const ctx = document.getElementById('chartOverview').getContext('2d');
+        const isLight = document.documentElement.classList.contains('light');
+        chartOverview = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    { label: 'Elektřina', data: series.electricity, backgroundColor: META.electricity.color },
+                    { label: 'Voda',      data: series.water,       backgroundColor: META.water.color },
+                    { label: 'Plyn',      data: series.gas,         backgroundColor: META.gas.color }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: isLight ? '#475569' : '#94a3b8' } } },
+                scales: {
+                    x: { stacked: true, ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } },
+                    y: { stacked: true, ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 }, callback: v => fmtCZK(v) } }
+                }
+            }
+        });
+    }
+
+    // ─── Modals ───
+    function openAdd() {
+        editingDate = null;
+        document.getElementById('rDate').value = new Date().toISOString().slice(0,10);
+        document.getElementById('rValue').value = '';
+        document.getElementById('rType').value = currentMeter === 'overview' ? 'electricity' : currentMeter;
+        document.getElementById('rPrice').value = '';
+        document.getElementById('rNote').value = '';
+        document.getElementById('rDelete').classList.add('hidden');
+        document.getElementById('modalReadTitle').textContent = 'Nový odečet';
+        document.getElementById('modalRead').classList.add('show');
+    }
+    function editReading(date) {
+        editingDate = date;
+        const r = (DB.meters[currentMeter].readings || []).find(x => x.date === date);
+        if (!r) return;
+        document.getElementById('rDate').value = r.date;
+        document.getElementById('rValue').value = r.value;
+        document.getElementById('rType').value = currentMeter;
+        document.getElementById('rPrice').value = r.manualPrice || '';
+        document.getElementById('rNote').value = r.note || '';
+        document.getElementById('rDelete').classList.remove('hidden');
+        document.getElementById('modalReadTitle').textContent = 'Upravit odečet ' + r.date;
+        document.getElementById('modalRead').classList.add('show');
+    }
+    function closeModal(t) { document.getElementById('modal' + t).classList.remove('show'); }
+    function saveReading() {
+        const date = document.getElementById('rDate').value;
+        const value = parseFloat(document.getElementById('rValue').value);
+        const type = document.getElementById('rType').value;
+        const note = document.getElementById('rNote').value.trim();
+        const manualPrice = parseFloat(document.getElementById('rPrice').value);
+        if (!date || isNaN(value)) { alert('Datum a stav měřiče jsou povinné'); return; }
+        const data = { date, value, note, manualPrice: isNaN(manualPrice) ? null : manualPrice };
+        const arr = DB.meters[type].readings;
+        if (editingDate) {
+            const i = arr.findIndex(x => x.date === editingDate);
+            if (i >= 0) arr[i] = data;
+        } else {
+            // Prevent duplicate date
+            if (arr.some(x => x.date === date)) {
+                if (!confirm('Pro tento den už odečet existuje — přepsat?')) return;
+                const i = arr.findIndex(x => x.date === date);
+                arr[i] = data;
+            } else {
+                arr.push(data);
+            }
+        }
+        save();
+        currentMeter = type;
+        setMeter(type);
+        closeModal('Read');
+    }
+    function removeReading() {
+        if (!editingDate) return;
+        if (!confirm('Smazat tento odečet?')) return;
+        const arr = DB.meters[currentMeter].readings;
+        DB.meters[currentMeter].readings = arr.filter(x => x.date !== editingDate);
+        save();
+        setMeter(currentMeter);
+        closeModal('Read');
+    }
+
+    function openTariff() {
+        const m = currentMeter === 'overview' ? 'electricity' : currentMeter;
+        const t = DB.meters[m].tariff;
+        document.getElementById('tariffMeterLabel').textContent = META[m].label;
+        document.getElementById('tName').value = t.name || '';
+        document.getElementById('tSupplier').value = t.supplier || '';
+        document.getElementById('tUnit').value = t.unit || '';
+        document.getElementById('tFix').value = t.fixedMonthly || '';
+        document.getElementById('modalTariff').classList.add('show');
+    }
+    function saveTariff() {
+        const m = currentMeter === 'overview' ? 'electricity' : currentMeter;
+        DB.meters[m].tariff = {
+            name: document.getElementById('tName').value.trim(),
+            supplier: document.getElementById('tSupplier').value.trim(),
+            unit: parseFloat(document.getElementById('tUnit').value) || 0,
+            fixedMonthly: parseFloat(document.getElementById('tFix').value) || 0
+        };
+        save();
+        if (currentMeter === 'overview') renderOverview(); else renderMeter();
+        closeModal('Tariff');
+    }
+
+    window.addEventListener('message', e => {
+        if (e.data && e.data.type === 'finance-theme') {
+            document.documentElement.classList.toggle('light', e.data.theme === 'light');
+            if (currentMeter === 'overview') renderOverview(); else renderMeter();
+        }
+    });
+
+    (function init(){
+        const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');
+        document.documentElement.classList.toggle('light', theme === 'light');
+        load();
+        setMeter('electricity');
+        lucide.createIcons();
+    })();
+</script>
+</body>
+</html>

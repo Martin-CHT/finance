@@ -1,3 +1,880 @@
+<<<<<<< HEAD
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Finanční centrum — jednotný přístup ke všem finančním nástrojům.">
+    <title>Finanční centrum | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- finance-common.js: sjednocené nastavení + cloud auth/sync -->
+    <script src="Soubory/finance-common.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* ── Top nav ── */
+        #topNav {
+            background: rgba(15,23,42,0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid #1e293b;
+            flex-shrink: 0;
+            z-index: 50;
+        }
+
+        /* ── Tab bar ── */
+        #tabBar {
+            background: #0f172a;
+            border-bottom: 1px solid #1e293b;
+            flex-shrink: 0;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #94a3b8;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+            user-select: none;
+            white-space: nowrap;
+            background: transparent;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+        }
+        .tab-btn:hover { color: #e2e8f0; background: rgba(30,41,59,0.5); }
+        .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+        .tab-btn .tab-icon { width: 14px; height: 14px; flex-shrink: 0; }
+        .tab-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            padding: 1px 5px;
+            border-radius: 3px;
+            background: #1e293b;
+            color: #64748b;
+        }
+        .tab-btn.active .tab-badge { background: rgba(14,165,233,0.15); color: #38bdf8; }
+
+        /* ── Dashboard tile ── */
+        .dash-tile {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s, opacity 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            position: relative;
+        }
+        .dash-tile:hover {
+            border-color: #334155;
+            box-shadow: 0 0 0 1px #334155, 0 8px 24px rgba(0,0,0,0.4);
+            transform: translateY(-1px);
+        }
+        .dash-tile .icon-wrap {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .dash-tile h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin: 0;
+        }
+        .dash-tile p {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin: 0;
+            line-height: 1.5;
+        }
+        .dash-tile .open-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.7rem;
+            color: #38bdf8;
+            margin-top: auto;
+            transition: color 0.15s;
+        }
+        .dash-tile:hover .open-btn { color: #7dd3fc; }
+
+        /* ── Drag handle on tile (visible only in reorder mode) ── */
+        .drag-handle {
+            position: absolute;
+            top: 0.6rem;
+            right: 0.6rem;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            background: rgba(15,23,42,0.85);
+            border: 1px solid #1e293b;
+            border-radius: 0.35rem;
+            cursor: grab;
+        }
+        body.reorder-mode .drag-handle { display: inline-flex; }
+        body.reorder-mode .dash-tile {
+            cursor: grab;
+        }
+        body.reorder-mode .dash-tile.dragging {
+            opacity: 0.4;
+            cursor: grabbing;
+        }
+        body.reorder-mode .dash-tile.drop-target {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56,189,248,0.35);
+        }
+
+        /* ── Iframe container ── */
+        #iframeContainer {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }
+        .app-frame.active { display: block; }
+
+        /* ── Dashboard panel ── */
+        #dashboard {
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: none;
+        }
+        #dashboard.active { display: block; }
+
+        /* ── Status dots ── */
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            display: inline-block;
+            box-shadow: 0 0 4px #22c55e;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── KPI strip ── */
+        .kpi-strip {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .kpi-label { font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+        .kpi-value { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
+        .kpi-divider { width: 1px; height: 2rem; background: #1e293b; }
+
+        /* ── Breadcrumb ── */
+        #breadcrumb { font-size: 0.7rem; color: #475569; }
+        #breadcrumb span { color: #64748b; }
+        #breadcrumb .current { color: #94a3b8; }
+
+        /* ─── LIGHT THEME ─── */
+        html.light body { background-color: #f1f5f9; color: #0f172a; }
+        html.light #topNav { background: rgba(255,255,255,0.92) !important; border-bottom-color: #e2e8f0 !important; }
+        html.light #tabBar { background-color: #ffffff !important; border-bottom-color: #e2e8f0 !important; }
+        html.light .tab-btn { color: #64748b; }
+        html.light .tab-btn:hover { background-color: #f1f5f9; color: #0f172a; }
+        html.light .tab-btn.active { color: #0284c7; border-bottom-color: #0284c7; }
+        html.light .tab-badge { background: #f1f5f9; color: #94a3b8; }
+        html.light .tab-btn.active .tab-badge { background: rgba(2,132,199,0.1); color: #0284c7; }
+        html.light .dash-tile { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light .dash-tile:hover { border-color: #cbd5e1 !important; }
+        html.light .dash-tile h3 { color: #0f172a; }
+        html.light .dash-tile p { color: #64748b; }
+        html.light .dash-tile [class*="text-[9px]"] { background: #f1f5f9 !important; color: #64748b !important; }
+        html.light .kpi-strip { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light .kpi-label { color: #94a3b8; }
+        html.light .kpi-value { color: #0f172a; }
+        html.light .kpi-divider { background: #e2e8f0; }
+        html.light #dashboard { background-color: #f1f5f9; }
+        html.light .text-slate-100 { color: #0f172a !important; }
+        html.light .text-slate-400 { color: #475569 !important; }
+        html.light .text-slate-500 { color: #64748b !important; }
+        html.light .text-slate-600 { color: #94a3b8 !important; }
+        html.light .text-slate-700 { color: #cbd5e1 !important; }
+        html.light .bg-slate-900 { background-color: #ffffff !important; }
+        html.light .bg-slate-800 { background-color: #f1f5f9 !important; }
+        html.light .border-slate-800 { border-color: #e2e8f0 !important; }
+        html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
+        html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+        html.light .drag-handle { background: rgba(255,255,255,0.92); border-color: #e2e8f0; color: #94a3b8; }
+
+        /* V Index.html nepotřebujeme plovoucí FAB – Nastavení je vlastní záložka. */
+        #fc-settings-fab { display: none !important; }
+
+        /* ── Login indikátor v topnavu ── */
+        #loginChip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 8px 3px 6px;
+            font-size: 10px;
+            font-family: 'Inter', sans-serif;
+            color: #cbd5e1;
+            background: rgba(15,23,42,0.6);
+            border: 1px solid #1e293b;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: color .15s, border-color .15s, background .15s;
+        }
+        #loginChip:hover { color: #f8fafc; border-color: #334155; background: rgba(30,41,59,0.9); }
+        #loginChip .ldot { width:6px; height:6px; border-radius:50%; background:#64748b; box-shadow:none; transition: background .15s, box-shadow .15s; }
+        #loginChip.online .ldot { background:#22c55e; box-shadow:0 0 4px #22c55e; }
+        #loginChip .luser { font-family: 'JetBrains Mono', monospace; font-size: 10px; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        html.light #loginChip { background: rgba(241,245,249,0.7); border-color: #e2e8f0; color: #475569; }
+        html.light #loginChip:hover { background: #fff; color: #0f172a; border-color: #cbd5e1; }
+    </style>
+</head>
+
+<body>
+
+    <!-- ══════════════ TOP NAV ══════════════ -->
+    <nav id="topNav">
+        <div class="px-4 py-2 flex items-center justify-between gap-3">
+            <a href="#" onclick="event.preventDefault(); goHome();" id="brandLink"
+               class="flex items-center gap-2.5 text-inherit no-underline hover:opacity-90 transition-opacity"
+               title="Přejít na Dashboard">
+                <div class="bg-sky-500/10 p-1.5 rounded-lg border border-sky-500/20">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5 text-sky-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Finance Terminal</h1>
+                    <p class="text-[10px] text-slate-500 leading-tight font-mono">Finanční centrum · v2025</p>
+                </div>
+            </a>
+
+            <div id="breadcrumb" class="hidden sm:flex items-center gap-1.5">
+                <span>Centrum</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="current" id="breadcrumbCurrent">Dashboard</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span class="status-dot" title="Spojení s lokálním úložištěm (cookies + localStorage). Zelená = data se ukládají v prohlížeči."></span>
+                <span class="text-[10px] text-slate-500 font-mono hidden sm:inline"
+                      title="Aplikace běží zcela lokálně v prohlížeči. Data jsou v localStorage; cloud synchronizace je volitelná v Nastavení.">localStorage · online</span>
+                <a id="loginChip" href="Soubory/Nastavení.html" title="Cloud účet — kliknutím otevřete Nastavení">
+                    <span class="ldot"></span>
+                    <span class="luser" id="loginChipLabel">Přihlásit</span>
+                </a>
+                <div class="w-px h-4 bg-slate-800"></div>
+                <button onclick="toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
+                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
+                    <i data-lucide="sun" class="w-4 h-4"></i>
+                </button>
+                <button onclick="switchTab('nastaveni')" id="settings-btn" title="Nastavení (AI klíče, Google Sheets, pořadí, téma)"
+                    class="inline-flex items-center gap-1.5 text-slate-300 hover:text-slate-100 transition-colors px-2.5 py-1.5 rounded-md border border-slate-800 hover:border-slate-700 hover:bg-slate-800 text-xs font-medium">
+                    <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Nastavení</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ══════════════ TAB BAR (dynamicky generovaný) ══════════════ -->
+    <div id="tabBar"></div>
+
+    <!-- ══════════════ IFRAME / DASHBOARD AREA ══════════════ -->
+    <div id="iframeContainer">
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="active">
+            <!-- Header -->
+            <div class="max-w-6xl mx-auto">
+                <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100 tracking-tight">Finanční centrum</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Všechny finanční nástroje na jednom místě. Klikni na modul pro spuštění. Pořadí dlaždic lze upravit v <a href="#" onclick="event.preventDefault(); switchTab('nastaveni');" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">Nastavení</a>.</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5">
+                        <i data-lucide="calendar" class="w-3 h-3 text-slate-600"></i>
+                        <span id="currentDate">–</span>
+                    </div>
+                </div>
+
+                <!-- Reorder hint banner -->
+                <div id="reorderBanner" class="hidden mb-4 p-3 rounded-lg border border-sky-500/30 bg-sky-500/10 text-xs text-sky-200 flex items-center justify-between gap-3">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="info" class="w-4 h-4"></i>
+                        Režim řazení: přetáhni dlaždici za roh nebo úchyt nahoře. Změny se ihned uloží.
+                    </span>
+                    <span class="flex items-center gap-2">
+                        <button onclick="resetOrder()" class="text-[10px] px-2 py-1 rounded border border-sky-500/40 hover:bg-sky-500/20 transition">Reset</button>
+                        <button onclick="toggleReorderMode()" class="text-[10px] px-2 py-1 rounded bg-sky-500 hover:bg-sky-400 text-slate-900 font-semibold transition">Hotovo</button>
+                    </span>
+                </div>
+
+                <!-- App tiles grid -->
+                <div id="tilesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
+
+                <!-- Footer note -->
+                <p class="text-[11px] text-slate-600 text-center pb-6 max-w-2xl mx-auto leading-relaxed">
+                    Finance Terminal sjednocuje rozpočet, spoření, investice, půjčky, fondy, evidenci majetku a Bitcoin DCA do jednoho rozhraní. Data zůstávají soukromá ve vašem prohlížeči, AI poradce a synchronizace s Google Sheets jsou volitelné a konfigurují se v sekci <a href="#" onclick="event.preventDefault(); switchTab('nastaveni');" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">Nastavení</a>.
+                </p>
+            </div>
+        </div>
+
+        <!-- iframes se generují dynamicky podle pořadí v JS -->
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        /* ════════════════════════════════════════════════════════════
+           MODULY – zdroj pravdy. Pořadí lze přeskupit (drag&drop) a
+           uložené pořadí žije v localStorage pod 'fc_module_order'.
+           ════════════════════════════════════════════════════════════ */
+        const MODULES = {
+            prijmy: {
+                label: 'Příjmy & Výdaje',
+                shortBadge: 'PV',
+                icon: 'bar-chart-2',
+                color: 'sky',
+                file: 'Soubory/Příjmy-Výdaje.html',
+                desc: 'Sledování transakcí, kategorizace výdajů, AI rychlovstup, grafy cashflow a měnová konverze v reálném čase.',
+                tags: ['AI', 'CZK/EUR', 'Charts'],
+                defaultGroup: 'Denní'
+            },
+            predplatna: {
+                label: 'Předplatná',
+                shortBadge: 'PD',
+                icon: 'repeat',
+                color: 'fuchsia',
+                file: 'Soubory/Předplatná.html',
+                desc: 'Evidence opakovaných závazků (streaming, mobil, doména, pojistky), měsíční a roční náklady, upozornění na zdražení.',
+                tags: ['Recurring', 'Alerts', 'AI'],
+                defaultGroup: 'Denní'
+            },
+            sporeni: {
+                label: 'Spoření & Cíle',
+                shortBadge: 'SP',
+                icon: 'piggy-bank',
+                color: 'emerald',
+                file: 'Soubory/Spoření.html',
+                desc: 'Spořicí cíle s hierarchií složek, drag-and-drop řazení, mimořádné vklady a AI coaching pro dosažení cílů.',
+                tags: ['AI', 'D&D', 'Goals'],
+                defaultGroup: 'Cíle & Plánování'
+            },
+            investice: {
+                label: 'Investice & Penze',
+                shortBadge: 'IP',
+                icon: 'trending-up',
+                color: 'violet',
+                file: 'Soubory/Investice-penze.html',
+                desc: 'Plánování penze a investic, složený úrok, prognóza kapitálu, AI poradce a synchronizace s Google Sheets.',
+                tags: ['AI', 'Sheets', 'Forecast'],
+                defaultGroup: 'Investice'
+            },
+            pujcky: {
+                label: 'Půjčky & Splátky',
+                shortBadge: 'PŮ',
+                icon: 'credit-card',
+                color: 'rose',
+                file: 'Soubory/Půjčky.html',
+                desc: 'Správa portfolia půjček, amortizační plány, mimořádné splátky, AI coach a vizualizace splácení.',
+                tags: ['AI', 'Amort.', 'Charts'],
+                defaultGroup: 'Závazky'
+            },
+            fondy: {
+                label: 'Fondy Conseq',
+                shortBadge: 'FD',
+                icon: 'activity',
+                color: 'amber',
+                file: 'Soubory/Fondy.html',
+                desc: 'Sledování vývoje fondů Conseq vs. inflace ČNB, historická data, AI analýza a Tampermonkey skript.',
+                tags: ['AI', 'ČNB', 'Conseq'],
+                defaultGroup: 'Investice'
+            },
+            majetek: {
+                label: 'Majetek & Odpisy',
+                shortBadge: 'MA',
+                icon: 'package',
+                color: 'teal',
+                file: 'Soubory/Majetek-odpisy.html',
+                desc: 'Evidence elektroniky, lineární odpisy, hlídání záruční doby a statistiky portfolia majetku.',
+                tags: ['Odpisy', 'Záruka', 'Charts'],
+                defaultGroup: 'Majetek & Náklady'
+            },
+            btc: {
+                label: 'BTC Investice',
+                shortBadge: 'BTC',
+                icon: 'bitcoin',
+                color: 'orange',
+                file: 'BTC/index.html',
+                desc: 'Chytré DCA do Bitcoinu — matematický model (Mayer Multiple, z-score) plus AI vrstva navrhuje, kolik investovat v daném intervalu.',
+                tags: ['AI', 'DCA', 'Crypto'],
+                defaultGroup: 'Investice'
+            },
+            broker: {
+                label: 'Broker (Akcie / ETF / P2P)',
+                shortBadge: 'BR',
+                icon: 'line-chart',
+                color: 'sky',
+                file: 'Soubory/Broker.html',
+                desc: 'Evidence pozic u brokera (Degiro, XTB, IBKR) nebo P2P (Mintos), výnos TWR / XIRR, daňový pomocník pro dividendy a 3letý časový test.',
+                tags: ['Stocks', 'P&L', 'Tax'],
+                defaultGroup: 'Investice'
+            },
+            'pre-fi-re': {
+                label: 'Pre-FI/RE',
+                shortBadge: 'FI',
+                icon: 'mountain',
+                color: 'emerald',
+                file: 'Soubory/Pre-FI-RE.html',
+                desc: 'Kalkulačka předčasné penze — FIRE číslo, 4% rule, scénáře Lean / Coast / Standard / Fat a roky do finanční nezávislosti.',
+                tags: ['FIRE', '4% rule', 'AI'],
+                defaultGroup: 'Cíle & Plánování'
+            },
+            energie: {
+                label: 'Energie',
+                shortBadge: 'EN',
+                icon: 'plug-zap',
+                color: 'amber',
+                file: 'Soubory/Energie.html',
+                desc: 'Odečty měřidel elektřiny, vody a plynu, výpočet spotřeby a nákladů, meziroční trendy a prognóza vyúčtování.',
+                tags: ['Měřiče', 'Tarify', 'Trend'],
+                defaultGroup: 'Majetek & Náklady'
+            },
+            nastaveni: {
+                label: 'Nastavení',
+                shortBadge: 'NS',
+                icon: 'settings',
+                color: 'slate',
+                file: 'Soubory/Nastavení.html',
+                desc: 'Sjednocené nastavení: AI API klíče (Groq / Gemini / ChatGPT), Google Sheets synchronizace, pořadí modulů a téma.',
+                tags: ['AI', 'Sheets', 'Cookies'],
+                isSettings: true,
+                hideFromDashboard: true,
+                hideFromTabs: true,
+                defaultGroup: 'Systém'
+            }
+        };
+
+        const DEFAULT_ORDER = ['prijmy', 'predplatna', 'sporeni', 'pre-fi-re', 'investice', 'fondy', 'btc', 'broker', 'pujcky', 'majetek', 'energie'];
+        const GROUP_ORDER = ['Denní', 'Cíle & Plánování', 'Investice', 'Závazky', 'Majetek & Náklady', 'Ostatní'];
+
+        /* Barevné mapy pro Tailwind (musíme je psát staticky, jinak by je tw purge odstranil – při CDN se to nestává, ale pro jistotu necháme přímo třídy) */
+        const COLOR_CLASSES = {
+            sky:     { bg: 'bg-sky-500/10',     border: 'border-sky-500/20',     text: 'text-sky-400' },
+            emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
+            violet:  { bg: 'bg-violet-500/10',  border: 'border-violet-500/20',  text: 'text-violet-400' },
+            rose:    { bg: 'bg-rose-500/10',    border: 'border-rose-500/20',    text: 'text-rose-400' },
+            amber:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   text: 'text-amber-400' },
+            teal:    { bg: 'bg-teal-500/10',    border: 'border-teal-500/20',    text: 'text-teal-400' },
+            orange:  { bg: 'bg-orange-500/10',  border: 'border-orange-500/20',  text: 'text-orange-400' },
+            fuchsia: { bg: 'bg-fuchsia-500/10', border: 'border-fuchsia-500/20', text: 'text-fuchsia-400' },
+            slate:   { bg: 'bg-slate-500/10',   border: 'border-slate-500/30',   text: 'text-slate-300' }
+        };
+
+        /* ── Cookies helper (sjednocené řazení žije i v cookie, abychom byli kompatibilní s ostatními moduly) ── */
+        function setCookie(name, value, days) {
+            try {
+                const exp = new Date(Date.now() + (days || 365) * 86400000).toUTCString();
+                document.cookie = `${name}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
+            } catch (e) {}
+        }
+        function getCookie(name) {
+            try {
+                const match = document.cookie.split('; ').find(r => r.startsWith(name + '='));
+                return match ? decodeURIComponent(match.split('=')[1]) : '';
+            } catch (e) { return ''; }
+        }
+
+        /* ── Order persistence ── */
+        function loadOrder() {
+            try {
+                const raw = localStorage.getItem('fc_module_order') || getCookie('fc_module_order');
+                if (!raw) return [...DEFAULT_ORDER];
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed)) return [...DEFAULT_ORDER];
+                // doplň chybějící klíče, odstraň neznámé a moduly skryté z dashboardu/tab baru
+                const filtered = parsed.filter(k => MODULES[k] && !MODULES[k].hideFromDashboard);
+                DEFAULT_ORDER.forEach(k => { if (!filtered.includes(k)) filtered.push(k); });
+                return filtered;
+            } catch (e) { return [...DEFAULT_ORDER]; }
+        }
+        function saveOrder(order) {
+            try {
+                const json = JSON.stringify(order);
+                localStorage.setItem('fc_module_order', json);
+                setCookie('fc_module_order', json, 365);
+            } catch (e) {}
+        }
+        function resetOrder() {
+            saveOrder([...DEFAULT_ORDER]);
+            renderAll();
+        }
+
+        /* ── Visibility & groups ── */
+        function _readJson(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key) || getCookie(key);
+                if (!raw) return fallback;
+                const parsed = JSON.parse(raw);
+                return (parsed && typeof parsed === 'object') ? parsed : fallback;
+            } catch (e) { return fallback; }
+        }
+        function loadVisibility() { return _readJson('fc_module_visibility', {}); }
+        function loadGroups()     { return _readJson('fc_module_groups', {}); }
+        function isVisible(key)   {
+            const v = loadVisibility();
+            return key in v ? !!v[key] : true; // default visible
+        }
+        function groupOf(key) {
+            const g = loadGroups();
+            if (g[key]) return g[key];
+            return (MODULES[key] && MODULES[key].defaultGroup) || 'Ostatní';
+        }
+        function groupTilesOrder(order) {
+            const visibleOrder = order.filter(isVisible);
+            const groups = new Map();
+            visibleOrder.forEach(k => {
+                const g = groupOf(k);
+                if (!groups.has(g)) groups.set(g, []);
+                groups.get(g).push(k);
+            });
+            // Sort groups: known order first, then alphabetically.
+            const known = GROUP_ORDER.filter(g => groups.has(g));
+            const rest = [...groups.keys()].filter(g => !GROUP_ORDER.includes(g)).sort();
+            return [...known, ...rest].map(g => ({ group: g, keys: groups.get(g) }));
+        }
+
+        /* ── Render tab bar (jen viditelné moduly, oddělené tenkou čárou mezi skupinami) ── */
+        function renderTabBar(order) {
+            const bar = document.getElementById('tabBar');
+            const dashBtn = `<button class="tab-btn active" data-tab="dashboard" id="tab-dashboard">
+                <i data-lucide="layout-grid" class="tab-icon"></i>
+                Dashboard
+            </button>`;
+            const grouped = groupTilesOrder(order);
+            const mods = grouped.map((bucket, idx) => {
+                const sep = idx > 0 ? '<span class="inline-block w-px h-4 bg-slate-800 align-middle mx-1"></span>' : '';
+                const items = bucket.keys.map(key => {
+                    const m = MODULES[key];
+                    return `<button class="tab-btn" data-tab="${key}" id="tab-${key}" title="Skupina: ${escapeHtml(bucket.group)}">
+                        <i data-lucide="${m.icon}" class="tab-icon"></i>
+                        ${escapeHtml(m.label)}
+                        <span class="tab-badge">${m.shortBadge}</span>
+                    </button>`;
+                }).join('');
+                return sep + items;
+            }).join('');
+            bar.innerHTML = dashBtn + mods;
+            bar.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+        }
+
+        /* ── Render tile grid: seskupené podle kategorií ── */
+        function renderTiles(order) {
+            const grid = document.getElementById('tilesGrid');
+            const grouped = groupTilesOrder(order);
+            grid.className = 'space-y-8 mb-6'; // přepíšeme grid třídu, ať můžeme stackovat skupiny vertikálně
+            grid.innerHTML = grouped.map(bucket => {
+                const tiles = bucket.keys.map(key => {
+                    const m = MODULES[key];
+                    const c = COLOR_CLASSES[m.color] || COLOR_CLASSES.sky;
+                    const tags = (m.tags || []).map(t => `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 font-mono">${escapeHtml(t)}</span>`).join(' ');
+                    return `<div class="dash-tile" data-key="${key}" onclick="onTileClick('${key}')" draggable="false">
+                        <div class="drag-handle" title="Přetáhni pro změnu pořadí"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i></div>
+                        <div class="flex items-center gap-3">
+                            <div class="icon-wrap ${c.bg} border ${c.border}">
+                                <i data-lucide="${m.icon}" class="w-5 h-5 ${c.text}"></i>
+                            </div>
+                            <div>
+                                <h3>${escapeHtml(m.label)}</h3>
+                                <span class="text-[10px] font-mono text-slate-600">${escapeHtml(m.file.split('/').pop())}</span>
+                            </div>
+                        </div>
+                        <p>${escapeHtml(m.desc)}</p>
+                        <div class="flex items-center justify-between">
+                            <div class="flex gap-1.5 flex-wrap">${tags}</div>
+                            <span class="open-btn">Otevřít <i data-lucide="arrow-right" class="w-3 h-3"></i></span>
+                        </div>
+                    </div>`;
+                }).join('');
+                return `<section class="group-section">
+                    <h3 class="text-[11px] uppercase tracking-[0.15em] font-semibold text-slate-500 mb-3 flex items-center gap-2">
+                        <span class="inline-block w-1 h-3 bg-sky-500 rounded-sm"></span>
+                        ${escapeHtml(bucket.group)}
+                        <span class="text-[10px] text-slate-700 font-mono normal-case tracking-normal">· ${bucket.keys.length} modul${bucket.keys.length === 1 ? '' : 'y'}</span>
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${tiles}
+                    </div>
+                </section>`;
+            }).join('');
+            attachDragHandlers();
+        }
+
+        /* ── Render iframes ──
+           Vytvoříme iframe pro každý známý modul (i pro ty skryté z dashboardu,
+           např. Nastavení), aby přechod přes top-nav tlačítko fungoval. */
+        function renderFrames(order) {
+            const container = document.getElementById('iframeContainer');
+            container.querySelectorAll('.app-frame').forEach(f => f.remove());
+            const allKeys = Array.from(new Set([...order, ...Object.keys(MODULES)]));
+            allKeys.forEach(key => {
+                const m = MODULES[key];
+                if (!m) return;
+                const f = document.createElement('iframe');
+                f.id = 'frame-' + key;
+                f.className = 'app-frame';
+                f.dataset.src = m.file;
+                f.title = m.label;
+                container.appendChild(f);
+            });
+        }
+
+        function renderAll() {
+            const order = loadOrder();
+            renderTabBar(order);
+            renderTiles(order);
+            renderFrames(order);
+            lucide.createIcons();
+        }
+
+        /* ── Tab switching ── */
+        let currentTab = 'dashboard';
+        function switchTab(name) {
+            if (name !== 'dashboard' && !MODULES[name]) return;
+
+            // Deactivate all
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('dashboard').classList.remove('active');
+            document.querySelectorAll('.app-frame').forEach(f => f.classList.remove('active'));
+
+            const tabBtn = document.getElementById('tab-' + name);
+            if (tabBtn) tabBtn.classList.add('active');
+
+            if (name === 'dashboard') {
+                document.getElementById('dashboard').classList.add('active');
+                document.getElementById('breadcrumbCurrent').textContent = 'Dashboard';
+            } else {
+                const f = document.getElementById('frame-' + name);
+                if (f) {
+                    if (!f.src && f.dataset.src) f.src = f.dataset.src;
+                    f.classList.add('active');
+                }
+                document.getElementById('breadcrumbCurrent').textContent = MODULES[name].label;
+            }
+
+            currentTab = name;
+            /* Záměrně neukládáme do sessionStorage — výchozí stránka při
+               otevření Index.html je vždy Dashboard. */
+        }
+        function onTileClick(key) {
+            if (document.body.classList.contains('reorder-mode')) return; // v reorder módu klik neotvírá
+            switchTab(key);
+        }
+        function goHome() { switchTab('dashboard'); }
+
+        /* ── Theme ── */
+        function applyTheme(theme) {
+            const normalized = theme === 'dark' ? 'dark' : 'light';
+            document.documentElement.classList.toggle('light', normalized === 'light');
+            try {
+                ['finance_theme','pension_theme','prijmy_vydaje_theme','sporeni_theme','pujcky_theme'].forEach(k => {
+                    localStorage.setItem(k, normalized);
+                    document.cookie = `${k}=${normalized}; path=/; max-age=31536000; SameSite=Lax`;
+                });
+            } catch(e) {}
+            const btn = document.getElementById('theme-toggle');
+            if (btn) {
+                btn.innerHTML = normalized === 'dark'
+                    ? '<i data-lucide="sun" class="w-4 h-4"></i>'
+                    : '<i data-lucide="moon" class="w-4 h-4"></i>';
+                lucide.createIcons();
+            }
+            document.querySelectorAll('.app-frame').forEach(frame => {
+                try { frame.contentWindow.postMessage({ type: 'finance-theme', theme: normalized }, '*'); } catch(e) {}
+            });
+        }
+        function toggleTheme() {
+            applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light');
+        }
+
+        /* ── Reorder mode (drag & drop) ── */
+        function toggleReorderMode() {
+            const on = document.body.classList.toggle('reorder-mode');
+            document.getElementById('reorderBanner').classList.toggle('hidden', !on);
+            // přepneme draggable na všech dlaždicích
+            document.querySelectorAll('.dash-tile').forEach(t => t.setAttribute('draggable', on ? 'true' : 'false'));
+        }
+
+        let dragSrcKey = null;
+        function attachDragHandlers() {
+            const tiles = document.querySelectorAll('#tilesGrid .dash-tile');
+            tiles.forEach(tile => {
+                tile.addEventListener('dragstart', (e) => {
+                    if (!document.body.classList.contains('reorder-mode')) { e.preventDefault(); return; }
+                    dragSrcKey = tile.dataset.key;
+                    tile.classList.add('dragging');
+                    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', tile.dataset.key); } catch (err) {}
+                });
+                tile.addEventListener('dragend', () => {
+                    tile.classList.remove('dragging');
+                    document.querySelectorAll('.dash-tile').forEach(t => t.classList.remove('drop-target'));
+                });
+                tile.addEventListener('dragover', (e) => {
+                    if (!document.body.classList.contains('reorder-mode')) return;
+                    e.preventDefault();
+                    document.querySelectorAll('.dash-tile').forEach(t => t.classList.remove('drop-target'));
+                    tile.classList.add('drop-target');
+                });
+                tile.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const targetKey = tile.dataset.key;
+                    if (!dragSrcKey || dragSrcKey === targetKey) return;
+                    const order = loadOrder();
+                    const fromIdx = order.indexOf(dragSrcKey);
+                    const toIdx = order.indexOf(targetKey);
+                    if (fromIdx < 0 || toIdx < 0) return;
+                    order.splice(fromIdx, 1);
+                    order.splice(toIdx, 0, dragSrcKey);
+                    saveOrder(order);
+                    dragSrcKey = null;
+                    renderAll();
+                });
+            });
+        }
+
+        /* ── Helpers ── */
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        /* ── Init ── */
+        (function init() {
+            // Theme
+            try {
+                const stored = localStorage.getItem('finance_theme')
+                    || document.cookie.split('; ').find(r => r.startsWith('finance_theme='))?.split('=')[1]
+                    || 'dark';
+                applyTheme(stored);
+            } catch(e) {}
+
+            renderAll();
+
+            // Výchozí stránka po otevření Index.html = vždy Dashboard.
+            switchTab('dashboard');
+
+            // Current date
+            const d = new Date();
+            const opts = { day: 'numeric', month: 'long', year: 'numeric' };
+            document.getElementById('currentDate').textContent = d.toLocaleDateString('cs-CZ', opts);
+
+            // Login chip — initial render + naslouchání na změny session.
+            updateLoginChip();
+            window.addEventListener('fc-session-change', function () {
+                updateLoginChip();
+                // Cloud pull mohl změnit pořadí / téma — překreslíme dlaždice
+                renderAll();
+                if (currentTab === 'dashboard') switchTab('dashboard');
+            });
+
+            // Když uživatel v Nastavení iframe změní viditelnost/skupinu,
+            // dashboard se musí překreslit.
+            window.addEventListener('storage', function (e) {
+                if (['fc_module_visibility','fc_module_groups','fc_module_order'].includes(e.key)) {
+                    renderAll();
+                    if (currentTab === 'dashboard') switchTab('dashboard');
+                }
+            });
+
+            // Auto-sync pořadí modulů do cloudu po drag&drop nebo resetu.
+            const _origSaveOrder = saveOrder;
+            saveOrder = function (order) {
+                _origSaveOrder(order);
+                try { window.FinanceCommon && window.FinanceCommon.cloud.scheduleSync(); } catch(e) {}
+            };
+            const _origApplyTheme = applyTheme;
+            applyTheme = function (t) {
+                _origApplyTheme(t);
+                try { window.FinanceCommon && window.FinanceCommon.cloud.scheduleSync(); } catch(e) {}
+            };
+
+            lucide.createIcons();
+        })();
+
+        function updateLoginChip() {
+            const chip = document.getElementById('loginChip');
+            const lbl = document.getElementById('loginChipLabel');
+            if (!chip || !lbl) return;
+            try {
+                const FC = window.FinanceCommon;
+                if (FC && FC.auth && FC.auth.isLoggedIn()) {
+                    const s = FC.auth.getSession();
+                    chip.classList.add('online');
+                    chip.title = 'Přihlášen jako ' + s.user + ' — kliknutím otevřete Nastavení';
+                    lbl.textContent = s.user;
+                } else {
+                    chip.classList.remove('online');
+                    chip.title = 'Cloud účet — kliknutím se přihlásíte v Nastavení';
+                    lbl.textContent = 'Přihlásit';
+                }
+            } catch (e) {}
+        }
+    </script>
+</body>
+</html>
+=======
 <!DOCTYPE html>
 <html lang="cs">
 
@@ -761,3 +1638,4 @@
     </script>
 </body>
 </html>
+>>>>>>> 184d82e75548ca05800db460da54f61366431ab7

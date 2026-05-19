@@ -25,6 +25,29 @@ body {
   line-height: 1.5;
 }
 
+<<<<<<< HEAD
+.strategy-bar {
+  margin: 1rem 1.5rem 0;
+  padding: 0.65rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+.strategy-bar select {
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.strategy-bar .btn.danger { color: var(--danger); }
+.strategy-bar .btn.danger:hover { background: rgba(248,113,113,0.1); }
+
+=======
+>>>>>>> 184d82e75548ca05800db460da54f61366431ab7
 .topbar {
   display: flex;
   justify-content: space-between;

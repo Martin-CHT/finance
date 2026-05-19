@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Broker — evidence akcií, ETF, P2P pozic Finance Terminal.">
+    <title>Broker | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="finance-common.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; }
+        body { font-family:'Inter',sans-serif; background:#020617; color:#f8fafc; margin:0; min-height:100vh; }
+        .font-mono { font-family:'JetBrains Mono',monospace; }
+        ::-webkit-scrollbar { width:6px; height:6px; } ::-webkit-scrollbar-track { background:#0f172a; } ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+
+        #topNav { background:rgba(15,23,42,.85); backdrop-filter:blur(12px); border-bottom:1px solid #1e293b; position:sticky; top:0; z-index:50; }
+        .panel { background:#0f172a; border:1px solid #1e293b; border-radius:.75rem; padding:1.25rem; }
+        .kpi-card { background:#0f172a; border:1px solid #1e293b; border-radius:.5rem; padding:.9rem 1.1rem; }
+        .kpi-label { font-size:.65rem; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+        .kpi-value { font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:700; }
+        label.fld { display:block; font-size:.7rem; color:#94a3b8; margin-bottom:.3rem; font-weight:500; }
+        .input { width:100%; background:#020617; border:1px solid #1e293b; border-radius:.4rem; padding:.5rem .7rem; font-size:.8rem; color:#f8fafc; }
+        .input:focus { outline:none; border-color:#0ea5e9; box-shadow:0 0 0 2px rgba(14,165,233,.2); }
+        .btn { display:inline-flex; align-items:center; gap:.4rem; padding:.5rem .9rem; font-size:.75rem; font-weight:500; border-radius:.4rem; cursor:pointer; transition:all .15s; border:1px solid transparent; }
+        .btn-primary { background:#0ea5e9; color:#fff; } .btn-primary:hover { background:#0284c7; }
+        .btn-secondary { background:#1e293b; color:#e2e8f0; border-color:#334155; } .btn-secondary:hover { background:#334155; }
+        .btn-danger { background:rgba(244,63,94,.12); color:#fb7185; border-color:rgba(244,63,94,.3); } .btn-danger:hover { background:rgba(244,63,94,.2); }
+        .btn-ghost { background:transparent; color:#94a3b8; border-color:#1e293b; } .btn-ghost:hover { background:#0f172a; color:#e2e8f0; }
+
+        .tabs { display:flex; gap:.3rem; border-bottom:1px solid #1e293b; }
+        .tab-btn { padding:.6rem 1rem; font-size:.78rem; color:#64748b; cursor:pointer; background:transparent; border:none; border-bottom:2px solid transparent; transition:all .15s; }
+        .tab-btn:hover { color:#e2e8f0; }
+        .tab-btn.active { color:#0ea5e9; border-bottom-color:#0ea5e9; }
+
+        table.t { width:100%; border-collapse:separate; border-spacing:0; font-size:.78rem; }
+        table.t th { text-align:left; font-size:.65rem; color:#64748b; text-transform:uppercase; letter-spacing:.05em; padding:.6rem .5rem; border-bottom:1px solid #1e293b; }
+        table.t td { padding:.6rem .5rem; border-bottom:1px solid #1e293b; vertical-align:middle; }
+        table.t tr:hover td { background:rgba(14,165,233,.04); }
+        .pos-pos { color:#4ade80; } .pos-neg { color:#fb7185; }
+
+        .modal-bg { position:fixed; inset:0; background:rgba(2,6,23,.78); z-index:60; display:none; align-items:center; justify-content:center; padding:1rem; }
+        .modal-bg.show { display:flex; }
+        .modal-box { background:#0f172a; border:1px solid #1e293b; border-radius:.75rem; padding:1.5rem; width:100%; max-width:30rem; max-height:90vh; overflow-y:auto; }
+
+        html.light body { background:#f1f5f9; color:#0f172a; }
+        html.light #topNav { background:rgba(255,255,255,.92)!important; border-bottom-color:#e2e8f0!important; }
+        html.light .panel, html.light .kpi-card, html.light .modal-box { background:#fff!important; border-color:#e2e8f0!important; }
+        html.light .input { background:#f8fafc; color:#0f172a; border-color:#e2e8f0; }
+        html.light .btn-secondary { background:#f1f5f9; color:#0f172a; border-color:#cbd5e1; }
+        html.light table.t th, html.light table.t td { border-color:#e2e8f0; }
+        html.light .text-slate-100 { color:#0f172a!important; }
+        html.light .text-slate-400 { color:#475569!important; }
+        html.light .text-slate-500 { color:#64748b!important; }
+        html.light .text-slate-600 { color:#94a3b8!important; }
+    </style>
+</head>
+<body>
+
+<nav id="topNav">
+    <div class="px-4 py-2 flex items-center justify-between gap-3 max-w-7xl mx-auto">
+        <a href="../index.html" class="flex items-center gap-2.5 text-inherit no-underline hover:opacity-90 transition-opacity" title="Přejít na Dashboard">
+            <div class="bg-sky-500/10 p-1.5 rounded-lg border border-sky-500/20"><i data-lucide="line-chart" class="w-5 h-5 text-sky-400"></i></div>
+            <div>
+                <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Broker portfolio</h1>
+                <p class="text-[10px] text-slate-500 leading-tight font-mono">Finance Terminal · akcie / ETF / P2P</p>
+            </div>
+        </a>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-secondary" onclick="openModal('tx')"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Transakce</button>
+            <button class="btn btn-primary" onclick="openModal('pos')"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Pozice</button>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- KPI -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card"><div class="kpi-label">Hodnota portfolia</div><div id="kpiValue" class="kpi-value text-sky-400">0 Kč</div></div>
+        <div class="kpi-card"><div class="kpi-label">Vložený kapitál</div><div id="kpiCost" class="kpi-value text-slate-300">0 Kč</div></div>
+        <div class="kpi-card"><div class="kpi-label">Nereal. P&amp;L</div><div id="kpiPnl" class="kpi-value">0 Kč</div><div class="text-[10px] text-slate-600 mt-0.5" id="kpiPnlPct">0%</div></div>
+        <div class="kpi-card"><div class="kpi-label">Dividendy (tento rok)</div><div id="kpiDiv" class="kpi-value text-emerald-400">0 Kč</div></div>
+    </section>
+
+    <!-- Tabs -->
+    <section class="panel p-0">
+        <div class="tabs px-3 pt-2">
+            <button class="tab-btn active" data-view="positions" onclick="setView('positions')"><i data-lucide="layout-grid" class="inline w-3 h-3"></i> Pozice</button>
+            <button class="tab-btn" data-view="transactions" onclick="setView('transactions')"><i data-lucide="list" class="inline w-3 h-3"></i> Transakce</button>
+            <button class="tab-btn" data-view="accounts" onclick="setView('accounts')"><i data-lucide="briefcase" class="inline w-3 h-3"></i> Účty</button>
+            <button class="tab-btn" data-view="tax" onclick="setView('tax')"><i data-lucide="receipt" class="inline w-3 h-3"></i> Daně</button>
+        </div>
+
+        <div id="view-positions" class="p-4">
+            <div class="overflow-x-auto">
+                <table class="t">
+                    <thead><tr>
+                        <th>Ticker</th><th>Typ</th><th>Účet</th>
+                        <th class="text-right">Počet</th><th class="text-right">Prům. cena</th>
+                        <th class="text-right">Akt. cena</th><th class="text-right">Hodnota</th>
+                        <th class="text-right">P&amp;L</th><th class="text-right">%</th>
+                        <th class="text-right">Akce</th>
+                    </tr></thead>
+                    <tbody id="positionsBody"></tbody>
+                </table>
+            </div>
+            <p id="emptyPositions" class="text-center text-slate-500 text-xs py-8 hidden">Zatím žádné pozice. Přidej tlačítkem „+ Pozice" nahoře.</p>
+        </div>
+
+        <div id="view-transactions" class="p-4 hidden">
+            <div class="overflow-x-auto">
+                <table class="t">
+                    <thead><tr>
+                        <th>Datum</th><th>Typ</th><th>Účet</th><th>Ticker</th>
+                        <th class="text-right">Počet</th><th class="text-right">Cena</th>
+                        <th class="text-right">Celkem</th><th>Pozn.</th><th class="text-right">Akce</th>
+                    </tr></thead>
+                    <tbody id="transactionsBody"></tbody>
+                </table>
+            </div>
+            <p id="emptyTransactions" class="text-center text-slate-500 text-xs py-8 hidden">Zatím žádné transakce.</p>
+        </div>
+
+        <div id="view-accounts" class="p-4 hidden">
+            <div class="flex justify-between items-center mb-3">
+                <p class="text-xs text-slate-500">Brokery, P2P platformy, ostatní účty. Měna se používá při výpočtu hodnoty pozic.</p>
+                <button class="btn btn-secondary" onclick="openModal('acc')"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Účet</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="t">
+                    <thead><tr><th>Název</th><th>Broker</th><th>Měna</th><th class="text-right">Pozice</th><th class="text-right">Akce</th></tr></thead>
+                    <tbody id="accountsBody"></tbody>
+                </table>
+            </div>
+            <p id="emptyAccounts" class="text-center text-slate-500 text-xs py-8 hidden">Zatím žádné účty. Začni jedním brokerem.</p>
+        </div>
+
+        <div id="view-tax" class="p-4 hidden">
+            <div class="flex items-center gap-3 mb-4">
+                <label class="fld m-0">Daňový rok:</label>
+                <select id="taxYear" class="input" style="width:auto;" onchange="renderTax()"></select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div class="kpi-card"><div class="kpi-label">Dividendy</div><div id="taxDiv" class="kpi-value text-emerald-400">0 Kč</div><div class="text-[10px] text-slate-600">Hrubé, před srážkovou daní</div></div>
+                <div class="kpi-card"><div class="kpi-label">Realizované zisky</div><div id="taxRealized" class="kpi-value text-sky-400">0 Kč</div><div class="text-[10px] text-slate-600">Prodeje - nákupy</div></div>
+                <div class="kpi-card"><div class="kpi-label">Poplatky</div><div id="taxFees" class="kpi-value text-rose-400">0 Kč</div></div>
+            </div>
+            <div class="panel" style="background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.25);">
+                <h3 class="text-sm font-semibold text-amber-300 mb-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Daňový upozorňovač</h3>
+                <ul class="text-[12px] text-slate-300 space-y-1.5 list-disc list-inside" id="taxNotes">
+                    <li>Časový test 3 roky — akcie držené déle než 3 roky jsou <b>osvobozeny od daně z příjmu</b> z prodeje.</li>
+                    <li>USA dividendy — typicky 15% srážková daň. ČR pak doplňuje na svou sazbu (dříve 15%, 2025+ progresivní).</li>
+                    <li>Limit pro povinné přiznání: 100 000 Kč příležitostných příjmů z prodeje cenných papírů ročně.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <p class="text-[10px] text-slate-600 text-center font-mono py-4">
+        Data v localStorage <code>broker_v1</code> · ceny se aktualizují ručně (Yahoo Finance API integrace bude přidána později)
+    </p>
+</main>
+
+<!-- ───────────── Modal: Účet ───────────── -->
+<div id="modalAcc" class="modal-bg" onclick="if(event.target===this) closeModal('acc')">
+    <div class="modal-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="modalAccTitle" class="text-base font-bold text-slate-100">Nový účet</h3>
+            <button onclick="closeModal('acc')" class="text-slate-500 hover:text-slate-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="space-y-3">
+            <div><label class="fld">Název *</label><input id="accName" class="input" placeholder="Hlavní Degiro účet"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Broker</label><input id="accBroker" class="input" placeholder="Degiro / XTB / IBKR / Mintos…"></div>
+                <div><label class="fld">Měna</label><select id="accCurrency" class="input"><option>CZK</option><option>EUR</option><option>USD</option></select></div>
+            </div>
+            <div><label class="fld">Poznámka</label><textarea id="accNotes" class="input" rows="2"></textarea></div>
+        </div>
+        <div class="flex justify-end gap-2 mt-5">
+            <button class="btn btn-secondary" onclick="closeModal('acc')">Zrušit</button>
+            <button class="btn btn-primary" onclick="saveAccount()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit</button>
+        </div>
+    </div>
+</div>
+
+<!-- ───────────── Modal: Pozice ───────────── -->
+<div id="modalPos" class="modal-bg" onclick="if(event.target===this) closeModal('pos')">
+    <div class="modal-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="modalPosTitle" class="text-base font-bold text-slate-100">Nová pozice</h3>
+            <button onclick="closeModal('pos')" class="text-slate-500 hover:text-slate-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Ticker *</label><input id="posTicker" class="input font-mono" placeholder="VWCE.DE / AAPL"></div>
+                <div><label class="fld">Název</label><input id="posName" class="input" placeholder="Vanguard FTSE All-World"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Typ</label><select id="posType" class="input"><option value="etf">ETF</option><option value="stock">Akcie</option><option value="bond">Dluhopis</option><option value="p2p">P2P</option><option value="crypto">Krypto</option><option value="other">Jiné</option></select></div>
+                <div><label class="fld">Účet *</label><select id="posAccount" class="input"></select></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div><label class="fld">Počet *</label><input id="posQuantity" type="number" step="0.0001" class="input font-mono"></div>
+                <div><label class="fld">Prům. cena *</label><input id="posAvgPrice" type="number" step="0.01" class="input font-mono"></div>
+                <div><label class="fld">Měna</label><select id="posCurrency" class="input"><option>CZK</option><option>EUR</option><option>USD</option></select></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Akt. cena</label><input id="posCurrentPrice" type="number" step="0.01" class="input font-mono" placeholder="můžeš nechat prázdné"></div>
+                <div><label class="fld">Sektor</label><input id="posSector" class="input" placeholder="Tech / Healthcare / …"></div>
+            </div>
+            <div><label class="fld">Poznámka</label><textarea id="posNotes" class="input" rows="2"></textarea></div>
+        </div>
+        <div class="flex justify-between gap-2 mt-5">
+            <button id="posDelete" class="btn btn-danger hidden" onclick="removePosition()"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Smazat</button>
+            <div class="flex gap-2 ml-auto">
+                <button class="btn btn-secondary" onclick="closeModal('pos')">Zrušit</button>
+                <button class="btn btn-primary" onclick="savePosition()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ───────────── Modal: Transakce ───────────── -->
+<div id="modalTx" class="modal-bg" onclick="if(event.target===this) closeModal('tx')">
+    <div class="modal-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="modalTxTitle" class="text-base font-bold text-slate-100">Nová transakce</h3>
+            <button onclick="closeModal('tx')" class="text-slate-500 hover:text-slate-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Datum *</label><input id="txDate" type="date" class="input"></div>
+                <div><label class="fld">Typ *</label><select id="txType" class="input">
+                    <option value="buy">Nákup</option><option value="sell">Prodej</option>
+                    <option value="dividend">Dividenda</option><option value="fee">Poplatek</option>
+                    <option value="tax">Daň</option><option value="deposit">Vklad</option><option value="withdraw">Výběr</option>
+                </select></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="fld">Účet *</label><select id="txAccount" class="input"></select></div>
+                <div><label class="fld">Ticker</label><input id="txTicker" class="input font-mono"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div><label class="fld">Počet</label><input id="txQuantity" type="number" step="0.0001" class="input font-mono"></div>
+                <div><label class="fld">Cena</label><input id="txPrice" type="number" step="0.01" class="input font-mono"></div>
+                <div><label class="fld">Měna</label><select id="txCurrency" class="input"><option>CZK</option><option>EUR</option><option>USD</option></select></div>
+            </div>
+            <div><label class="fld">Poznámka</label><input id="txNotes" class="input"></div>
+        </div>
+        <div class="flex justify-between gap-2 mt-5">
+            <button id="txDelete" class="btn btn-danger hidden" onclick="removeTransaction()"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Smazat</button>
+            <div class="flex gap-2 ml-auto">
+                <button class="btn btn-secondary" onclick="closeModal('tx')">Zrušit</button>
+                <button class="btn btn-primary" onclick="saveTransaction()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+
+    function getCookie(name) { try { const m=document.cookie.split('; ').find(r=>r.startsWith(name+'=')); return m ? decodeURIComponent(m.split('=')[1]) : ''; } catch(e){ return ''; } }
+
+    const KEY = 'broker_v1';
+    const RATES = { CZK: 1, EUR: 25, USD: 23 };
+    let DB = { accounts: [], positions: [], transactions: [] };
+    let editingId = { acc: null, pos: null, tx: null };
+    let currentView = 'positions';
+
+    function load() {
+        try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) DB = { accounts:[], positions:[], transactions:[], ...s }; } catch(e){}
+    }
+    function save() { localStorage.setItem(KEY, JSON.stringify(DB)); }
+    function uid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+    function fmtCZK(n) { if (!isFinite(n)) return '—'; return new Intl.NumberFormat('cs-CZ',{maximumFractionDigits:0}).format(Math.round(n)) + ' Kč'; }
+    function fmtN(n, d=2) { if (!isFinite(n)) return '—'; return new Intl.NumberFormat('cs-CZ',{maximumFractionDigits:d}).format(n); }
+    function fmtPct(n) { if (!isFinite(n)) return '—'; return (n>0?'+':'')+n.toFixed(1)+'%'; }
+    function esc(s) { return String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function toCZK(v, cur) { return v * (RATES[cur] || 1); }
+
+    // ─── View switching ───
+    function setView(v) {
+        currentView = v;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+        ['positions','transactions','accounts','tax'].forEach(id => {
+            document.getElementById('view-' + id).classList.toggle('hidden', id !== v);
+        });
+        if (v === 'tax') renderTax();
+        lucide.createIcons();
+    }
+
+    // ─── Modals ───
+    function openModal(t) {
+        if (t === 'pos' || t === 'tx') populateAccountSelects();
+        if (t === 'acc') { editingId.acc = null; ['accName','accBroker','accNotes'].forEach(id => document.getElementById(id).value=''); document.getElementById('accCurrency').value='CZK'; document.getElementById('modalAccTitle').textContent='Nový účet'; }
+        if (t === 'pos') {
+            editingId.pos = null;
+            ['posTicker','posName','posQuantity','posAvgPrice','posCurrentPrice','posSector','posNotes'].forEach(id => document.getElementById(id).value='');
+            document.getElementById('posType').value = 'etf';
+            document.getElementById('posCurrency').value = 'CZK';
+            document.getElementById('posDelete').classList.add('hidden');
+            document.getElementById('modalPosTitle').textContent = 'Nová pozice';
+        }
+        if (t === 'tx') {
+            editingId.tx = null;
+            const today = new Date().toISOString().slice(0,10);
+            document.getElementById('txDate').value = today;
+            document.getElementById('txType').value = 'buy';
+            ['txTicker','txQuantity','txPrice','txNotes'].forEach(id => document.getElementById(id).value='');
+            document.getElementById('txCurrency').value = 'CZK';
+            document.getElementById('txDelete').classList.add('hidden');
+            document.getElementById('modalTxTitle').textContent = 'Nová transakce';
+        }
+        document.getElementById('modal' + t[0].toUpperCase() + t.slice(1)).classList.add('show');
+        lucide.createIcons();
+    }
+    function closeModal(t) {
+        document.getElementById('modal' + t[0].toUpperCase() + t.slice(1)).classList.remove('show');
+    }
+    function populateAccountSelects() {
+        const opts = DB.accounts.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+        ['posAccount','txAccount'].forEach(id => {
+            document.getElementById(id).innerHTML = opts || '<option value="">— nejdřív vytvoř účet —</option>';
+        });
+    }
+
+    // ─── Save ───
+    function saveAccount() {
+        const name = document.getElementById('accName').value.trim();
+        if (!name) { alert('Název je povinný'); return; }
+        const data = { name, broker: document.getElementById('accBroker').value.trim(), currency: document.getElementById('accCurrency').value, notes: document.getElementById('accNotes').value.trim() };
+        if (editingId.acc) { const i = DB.accounts.findIndex(a => a.id === editingId.acc); if (i>=0) DB.accounts[i] = { ...DB.accounts[i], ...data }; }
+        else DB.accounts.push({ id: uid('acc'), ...data });
+        save(); renderAll(); closeModal('acc');
+    }
+    function editAccount(id) {
+        const a = DB.accounts.find(x => x.id === id); if (!a) return;
+        editingId.acc = id;
+        document.getElementById('accName').value = a.name;
+        document.getElementById('accBroker').value = a.broker || '';
+        document.getElementById('accCurrency').value = a.currency || 'CZK';
+        document.getElementById('accNotes').value = a.notes || '';
+        document.getElementById('modalAccTitle').textContent = 'Upravit: ' + a.name;
+        document.getElementById('modalAcc').classList.add('show');
+    }
+    function removeAccount(id) {
+        if (!confirm('Smazat účet? Pozice/transakce zůstanou, ale ztratí vazbu.')) return;
+        DB.accounts = DB.accounts.filter(a => a.id !== id);
+        save(); renderAll();
+    }
+
+    function savePosition() {
+        const ticker = document.getElementById('posTicker').value.trim();
+        const qty = +document.getElementById('posQuantity').value;
+        const avg = +document.getElementById('posAvgPrice').value;
+        const acc = document.getElementById('posAccount').value;
+        if (!ticker || !qty || !avg || !acc) { alert('Ticker, počet, prům. cena a účet jsou povinné'); return; }
+        const data = {
+            ticker, accountId: acc,
+            name: document.getElementById('posName').value.trim(),
+            type: document.getElementById('posType').value,
+            quantity: qty, avgPrice: avg,
+            currency: document.getElementById('posCurrency').value,
+            currentPrice: +document.getElementById('posCurrentPrice').value || null,
+            sector: document.getElementById('posSector').value.trim(),
+            notes: document.getElementById('posNotes').value.trim(),
+            lastUpdate: new Date().toISOString().slice(0,10)
+        };
+        if (editingId.pos) { const i = DB.positions.findIndex(p => p.id === editingId.pos); if (i>=0) DB.positions[i] = { ...DB.positions[i], ...data }; }
+        else DB.positions.push({ id: uid('pos'), ...data });
+        save(); renderAll(); closeModal('pos');
+    }
+    function editPosition(id) {
+        const p = DB.positions.find(x => x.id === id); if (!p) return;
+        editingId.pos = id;
+        populateAccountSelects();
+        document.getElementById('posTicker').value = p.ticker;
+        document.getElementById('posName').value = p.name || '';
+        document.getElementById('posType').value = p.type || 'etf';
+        document.getElementById('posAccount').value = p.accountId;
+        document.getElementById('posQuantity').value = p.quantity;
+        document.getElementById('posAvgPrice').value = p.avgPrice;
+        document.getElementById('posCurrentPrice').value = p.currentPrice || '';
+        document.getElementById('posCurrency').value = p.currency || 'CZK';
+        document.getElementById('posSector').value = p.sector || '';
+        document.getElementById('posNotes').value = p.notes || '';
+        document.getElementById('posDelete').classList.remove('hidden');
+        document.getElementById('modalPosTitle').textContent = 'Upravit: ' + p.ticker;
+        document.getElementById('modalPos').classList.add('show');
+    }
+    function removePosition() {
+        if (!editingId.pos) return;
+        if (!confirm('Smazat tuto pozici?')) return;
+        DB.positions = DB.positions.filter(p => p.id !== editingId.pos);
+        save(); renderAll(); closeModal('pos');
+    }
+
+    function saveTransaction() {
+        const d = document.getElementById('txDate').value;
+        const acc = document.getElementById('txAccount').value;
+        if (!d || !acc) { alert('Datum a účet jsou povinné'); return; }
+        const data = {
+            date: d, type: document.getElementById('txType').value, accountId: acc,
+            ticker: document.getElementById('txTicker').value.trim(),
+            quantity: +document.getElementById('txQuantity').value || 0,
+            price: +document.getElementById('txPrice').value || 0,
+            currency: document.getElementById('txCurrency').value,
+            notes: document.getElementById('txNotes').value.trim()
+        };
+        data.total = data.quantity * data.price;
+        if (editingId.tx) { const i = DB.transactions.findIndex(t => t.id === editingId.tx); if (i>=0) DB.transactions[i] = { ...DB.transactions[i], ...data }; }
+        else DB.transactions.push({ id: uid('tx'), ...data });
+        save(); renderAll(); closeModal('tx');
+    }
+    function editTransaction(id) {
+        const t = DB.transactions.find(x => x.id === id); if (!t) return;
+        editingId.tx = id;
+        populateAccountSelects();
+        document.getElementById('txDate').value = t.date;
+        document.getElementById('txType').value = t.type;
+        document.getElementById('txAccount').value = t.accountId;
+        document.getElementById('txTicker').value = t.ticker || '';
+        document.getElementById('txQuantity').value = t.quantity || '';
+        document.getElementById('txPrice').value = t.price || '';
+        document.getElementById('txCurrency').value = t.currency || 'CZK';
+        document.getElementById('txNotes').value = t.notes || '';
+        document.getElementById('txDelete').classList.remove('hidden');
+        document.getElementById('modalTxTitle').textContent = 'Upravit transakci';
+        document.getElementById('modalTx').classList.add('show');
+    }
+    function removeTransaction() {
+        if (!editingId.tx) return;
+        if (!confirm('Smazat tuto transakci?')) return;
+        DB.transactions = DB.transactions.filter(t => t.id !== editingId.tx);
+        save(); renderAll(); closeModal('tx');
+    }
+
+    // ─── Render ───
+    function renderAll() {
+        renderPositions(); renderTransactions(); renderAccounts();
+        if (currentView === 'tax') renderTax();
+        renderKPI();
+    }
+    function renderKPI() {
+        const value = DB.positions.reduce((s,p) => s + toCZK((p.currentPrice || p.avgPrice) * p.quantity, p.currency), 0);
+        const cost  = DB.positions.reduce((s,p) => s + toCZK(p.avgPrice * p.quantity, p.currency), 0);
+        const pnl   = value - cost;
+        const pct   = cost > 0 ? (pnl/cost*100) : 0;
+        const year  = new Date().getFullYear();
+        const divs  = DB.transactions.filter(t => t.type === 'dividend' && t.date && t.date.startsWith(year + '-')).reduce((s,t) => s + toCZK(t.total, t.currency), 0);
+        document.getElementById('kpiValue').textContent = fmtCZK(value);
+        document.getElementById('kpiCost').textContent  = fmtCZK(cost);
+        const pnlEl = document.getElementById('kpiPnl');
+        pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmtCZK(pnl);
+        pnlEl.className = 'kpi-value ' + (pnl >= 0 ? 'text-emerald-400' : 'text-rose-400');
+        document.getElementById('kpiPnlPct').textContent = fmtPct(pct);
+        document.getElementById('kpiDiv').textContent   = fmtCZK(divs);
+    }
+    function renderPositions() {
+        const tbody = document.getElementById('positionsBody');
+        const empty = document.getElementById('emptyPositions');
+        if (!DB.positions.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        tbody.innerHTML = DB.positions.map(p => {
+            const acc = DB.accounts.find(a => a.id === p.accountId);
+            const accLabel = acc ? acc.name : '<span class="text-rose-400 text-[10px]">žádný</span>';
+            const curr = p.currentPrice || p.avgPrice;
+            const value = curr * p.quantity;
+            const cost = p.avgPrice * p.quantity;
+            const pnl = value - cost;
+            const pct = cost > 0 ? (pnl/cost*100) : 0;
+            return `<tr>
+                <td><div class="font-mono font-semibold text-slate-100">${esc(p.ticker)}</div><div class="text-[10px] text-slate-600">${esc(p.name || '')}</div></td>
+                <td><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">${esc(p.type)}</span></td>
+                <td>${accLabel}</td>
+                <td class="text-right font-mono">${fmtN(p.quantity, 4)}</td>
+                <td class="text-right font-mono">${fmtN(p.avgPrice)} ${esc(p.currency)}</td>
+                <td class="text-right font-mono">${p.currentPrice ? fmtN(p.currentPrice) + ' ' + esc(p.currency) : '<span class="text-slate-600 text-[10px]">—</span>'}</td>
+                <td class="text-right font-mono">${fmtCZK(toCZK(value, p.currency))}</td>
+                <td class="text-right font-mono ${pnl >= 0 ? 'pos-pos' : 'pos-neg'}">${pnl >= 0 ? '+' : ''}${fmtCZK(toCZK(pnl, p.currency))}</td>
+                <td class="text-right font-mono ${pct >= 0 ? 'pos-pos' : 'pos-neg'}">${fmtPct(pct)}</td>
+                <td class="text-right"><button class="btn btn-ghost p-1.5" onclick="editPosition('${p.id}')"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i></button></td>
+            </tr>`;
+        }).join('');
+        lucide.createIcons();
+    }
+    function renderTransactions() {
+        const tbody = document.getElementById('transactionsBody');
+        const empty = document.getElementById('emptyTransactions');
+        if (!DB.transactions.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        const TYPE_LABELS = { buy:'Nákup', sell:'Prodej', dividend:'Dividenda', fee:'Poplatek', tax:'Daň', deposit:'Vklad', withdraw:'Výběr' };
+        const TYPE_COLORS = { buy:'text-sky-400', sell:'text-amber-400', dividend:'text-emerald-400', fee:'text-rose-400', tax:'text-rose-400', deposit:'text-slate-300', withdraw:'text-slate-500' };
+        tbody.innerHTML = DB.transactions.slice().sort((a,b) => (b.date || '').localeCompare(a.date || '')).map(t => {
+            const acc = DB.accounts.find(a => a.id === t.accountId);
+            return `<tr>
+                <td class="font-mono">${esc(t.date)}</td>
+                <td><span class="${TYPE_COLORS[t.type] || 'text-slate-400'} text-[11px] font-semibold uppercase">${esc(TYPE_LABELS[t.type] || t.type)}</span></td>
+                <td>${acc ? esc(acc.name) : '<span class="text-rose-400 text-[10px]">—</span>'}</td>
+                <td class="font-mono">${esc(t.ticker || '')}</td>
+                <td class="text-right font-mono">${t.quantity ? fmtN(t.quantity, 4) : ''}</td>
+                <td class="text-right font-mono">${t.price ? fmtN(t.price) : ''}</td>
+                <td class="text-right font-mono">${fmtN(t.total)} ${esc(t.currency || '')}</td>
+                <td class="text-[11px] text-slate-500">${esc(t.notes || '')}</td>
+                <td class="text-right"><button class="btn btn-ghost p-1.5" onclick="editTransaction('${t.id}')"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i></button></td>
+            </tr>`;
+        }).join('');
+        lucide.createIcons();
+    }
+    function renderAccounts() {
+        const tbody = document.getElementById('accountsBody');
+        const empty = document.getElementById('emptyAccounts');
+        if (!DB.accounts.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        tbody.innerHTML = DB.accounts.map(a => {
+            const posCount = DB.positions.filter(p => p.accountId === a.id).length;
+            return `<tr>
+                <td><div class="font-semibold text-slate-100">${esc(a.name)}</div><div class="text-[10px] text-slate-600">${esc(a.notes || '')}</div></td>
+                <td>${esc(a.broker || '—')}</td>
+                <td class="font-mono">${esc(a.currency || 'CZK')}</td>
+                <td class="text-right">${posCount}</td>
+                <td class="text-right">
+                    <button class="btn btn-ghost p-1.5" onclick="editAccount('${a.id}')"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i></button>
+                    <button class="btn btn-ghost p-1.5" onclick="removeAccount('${a.id}')"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+        lucide.createIcons();
+    }
+    function renderTax() {
+        // year selector
+        const years = new Set();
+        DB.transactions.forEach(t => { if (t.date) years.add(t.date.slice(0,4)); });
+        years.add(new Date().getFullYear().toString());
+        const sel = document.getElementById('taxYear');
+        const current = sel.value || new Date().getFullYear().toString();
+        sel.innerHTML = [...years].sort().reverse().map(y => `<option ${y===current?'selected':''}>${y}</option>`).join('');
+        const year = sel.value;
+        const tx = DB.transactions.filter(t => t.date && t.date.startsWith(year + '-'));
+        const div = tx.filter(t => t.type === 'dividend').reduce((s,t) => s + toCZK(t.total, t.currency), 0);
+        const fees = tx.filter(t => t.type === 'fee' || t.type === 'tax').reduce((s,t) => s + toCZK(Math.abs(t.total), t.currency), 0);
+        // Realized = sells - matching avg buy. Velmi zjednodušeně.
+        const sells = tx.filter(t => t.type === 'sell');
+        let realized = 0;
+        sells.forEach(s => {
+            const pos = DB.positions.find(p => p.ticker === s.ticker);
+            if (pos) realized += toCZK((s.price - pos.avgPrice) * s.quantity, s.currency);
+        });
+        document.getElementById('taxDiv').textContent = fmtCZK(div);
+        document.getElementById('taxRealized').textContent = fmtCZK(realized);
+        document.getElementById('taxFees').textContent = fmtCZK(fees);
+    }
+
+    window.addEventListener('message', e => {
+        if (e.data && e.data.type === 'finance-theme') {
+            document.documentElement.classList.toggle('light', e.data.theme === 'light');
+        }
+    });
+
+    (function init(){
+        const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');
+        document.documentElement.classList.toggle('light', theme === 'light');
+        load();
+        renderAll();
+        lucide.createIcons();
+    })();
+</script>
+</body>
+</html>

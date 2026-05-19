@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Předplatná — evidence opakovaných závazků Finance Terminal.">
+    <title>Předplatná | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="finance-common.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            margin: 0; padding: 0;
+            min-height: 100vh;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        #topNav { background: rgba(15,23,42,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 50; }
+        .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 0.75rem; padding: 1.25rem; }
+        .kpi-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 0.5rem; padding: 0.9rem 1.1rem; }
+        .kpi-label { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+        .kpi-value { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; }
+        .input {
+            width: 100%;
+            background: #020617; border: 1px solid #1e293b; border-radius: 0.4rem;
+            padding: 0.5rem 0.7rem; font-size: 0.8rem; color: #f8fafc;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .input:focus { outline: none; border-color: #d946ef; box-shadow: 0 0 0 2px rgba(217,70,239,0.2); }
+        label.fld { display: block; font-size: 0.7rem; color: #94a3b8; margin-bottom: 0.3rem; font-weight: 500; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.5rem 0.9rem; font-size: 0.75rem; font-weight: 500;
+            border-radius: 0.4rem; cursor: pointer; transition: all 0.15s;
+            border: 1px solid transparent; user-select: none;
+        }
+        .btn-primary { background: #d946ef; color: #fff; }
+        .btn-primary:hover { background: #c026d3; }
+        .btn-secondary { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+        .btn-secondary:hover { background: #334155; }
+        .btn-danger { background: rgba(244,63,94,0.12); color: #fb7185; border-color: rgba(244,63,94,0.3); }
+        .btn-danger:hover { background: rgba(244,63,94,0.2); }
+        .btn-ghost { background: transparent; color: #94a3b8; border-color: #1e293b; }
+        .btn-ghost:hover { background: #0f172a; color: #e2e8f0; }
+
+        table.subs { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.78rem; }
+        table.subs th { text-align: left; font-weight: 600; color: #64748b; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.6rem 0.5rem; border-bottom: 1px solid #1e293b; }
+        table.subs td { padding: 0.65rem 0.5rem; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+        table.subs tr.inactive td { opacity: 0.45; }
+        table.subs tr:hover td { background: rgba(217,70,239,0.04); }
+        .pill {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            padding: 0.1rem 0.5rem; font-size: 0.65rem; border-radius: 999px;
+            background: #1e293b; color: #94a3b8;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .pill.due-soon { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .pill.due-now  { background: rgba(244,63,94,0.15); color: #fb7185; }
+        .pill.ok      { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .pill.fuchsia { background: rgba(217,70,239,0.12); color: #e879f9; }
+
+        /* Modal */
+        .modal-bg { position: fixed; inset: 0; background: rgba(2,6,23,0.78); z-index: 60; display: none; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-bg.show { display: flex; }
+        .modal-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 0.75rem; padding: 1.5rem; width: 100%; max-width: 28rem; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.7rem 1rem; border-radius: 0.5rem; font-size: 0.78rem; color: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.4); opacity: 0; transform: translateY(10px); transition: opacity .2s, transform .2s; z-index: 200; max-width: 24rem; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background: #15803d; }
+        .toast.error   { background: #b91c1c; }
+        .toast.info    { background: #0369a1; }
+
+        /* Light theme */
+        html.light body { background-color: #f1f5f9; color: #0f172a; }
+        html.light #topNav { background: rgba(255,255,255,0.92) !important; border-bottom-color: #e2e8f0 !important; }
+        html.light .panel, html.light .kpi-card, html.light .modal-box { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light .input { background-color: #f8fafc; color: #0f172a; border-color: #e2e8f0; }
+        html.light .btn-secondary { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+        html.light table.subs th { color: #64748b; border-color: #e2e8f0; }
+        html.light table.subs td { border-color: #e2e8f0; }
+        html.light .pill { background: #f1f5f9; color: #64748b; }
+        html.light .text-slate-100 { color: #0f172a !important; }
+        html.light .text-slate-400 { color: #475569 !important; }
+        html.light .text-slate-500 { color: #64748b !important; }
+        html.light .text-slate-600 { color: #94a3b8 !important; }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════ TOP NAV ══════════════ -->
+<nav id="topNav">
+    <div class="px-4 py-2 flex items-center justify-between gap-3 max-w-6xl mx-auto">
+        <a href="../index.html" class="flex items-center gap-2.5 text-inherit no-underline hover:opacity-90 transition-opacity" title="Přejít na Dashboard">
+            <div class="bg-fuchsia-500/10 p-1.5 rounded-lg border border-fuchsia-500/20">
+                <i data-lucide="repeat" class="w-5 h-5 text-fuchsia-400"></i>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Předplatná</h1>
+                <p class="text-[10px] text-slate-500 leading-tight font-mono">Finance Terminal · opakované závazky</p>
+            </div>
+        </a>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-primary" onclick="openAdd()"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Přidat předplatné</button>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-6xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- KPI -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card">
+            <div class="kpi-label">Měsíčně celkem</div>
+            <div id="kpiMonth" class="kpi-value text-fuchsia-400">0 Kč</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">Součet aktivních (normalizováno)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Ročně celkem</div>
+            <div id="kpiYear" class="kpi-value text-sky-400">0 Kč</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">12× měsíčně</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Aktivních</div>
+            <div id="kpiCount" class="kpi-value text-emerald-400">0</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">Celkem evidováno: <span id="kpiTotal">0</span></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Příští platba</div>
+            <div id="kpiNext" class="kpi-value text-amber-400">—</div>
+            <div class="text-[10px] text-slate-600 mt-0.5" id="kpiNextSub">žádné aktivní</div>
+        </div>
+    </section>
+
+    <!-- Filtry -->
+    <section class="panel">
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2">
+                <label class="text-[11px] text-slate-500 uppercase tracking-wider">Pohled:</label>
+                <select id="filterStatus" class="input" style="width:auto; padding:0.4rem 0.6rem; font-size:0.75rem;" onchange="render()">
+                    <option value="active">Jen aktivní</option>
+                    <option value="all">Vše</option>
+                    <option value="inactive">Jen neaktivní</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-[11px] text-slate-500 uppercase tracking-wider">Kategorie:</label>
+                <select id="filterCategory" class="input" style="width:auto; padding:0.4rem 0.6rem; font-size:0.75rem;" onchange="render()">
+                    <option value="">Vše</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+                <button class="btn btn-ghost" onclick="exportData()" title="Stáhnout JSON"><i data-lucide="download" class="w-3.5 h-3.5"></i> Export</button>
+                <label class="btn btn-ghost cursor-pointer">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import
+                    <input type="file" accept="application/json" class="hidden" onchange="importData(event)">
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tabulka -->
+    <section class="panel p-0 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="subs">
+                <thead>
+                    <tr>
+                        <th>Název</th>
+                        <th>Kategorie</th>
+                        <th class="text-right">Cena</th>
+                        <th>Cyklus</th>
+                        <th>Příští platba</th>
+                        <th>Konec smlouvy</th>
+                        <th class="text-right">Akce</th>
+                    </tr>
+                </thead>
+                <tbody id="tblBody"></tbody>
+            </table>
+        </div>
+        <div id="emptyState" class="py-12 text-center hidden">
+            <i data-lucide="inbox" class="w-10 h-10 text-slate-700 mx-auto mb-3"></i>
+            <p class="text-slate-500 text-sm">Zatím žádná předplatná v tomto pohledu.</p>
+            <p class="text-slate-600 text-xs mt-1">Klikni nahoře na <b>Přidat předplatné</b>.</p>
+        </div>
+    </section>
+
+    <!-- AI tip panel -->
+    <section class="panel" style="border-color: rgba(217,70,239,0.2);">
+        <h2 class="text-sm font-semibold text-fuchsia-300 flex items-center gap-2 mb-3">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> AI Audit předplatných
+        </h2>
+        <p class="text-xs text-slate-400 mb-3">AI projde tvá předplatná a identifikuje duplicity (např. 2× streaming), drahá předplatná vs. trh a kandidáty na zrušení podle frekvence používání.</p>
+        <button class="btn btn-primary" onclick="runAudit()" id="auditBtn"><i data-lucide="brain-circuit" class="w-3.5 h-3.5"></i> Spustit audit</button>
+        <div id="auditOutput" class="mt-3 text-sm text-slate-300 leading-relaxed"></div>
+    </section>
+
+    <p class="text-[10px] text-slate-600 text-center font-mono py-4">
+        Data jsou v localStorage (klíč <code>predplatna_v1</code>) · synchronizace přes Sheets (modul Příjmy & Výdaje) volitelná
+    </p>
+</main>
+
+<!-- ══════════════ MODAL: Add/Edit ══════════════ -->
+<div id="editModal" class="modal-bg" onclick="if(event.target===this) closeModal()">
+    <div class="modal-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="modalTitle" class="text-base font-bold text-slate-100">Nové předplatné</h3>
+            <button onclick="closeModal()" class="text-slate-500 hover:text-slate-200"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="fld">Název *</label>
+                    <input id="fName" class="input" placeholder="Netflix">
+                </div>
+                <div>
+                    <label class="fld">Poskytovatel</label>
+                    <input id="fProvider" class="input" placeholder="netflix.com">
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div class="col-span-2">
+                    <label class="fld">Cena *</label>
+                    <input id="fAmount" type="number" step="0.01" class="input font-mono" placeholder="269">
+                </div>
+                <div>
+                    <label class="fld">Měna</label>
+                    <select id="fCurrency" class="input">
+                        <option>CZK</option><option>EUR</option><option>USD</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="fld">Cyklus *</label>
+                    <select id="fCycle" class="input">
+                        <option value="monthly">měsíčně</option>
+                        <option value="quarterly">čtvrtletně</option>
+                        <option value="yearly">ročně</option>
+                        <option value="weekly">týdně</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="fld">Kategorie</label>
+                    <input id="fCategory" class="input" list="dlCategories" placeholder="Streaming">
+                    <datalist id="dlCategories"></datalist>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="fld">Příští platba *</label>
+                    <input id="fNext" type="date" class="input">
+                </div>
+                <div>
+                    <label class="fld">Konec smlouvy</label>
+                    <input id="fEnd" type="date" class="input">
+                </div>
+            </div>
+            <div>
+                <label class="fld">Platba</label>
+                <input id="fMethod" class="input" placeholder="Karta MasterCard XXXX-1234 / Bankovní převod">
+            </div>
+            <div>
+                <label class="fld">Poznámka</label>
+                <textarea id="fNotes" class="input" rows="2" placeholder="rodinný plán / 4 obrazovky"></textarea>
+            </div>
+            <label class="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input id="fActive" type="checkbox" checked>
+                <span>Aktivní</span>
+            </label>
+        </div>
+        <div class="flex justify-between gap-2 mt-5">
+            <button id="btnDelete" class="btn btn-danger hidden" onclick="removeCurrent()"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Smazat</button>
+            <div class="flex gap-2 ml-auto">
+                <button class="btn btn-secondary" onclick="closeModal()">Zrušit</button>
+                <button class="btn btn-primary" onclick="saveCurrent()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+    lucide.createIcons();
+
+    // ─── Cookie helpers (lokální fallback, ale finance-common.js je hlavní zdroj) ───
+    function getCookie(name) {
+        try {
+            const m = document.cookie.split('; ').find(r => r.startsWith(name + '='));
+            return m ? decodeURIComponent(m.split('=')[1]) : '';
+        } catch(e) { return ''; }
+    }
+
+    // ─── Storage ───
+    const STORE = 'predplatna_v1';
+    let DB = { items: [] };
+    let currentEditId = null;
+
+    function load() {
+        try { DB = JSON.parse(localStorage.getItem(STORE)) || { items: [] }; }
+        catch(e) { DB = { items: [] }; }
+        if (!Array.isArray(DB.items)) DB.items = [];
+    }
+    function save() {
+        localStorage.setItem(STORE, JSON.stringify(DB));
+        // Naplánujeme cloud sync přes finance-common.js (předplatná jako modul 'predplatna').
+        try {
+            const FC = window.FinanceCommon;
+            if (FC && FC.auth && FC.auth.isLoggedIn() && FC.cloud) {
+                // Modul-specifická data nejsou součástí standardní cloud config,
+                // ale Apps Script template (saveData/module) je umí přijmout.
+                // Tady jen schedulujeme push obecné config — data si modul může
+                // pushnout přes saveData v budoucnu.
+                FC.cloud.scheduleSync();
+            }
+        } catch(e) {}
+    }
+    function uid() { return 'sub_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+    // ─── Cykly a normalizace na měsíční cenu ───
+    const CYCLE_MONTHS = { weekly: 1/4.345, monthly: 1, quarterly: 3, yearly: 12 };
+    function toMonthly(amount, cycle) {
+        const f = CYCLE_MONTHS[cycle] || 1;
+        return amount / f;
+    }
+    const CYCLE_LABEL = { weekly: 'týdně', monthly: 'měsíčně', quarterly: 'čtvrtletně', yearly: 'ročně' };
+
+    // ─── Currency (jen CZK suma na KPI, ostatní zachovány) ───
+    function fmtCZK(n) {
+        return new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' Kč';
+    }
+    function fmtAmount(n, c) {
+        return new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 }).format(n) + ' ' + (c || 'CZK');
+    }
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        try { return new Date(iso).toLocaleDateString('cs-CZ'); } catch(e) { return iso; }
+    }
+    function daysFromNow(iso) {
+        if (!iso) return null;
+        const d = new Date(iso); d.setHours(0,0,0,0);
+        const t = new Date(); t.setHours(0,0,0,0);
+        return Math.round((d - t) / 86400000);
+    }
+
+    // ─── Render ───
+    function render() {
+        const filterStatus = document.getElementById('filterStatus').value;
+        const filterCat    = document.getElementById('filterCategory').value;
+
+        // populate categories filter
+        const cats = [...new Set(DB.items.map(x => x.category).filter(Boolean))].sort();
+        const cf = document.getElementById('filterCategory');
+        const currentVal = cf.value;
+        cf.innerHTML = '<option value="">Vše</option>' + cats.map(c => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
+        cf.value = cats.includes(currentVal) ? currentVal : '';
+
+        document.getElementById('dlCategories').innerHTML = cats.map(c => `<option value="${escAttr(c)}">`).join('');
+
+        // KPI počítáme z VŠECH aktivních (nezávisle na filtru)
+        const active = DB.items.filter(x => x.active);
+        const monthlyTotal = active.reduce((s,x) => s + (x.currency === 'CZK' ? toMonthly(x.amount, x.cycle) : toMonthly(x.amount, x.cycle) * cxRate(x.currency)), 0);
+        document.getElementById('kpiMonth').textContent = fmtCZK(monthlyTotal);
+        document.getElementById('kpiYear').textContent  = fmtCZK(monthlyTotal * 12);
+        document.getElementById('kpiCount').textContent = String(active.length);
+        document.getElementById('kpiTotal').textContent = String(DB.items.length);
+
+        // Příští platba
+        const upcoming = active
+            .filter(x => x.nextBilling)
+            .map(x => ({ x, days: daysFromNow(x.nextBilling) }))
+            .filter(o => o.days !== null && o.days >= 0)
+            .sort((a,b) => a.days - b.days);
+        if (upcoming.length) {
+            const nx = upcoming[0];
+            document.getElementById('kpiNext').textContent = nx.x.name;
+            document.getElementById('kpiNextSub').textContent = nx.days === 0 ? 'dnes · ' + fmtAmount(nx.x.amount, nx.x.currency) : `za ${nx.days} dní · ${fmtAmount(nx.x.amount, nx.x.currency)}`;
+        } else {
+            document.getElementById('kpiNext').textContent = '—';
+            document.getElementById('kpiNextSub').textContent = active.length ? 'žádné datum nezadáno' : 'žádné aktivní';
+        }
+
+        // Filtrovaný list
+        let list = DB.items.slice();
+        if (filterStatus === 'active') list = list.filter(x => x.active);
+        else if (filterStatus === 'inactive') list = list.filter(x => !x.active);
+        if (filterCat) list = list.filter(x => x.category === filterCat);
+
+        list.sort((a,b) => {
+            const da = a.nextBilling || '9999-12-31';
+            const db = b.nextBilling || '9999-12-31';
+            return da.localeCompare(db);
+        });
+
+        const tbody = document.getElementById('tblBody');
+        const empty = document.getElementById('emptyState');
+        if (!list.length) {
+            tbody.innerHTML = '';
+            empty.classList.remove('hidden');
+        } else {
+            empty.classList.add('hidden');
+            tbody.innerHTML = list.map(x => {
+                const d = daysFromNow(x.nextBilling);
+                let pill = '<span class="pill">—</span>';
+                if (d !== null) {
+                    if (d < 0)        pill = `<span class="pill due-now">před ${-d} dny</span>`;
+                    else if (d === 0) pill = '<span class="pill due-now">dnes</span>';
+                    else if (d <= 7)  pill = `<span class="pill due-soon">za ${d} dní</span>`;
+                    else              pill = `<span class="pill ok">za ${d} dní</span>`;
+                }
+                return `<tr class="${x.active ? '' : 'inactive'}">
+                    <td>
+                        <div class="font-semibold text-slate-100">${escHtml(x.name)}</div>
+                        <div class="text-[10px] text-slate-600 font-mono">${escHtml(x.provider || '')}</div>
+                    </td>
+                    <td><span class="pill fuchsia">${escHtml(x.category || '—')}</span></td>
+                    <td class="text-right font-mono">${fmtAmount(x.amount, x.currency)}</td>
+                    <td><span class="pill">${CYCLE_LABEL[x.cycle] || x.cycle}</span></td>
+                    <td>
+                        <div class="font-mono">${fmtDate(x.nextBilling)}</div>
+                        <div class="mt-0.5">${pill}</div>
+                    </td>
+                    <td><span class="text-[11px] font-mono">${fmtDate(x.contractEnd)}</span></td>
+                    <td class="text-right">
+                        <button class="btn btn-ghost p-1.5" onclick="openEdit('${x.id}')" title="Upravit"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i></button>
+                        <button class="btn btn-ghost p-1.5" onclick="toggleActive('${x.id}')" title="${x.active ? 'Deaktivovat' : 'Aktivovat'}"><i data-lucide="${x.active ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        lucide.createIcons();
+    }
+
+    function cxRate(c) {
+        // Jednoduchý kurzový převod — defaultní fallback, pokud uživatel nezadá CZK.
+        // V budoucnu lze napojit na finance-common.js sdílené kurzy (FX cache).
+        const RATES = { EUR: 25, USD: 23, CZK: 1 };
+        return RATES[c] || 1;
+    }
+
+    function escHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function escAttr(s) { return escHtml(s); }
+
+    // ─── Modal: add/edit ───
+    function openAdd() {
+        currentEditId = null;
+        document.getElementById('modalTitle').textContent = 'Nové předplatné';
+        document.getElementById('btnDelete').classList.add('hidden');
+        ['fName','fProvider','fCategory','fMethod','fNotes'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('fAmount').value = '';
+        document.getElementById('fCurrency').value = 'CZK';
+        document.getElementById('fCycle').value = 'monthly';
+        const today = new Date(); today.setDate(today.getDate() + 30);
+        document.getElementById('fNext').value = today.toISOString().slice(0,10);
+        document.getElementById('fEnd').value = '';
+        document.getElementById('fActive').checked = true;
+        document.getElementById('editModal').classList.add('show');
+        lucide.createIcons();
+    }
+    function openEdit(id) {
+        const x = DB.items.find(i => i.id === id);
+        if (!x) return;
+        currentEditId = id;
+        document.getElementById('modalTitle').textContent = 'Upravit: ' + x.name;
+        document.getElementById('btnDelete').classList.remove('hidden');
+        document.getElementById('fName').value = x.name || '';
+        document.getElementById('fProvider').value = x.provider || '';
+        document.getElementById('fAmount').value = x.amount;
+        document.getElementById('fCurrency').value = x.currency || 'CZK';
+        document.getElementById('fCycle').value = x.cycle || 'monthly';
+        document.getElementById('fCategory').value = x.category || '';
+        document.getElementById('fNext').value = x.nextBilling || '';
+        document.getElementById('fEnd').value = x.contractEnd || '';
+        document.getElementById('fMethod').value = x.paymentMethod || '';
+        document.getElementById('fNotes').value = x.notes || '';
+        document.getElementById('fActive').checked = !!x.active;
+        document.getElementById('editModal').classList.add('show');
+        lucide.createIcons();
+    }
+    function closeModal() {
+        document.getElementById('editModal').classList.remove('show');
+        currentEditId = null;
+    }
+    function saveCurrent() {
+        const name = document.getElementById('fName').value.trim();
+        const amount = parseFloat(document.getElementById('fAmount').value);
+        const next = document.getElementById('fNext').value;
+        if (!name || isNaN(amount) || !next) {
+            toast('Vyplň název, cenu a datum příští platby', 'error');
+            return;
+        }
+        const data = {
+            name,
+            provider: document.getElementById('fProvider').value.trim(),
+            amount: amount,
+            currency: document.getElementById('fCurrency').value,
+            cycle: document.getElementById('fCycle').value,
+            category: document.getElementById('fCategory').value.trim(),
+            nextBilling: next,
+            contractEnd: document.getElementById('fEnd').value || null,
+            paymentMethod: document.getElementById('fMethod').value.trim(),
+            notes: document.getElementById('fNotes').value.trim(),
+            active: document.getElementById('fActive').checked
+        };
+        if (currentEditId) {
+            const i = DB.items.findIndex(x => x.id === currentEditId);
+            if (i >= 0) DB.items[i] = { ...DB.items[i], ...data };
+        } else {
+            DB.items.push({ id: uid(), ...data });
+        }
+        save(); render(); closeModal();
+        toast('Uloženo', 'success');
+    }
+    function removeCurrent() {
+        if (!currentEditId) return;
+        if (!confirm('Opravdu smazat toto předplatné?')) return;
+        DB.items = DB.items.filter(x => x.id !== currentEditId);
+        save(); render(); closeModal();
+        toast('Smazáno', 'info');
+    }
+    function toggleActive(id) {
+        const x = DB.items.find(i => i.id === id); if (!x) return;
+        x.active = !x.active; save(); render();
+        toast(x.active ? 'Aktivováno' : 'Deaktivováno', 'info');
+    }
+
+    // ─── Export / Import ───
+    function exportData() {
+        const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'predplatna.json';
+        document.body.appendChild(a); a.click(); a.remove();
+    }
+    function importData(evt) {
+        const f = evt.target.files && evt.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = () => {
+            try {
+                const parsed = JSON.parse(r.result);
+                if (Array.isArray(parsed)) DB.items = parsed;
+                else if (parsed && Array.isArray(parsed.items)) DB.items = parsed.items;
+                else throw new Error('Neznámý formát');
+                save(); render();
+                toast('Import OK', 'success');
+            } catch (e) { toast('Chybný soubor: ' + e.message, 'error'); }
+        };
+        r.readAsText(f);
+        evt.target.value = '';
+    }
+
+    // ─── AI Audit (Groq / Gemini / ChatGPT) ───
+    async function runAudit() {
+        const groqKey   = (localStorage.getItem('groq_api_key')   || getCookie('groq_api_key')   || '').trim();
+        const geminiKey = (localStorage.getItem('gemini_api_key') || getCookie('gemini_api_key') || '').trim();
+        const chatKey   = (localStorage.getItem('chatgpt_api_key')|| getCookie('chatgpt_api_key')|| '').trim();
+        const provider  = (localStorage.getItem('ai_provider')    || getCookie('ai_provider')    || 'groq').trim();
+
+        if (!groqKey && !geminiKey && !chatKey) {
+            toast('Nastav AI klíč v globálním Nastavení', 'error');
+            return;
+        }
+        const out = document.getElementById('auditOutput');
+        const btn = document.getElementById('auditBtn');
+        btn.disabled = true;
+        out.innerHTML = '<i>Analyzuji…</i>';
+
+        const active = DB.items.filter(x => x.active);
+        const monthly = active.reduce((s,x) => s + toMonthly(x.amount, x.cycle) * cxRate(x.currency), 0);
+
+        // Strukturovaný kontext (ne raw dump)
+        const byCat = {};
+        active.forEach(x => {
+            const c = x.category || '(bez kategorie)';
+            byCat[c] = (byCat[c] || 0) + toMonthly(x.amount, x.cycle) * cxRate(x.currency);
+        });
+        const catLines = Object.entries(byCat)
+            .sort((a,b) => b[1] - a[1])
+            .map(([c, v]) => `- ${c}: ${fmtCZK(v)} / měs.`).join('\n');
+
+        const itemLines = active
+            .sort((a,b) => toMonthly(b.amount, b.cycle)*cxRate(b.currency) - toMonthly(a.amount, a.cycle)*cxRate(a.currency))
+            .slice(0, 30)
+            .map(x => `- ${x.name} (${x.category || '?'}): ${fmtAmount(x.amount, x.currency)} ${CYCLE_LABEL[x.cycle]||x.cycle} → ${fmtCZK(toMonthly(x.amount, x.cycle)*cxRate(x.currency))}/měs.`).join('\n');
+
+        const prompt = `Jsi analytik osobních financí. Mluv česky, stručně, věcně. Nepřevyprávěj data — uživatel je vidí v UI.
+
+KONTEXT:
+- Aktivních předplatných: ${active.length}
+- Celkové měsíční náklady: ${fmtCZK(monthly)} (${fmtCZK(monthly*12)} ročně)
+
+ROZPAD PODLE KATEGORIE:
+${catLines || '(žádné kategorie)'}
+
+TOP POLOŽKY:
+${itemLines || '(žádné)'}
+
+POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty):
+1. Duplicity / kanibalizace — má víc položek se stejnou funkcí? (např. víc streamingů)
+2. Nejdražší položka vůči jejímu typu — je cena na trhu obvyklá nebo přemrštěná?
+3. Kandidáti na zrušení / pauzu (zaměř se na položky, které pravděpodobně méně používá)
+4. Doporučená měsíční úspora (Kč) při racionalizaci
+
+Žádný úvod ani závěr. Žádný opis dat výše. Začni rovnou bodem 1.`;
+
+        try {
+            const text = await callAI(prompt, provider, { groqKey, geminiKey, chatKey });
+            out.innerHTML = text.split('\n').map(l => escHtml(l)).join('<br>');
+        } catch(e) {
+            out.innerHTML = '<span style="color:#fb7185">' + escHtml(e.message) + '</span>';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function callAI(prompt, provider, keys) {
+        if (provider === 'gemini' && keys.geminiKey) {
+            const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys.geminiKey), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts:[{text:prompt}] }], generationConfig: { temperature: 0.4, maxOutputTokens: 500 } })
+            });
+            if (!r.ok) throw new Error('Gemini chyba: ' + r.status);
+            const j = await r.json();
+            return j.candidates?.[0]?.content?.parts?.[0]?.text || '(prázdná odpověď)';
+        }
+        if (provider === 'chatgpt' && keys.chatKey) {
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + keys.chatKey },
+                body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{role:'user',content:prompt}], temperature: 0.4, max_tokens: 500 })
+            });
+            if (!r.ok) throw new Error('ChatGPT chyba: ' + r.status);
+            const j = await r.json();
+            return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
+        }
+        // default groq
+        if (!keys.groqKey) throw new Error('Chybí Groq klíč. Nastav ho v globálním Nastavení.');
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + keys.groqKey },
+            body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{role:'user',content:prompt}], temperature: 0.4, max_tokens: 500 })
+        });
+        if (!r.ok) throw new Error('Groq chyba: ' + r.status);
+        const j = await r.json();
+        return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
+    }
+
+    // ─── Toast ───
+    let toastTmr;
+    function toast(msg, kind) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast show ' + (kind || 'info');
+        clearTimeout(toastTmr);
+        toastTmr = setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ─── Theme via postMessage from Index.html ───
+    window.addEventListener('message', e => {
+        if (e.data && e.data.type === 'finance-theme') {
+            document.documentElement.classList.toggle('light', e.data.theme === 'light');
+        }
+    });
+
+    // ─── Init ───
+    (function init(){
+        const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');
+        document.documentElement.classList.toggle('light', theme === 'light');
+        load();
+        render();
+        lucide.createIcons();
+    })();
+</script>
+</body>
+</html>

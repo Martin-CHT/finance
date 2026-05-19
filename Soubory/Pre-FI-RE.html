@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Pre-FI/RE — kalkulačka předčasné penze Finance Terminal.">
+    <title>Pre-FI/RE | Finance Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+    <script src="finance-common.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter',sans-serif; background:#020617; color:#f8fafc; margin:0; padding:0; min-height:100vh; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width:6px; height:6px; }
+        ::-webkit-scrollbar-track { background:#0f172a; }
+        ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+
+        #topNav { background:rgba(15,23,42,0.85); backdrop-filter:blur(12px); border-bottom:1px solid #1e293b; position:sticky; top:0; z-index:50; }
+        .panel { background:#0f172a; border:1px solid #1e293b; border-radius:0.75rem; padding:1.25rem; }
+        .kpi-card { background:#0f172a; border:1px solid #1e293b; border-radius:0.5rem; padding:1rem 1.2rem; }
+        .kpi-label { font-size:0.65rem; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; }
+        .kpi-value { font-family:'JetBrains Mono',monospace; font-size:1.4rem; font-weight:700; }
+        label.fld { display:block; font-size:0.7rem; color:#94a3b8; margin-bottom:0.3rem; font-weight:500; }
+        .input { width:100%; background:#020617; border:1px solid #1e293b; border-radius:0.4rem; padding:0.5rem 0.7rem; font-size:0.85rem; color:#f8fafc; font-family:'JetBrains Mono',monospace; }
+        .input:focus { outline:none; border-color:#10b981; box-shadow:0 0 0 2px rgba(16,185,129,0.2); }
+        .btn { display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 0.9rem; font-size:0.75rem; font-weight:500; border-radius:0.4rem; cursor:pointer; transition:all 0.15s; border:1px solid transparent; }
+        .btn-primary { background:#10b981; color:#fff; }
+        .btn-primary:hover { background:#059669; }
+        .btn-secondary { background:#1e293b; color:#e2e8f0; border:1px solid #334155; }
+        .btn-secondary:hover { background:#334155; }
+        .scenario { padding:0.6rem 1rem; border-radius:0.4rem; font-size:0.75rem; cursor:pointer; transition:all 0.15s; background:#1e293b; color:#94a3b8; border:1px solid #334155; }
+        .scenario.active { background:#10b981; color:#fff; border-color:#10b981; box-shadow:0 0 0 2px rgba(16,185,129,0.25); }
+        .scenario:hover:not(.active) { background:#334155; color:#e2e8f0; }
+        input[type=range] { width:100%; accent-color:#10b981; }
+
+        html.light body { background:#f1f5f9; color:#0f172a; }
+        html.light #topNav { background:rgba(255,255,255,0.92) !important; border-bottom-color:#e2e8f0 !important; }
+        html.light .panel, html.light .kpi-card { background:#fff !important; border-color:#e2e8f0 !important; }
+        html.light .input { background:#f8fafc; color:#0f172a; border-color:#e2e8f0; }
+        html.light .scenario { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+        html.light .text-slate-100 { color:#0f172a !important; }
+        html.light .text-slate-400 { color:#475569 !important; }
+        html.light .text-slate-500 { color:#64748b !important; }
+        html.light .text-slate-600 { color:#94a3b8 !important; }
+    </style>
+</head>
+<body>
+
+<nav id="topNav">
+    <div class="px-4 py-2 flex items-center justify-between gap-3 max-w-6xl mx-auto">
+        <a href="../index.html" class="flex items-center gap-2.5 text-inherit no-underline hover:opacity-90 transition-opacity" title="Přejít na Dashboard">
+            <div class="bg-emerald-500/10 p-1.5 rounded-lg border border-emerald-500/20">
+                <i data-lucide="mountain" class="w-5 h-5 text-emerald-400"></i>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Pre-FI/RE</h1>
+                <p class="text-[10px] text-slate-500 leading-tight font-mono">Finance Terminal · finanční nezávislost</p>
+            </div>
+        </a>
+        <div class="hidden sm:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+            <span>FIRE = Financial Independence, Retire Early</span>
+        </div>
+    </div>
+</nav>
+
+<main class="max-w-6xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- KPI -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="kpi-card">
+            <div class="kpi-label">Aktuální majetek</div>
+            <div id="kpiCurrent" class="kpi-value text-sky-400">0 Kč</div>
+            <div class="text-[10px] text-slate-600 mt-0.5">Investice + spoření + nemovitosti</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">FIRE číslo (cíl)</div>
+            <div id="kpiFire" class="kpi-value text-emerald-400">0 Kč</div>
+            <div class="text-[10px] text-slate-600 mt-0.5" id="kpiFireSub">×25 ročních výdajů</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Roky do FIRE</div>
+            <div id="kpiYears" class="kpi-value text-amber-400">—</div>
+            <div class="text-[10px] text-slate-600 mt-0.5" id="kpiYearsSub">při aktuálním tempu</div>
+        </div>
+    </section>
+
+    <!-- Scenarios -->
+    <section class="panel">
+        <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-3">
+            <i data-lucide="git-branch" class="w-4 h-4 text-emerald-400"></i> Scénář
+        </h2>
+        <div class="flex flex-wrap gap-2 mb-3">
+            <button class="scenario" data-sc="lean">Lean FIRE</button>
+            <button class="scenario active" data-sc="standard">Standard FIRE</button>
+            <button class="scenario" data-sc="fat">Fat FIRE</button>
+            <button class="scenario" data-sc="coast">Coast FIRE</button>
+        </div>
+        <p id="scenarioDesc" class="text-[11px] text-slate-500 leading-relaxed">
+            Standard FIRE: 25× ročních výdajů (~4% withdrawal rate). Klasický „Trinity Study" výpočet — 95% historická úspěšnost 30letého výběru.
+        </p>
+    </section>
+
+    <!-- Inputs -->
+    <section class="panel">
+        <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-4">
+            <i data-lucide="sliders" class="w-4 h-4 text-emerald-400"></i> Vstupy
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+                <label class="fld">Aktuální majetek (Kč)</label>
+                <input id="inpCurrent" type="number" min="0" step="10000" class="input" value="500000">
+            </div>
+            <div>
+                <label class="fld">Roční výdaje (Kč)</label>
+                <input id="inpExpenses" type="number" min="0" step="10000" class="input" value="360000">
+                <p class="text-[10px] text-slate-600 mt-1">~30 000 Kč/měs</p>
+            </div>
+            <div>
+                <label class="fld">Měsíční úspora / investice (Kč)</label>
+                <input id="inpSavings" type="number" min="0" step="1000" class="input" value="10000">
+            </div>
+            <div>
+                <label class="fld">Předpokládaný výnos (% / rok, po inflaci)</label>
+                <input id="inpReturn" type="number" min="0" max="20" step="0.1" class="input" value="6">
+                <p class="text-[10px] text-slate-600 mt-1">Default 6% (akcie po inflaci ~ historický průměr)</p>
+            </div>
+            <div>
+                <label class="fld">Withdrawal rate (% / rok)</label>
+                <input id="inpWR" type="number" min="2" max="8" step="0.1" class="input" value="4">
+                <p class="text-[10px] text-slate-600 mt-1">4% = bezpečné dlouhodobé čerpání</p>
+            </div>
+            <div>
+                <label class="fld">Tvůj věk</label>
+                <input id="inpAge" type="number" min="18" max="80" step="1" class="input" value="35">
+            </div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+            <button class="btn btn-primary" onclick="compute()"><i data-lucide="calculator" class="w-3.5 h-3.5"></i> Přepočítat</button>
+            <button class="btn btn-secondary" onclick="autofill()" title="Pokus se odhadnout aktuální majetek z dat ostatních modulů"><i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Auto-vyplnit z modulů</button>
+            <button class="btn btn-secondary" onclick="saveInputs()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit nastavení</button>
+        </div>
+    </section>
+
+    <!-- Chart -->
+    <section class="panel">
+        <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-3">
+            <i data-lucide="line-chart" class="w-4 h-4 text-emerald-400"></i> Kapitál v čase
+        </h2>
+        <div style="height:340px;"><canvas id="chartFire"></canvas></div>
+        <p class="text-[11px] text-slate-500 mt-2">
+            Černá čára = aktuální plán. Zelená přerušovaná = FIRE číslo. Křižovatka = okamžik, kdy můžeš ukončit pracovní život.
+        </p>
+    </section>
+
+    <!-- AI advice -->
+    <section class="panel" style="border-color:rgba(16,185,129,0.25);">
+        <h2 class="text-sm font-semibold text-emerald-300 flex items-center gap-2 mb-3">
+            <i data-lucide="brain-circuit" class="w-4 h-4"></i> AI rada
+        </h2>
+        <p class="text-xs text-slate-400 mb-3">AI dostane tvé metriky a řekne, kde jsi v FIRE žebříčku a co je nejúčinnější páka pro zkrácení cesty.</p>
+        <button class="btn btn-primary" onclick="aiAdvise()" id="aiBtn"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Spustit AI radu</button>
+        <div id="aiOut" class="mt-3 text-sm text-slate-300 leading-relaxed"></div>
+    </section>
+
+    <p class="text-[10px] text-slate-600 text-center font-mono py-4">
+        Vstupy uloženy v localStorage <code>pre_fi_re_v1</code> · synchronizace přes cloud účet
+    </p>
+</main>
+
+<script>
+    lucide.createIcons();
+
+    function getCookie(name) {
+        try { const m = document.cookie.split('; ').find(r => r.startsWith(name + '=')); return m ? decodeURIComponent(m.split('=')[1]) : ''; }
+        catch(e) { return ''; }
+    }
+
+    const KEY = 'pre_fi_re_v1';
+    let state = { current: 500000, expenses: 360000, savings: 10000, ret: 6, wr: 4, age: 35, scenario: 'standard' };
+
+    function load() {
+        try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = { ...state, ...s }; } catch(e){}
+        document.getElementById('inpCurrent').value = state.current;
+        document.getElementById('inpExpenses').value = state.expenses;
+        document.getElementById('inpSavings').value = state.savings;
+        document.getElementById('inpReturn').value = state.ret;
+        document.getElementById('inpWR').value = state.wr;
+        document.getElementById('inpAge').value = state.age;
+        setScenario(state.scenario, false);
+    }
+    function saveInputs() {
+        state.current = +document.getElementById('inpCurrent').value || 0;
+        state.expenses = +document.getElementById('inpExpenses').value || 0;
+        state.savings = +document.getElementById('inpSavings').value || 0;
+        state.ret = +document.getElementById('inpReturn').value || 0;
+        state.wr = +document.getElementById('inpWR').value || 4;
+        state.age = +document.getElementById('inpAge').value || 35;
+        localStorage.setItem(KEY, JSON.stringify(state));
+    }
+    function fmtCZK(n) {
+        if (!isFinite(n)) return '—';
+        return new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' Kč';
+    }
+
+    function setScenario(sc, recompute = true) {
+        state.scenario = sc;
+        document.querySelectorAll('.scenario').forEach(b => b.classList.toggle('active', b.dataset.sc === sc));
+        const descs = {
+            lean:     'Lean FIRE: žiješ skromně, výdaje sníženy na ~70% současných. FIRE číslo je nižší — dosažení rychleji, ale s menším komfortem.',
+            standard: 'Standard FIRE: 25× ročních výdajů (~4% withdrawal rate). Klasický „Trinity Study" výpočet — 95% historická úspěšnost 30letého výběru.',
+            fat:      'Fat FIRE: komfortní penze, výdaje +50% současných. FIRE číslo je vyšší — bere déle, ale máš velkou rezervu.',
+            coast:    'Coast FIRE: bod, kdy už nemusíš spořit. Stávající majetek samovolně doroste na FIRE číslo díky složenému úroku.'
+        };
+        document.getElementById('scenarioDesc').textContent = descs[sc] || descs.standard;
+        if (recompute) compute();
+    }
+    document.querySelectorAll('.scenario').forEach(b => b.addEventListener('click', () => setScenario(b.dataset.sc)));
+
+    // ─── Math ───
+    function effectiveExpenses() {
+        const e = state.expenses;
+        if (state.scenario === 'lean') return e * 0.7;
+        if (state.scenario === 'fat')  return e * 1.5;
+        return e;
+    }
+    function fireNumber() {
+        return effectiveExpenses() * (100 / state.wr);
+    }
+    function projectCapital(years) {
+        // monthly contributions + monthly compounding for smoothness
+        const r_m = Math.pow(1 + state.ret/100, 1/12) - 1;
+        const months = Math.max(1, Math.round(years * 12));
+        const pts = [];
+        let cap = state.current;
+        pts.push({ year: 0, cap });
+        for (let m = 1; m <= months; m++) {
+            cap = cap * (1 + r_m) + state.savings;
+            if (m % 12 === 0) pts.push({ year: m/12, cap });
+        }
+        return pts;
+    }
+    function yearsToFire() {
+        const target = fireNumber();
+        if (state.current >= target) return 0;
+        const r_m = Math.pow(1 + state.ret/100, 1/12) - 1;
+        let cap = state.current;
+        // Coast FIRE: only growth, no contributions
+        const monthlySave = state.scenario === 'coast' ? 0 : state.savings;
+        for (let m = 1; m <= 100 * 12; m++) {
+            cap = cap * (1 + r_m) + monthlySave;
+            if (cap >= target) return m / 12;
+        }
+        return null; // > 100 let
+    }
+
+    // ─── Render ───
+    let chart;
+    function compute() {
+        saveInputs();
+        const target = fireNumber();
+        const years = yearsToFire();
+        document.getElementById('kpiCurrent').textContent = fmtCZK(state.current);
+        document.getElementById('kpiFire').textContent = fmtCZK(target);
+        document.getElementById('kpiFireSub').textContent = `${(100/state.wr).toFixed(0)}× ročních výdajů (${state.wr}% withdrawal)`;
+        if (years === null) {
+            document.getElementById('kpiYears').textContent = '> 100 let';
+            document.getElementById('kpiYearsSub').textContent = 'cíl je nedosažitelný — zvedni úspory nebo sniž výdaje';
+        } else if (years === 0) {
+            document.getElementById('kpiYears').textContent = 'HOTOVO';
+            document.getElementById('kpiYearsSub').textContent = `Můžeš odejít. FIRE věk: ${state.age} let`;
+        } else {
+            const y = Math.floor(years);
+            const months = Math.round((years - y) * 12);
+            document.getElementById('kpiYears').textContent = `${y}r ${months}m`;
+            document.getElementById('kpiYearsSub').textContent = `FIRE věk: ${(state.age + years).toFixed(1)} let`;
+        }
+
+        // Chart: project to max(years+5, 30)
+        const horizon = years === null ? 50 : Math.max(years + 5, 15);
+        const pts = projectCapital(horizon);
+        const labels = pts.map(p => `${(state.age + p.year).toFixed(0)}r (${p.year.toFixed(0)})`);
+        const data = pts.map(p => p.cap);
+        const fireLine = pts.map(() => target);
+
+        if (chart) chart.destroy();
+        const ctx = document.getElementById('chartFire').getContext('2d');
+        const isLight = document.documentElement.classList.contains('light');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Kapitál', data, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.3, pointRadius: 0 },
+                    { label: 'FIRE cíl', data: fireLine, borderColor: '#fbbf24', borderDash: [6, 4], pointRadius: 0, fill: false }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: isLight ? '#475569' : '#94a3b8', font: { size: 11 } } },
+                    tooltip: { callbacks: { label: (it) => it.dataset.label + ': ' + fmtCZK(it.parsed.y) } }
+                },
+                scales: {
+                    x: { ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } }, grid: { color: isLight ? '#e2e8f0' : '#1e293b' } },
+                    y: { ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 }, callback: v => fmtCZK(v) }, grid: { color: isLight ? '#e2e8f0' : '#1e293b' } }
+                }
+            }
+        });
+    }
+
+    function autofill() {
+        // Pokus odhadnout majetek z dat ostatních modulů (jsou-li v localStorage stejného originu).
+        let total = 0;
+        const sources = [];
+
+        // Spoření
+        try {
+            const sp = JSON.parse(localStorage.getItem('sporeni_data_v1'));
+            if (sp && Array.isArray(sp.goals)) {
+                const sum = sp.goals.reduce((s,g) => s + (g.current || g.saved || 0), 0);
+                if (sum) { total += sum; sources.push(`Spoření: ${fmtCZK(sum)}`); }
+            }
+        } catch(e) {}
+
+        // Investice / penze (různé klíče)
+        try {
+            const ip = JSON.parse(localStorage.getItem('pension_data'));
+            if (ip && typeof ip.currentValue === 'number') { total += ip.currentValue; sources.push(`Penze: ${fmtCZK(ip.currentValue)}`); }
+        } catch(e) {}
+
+        // Fondy
+        try {
+            const fd = JSON.parse(localStorage.getItem('fondy_data_v1'));
+            if (fd && Array.isArray(fd.entries) && fd.entries.length) {
+                const last = fd.entries[fd.entries.length - 1];
+                if (last && typeof last.value === 'number') { total += last.value; sources.push(`Fondy: ${fmtCZK(last.value)}`); }
+            }
+        } catch(e) {}
+
+        // BTC
+        try {
+            const btc = JSON.parse(localStorage.getItem('btc-invest:v1'));
+            if (btc && Array.isArray(btc.investments)) {
+                const inv = btc.investments.reduce((s,i) => s + (i.amount || 0), 0);
+                if (inv) { total += inv; sources.push(`BTC (vklady): ${fmtCZK(inv)}`); }
+            }
+        } catch(e) {}
+
+        if (total > 0) {
+            document.getElementById('inpCurrent').value = Math.round(total);
+            compute();
+            alert('Auto-vyplněno z modulů:\n' + sources.join('\n') + `\n\nCelkem: ${fmtCZK(total)}`);
+        } else {
+            alert('Nepodařilo se najít data v ostatních modulech.\nUloženo: žádné. Vyplň ručně.');
+        }
+    }
+
+    // ─── AI ───
+    async function aiAdvise() {
+        const out = document.getElementById('aiOut');
+        const btn = document.getElementById('aiBtn');
+        btn.disabled = true;
+        out.innerHTML = '<i>Analyzuji…</i>';
+
+        const groqKey = (localStorage.getItem('groq_api_key') || getCookie('groq_api_key') || '').trim();
+        const geminiKey = (localStorage.getItem('gemini_api_key') || getCookie('gemini_api_key') || '').trim();
+        const chatKey = (localStorage.getItem('chatgpt_api_key') || getCookie('chatgpt_api_key') || '').trim();
+        const provider = (localStorage.getItem('ai_provider') || getCookie('ai_provider') || 'groq').trim();
+
+        if (!groqKey && !geminiKey && !chatKey) {
+            out.innerHTML = '<span style="color:#fb7185">Nastav AI klíč v globálním Nastavení.</span>';
+            btn.disabled = false; return;
+        }
+
+        const target = fireNumber();
+        const years = yearsToFire();
+        const savingsRate = ((state.savings * 12) / (state.savings * 12 + state.expenses)) * 100;
+
+        const prompt = `Jsi finanční kouč specializovaný na FIRE (Financial Independence, Retire Early) v českém kontextu.
+
+METRIKY (vypočítáno):
+- Věk: ${state.age} let
+- Roční výdaje: ${fmtCZK(state.expenses)} (scénář: ${state.scenario})
+- Efektivní výdaje pro FIRE: ${fmtCZK(effectiveExpenses())}
+- Aktuální majetek: ${fmtCZK(state.current)} (${(state.current/target*100).toFixed(1)}% FIRE cíle)
+- FIRE cíl: ${fmtCZK(target)}
+- Měsíční úspora: ${fmtCZK(state.savings)}
+- Míra úspor z příjmu: ~${savingsRate.toFixed(0)}%
+- Předpokládaný výnos: ${state.ret}% / rok
+- Roky do FIRE: ${years === null ? '> 100 (nedosažitelné)' : years === 0 ? 'JIŽ DOSAŽENO' : years.toFixed(1)}
+- Withdrawal rate: ${state.wr}%
+
+POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty):
+1. Kde si stojím v FIRE žebříčku (Pre-FI / Lean FI / FI / Fat FI / Coast FI) a co to znamená pro mé rozhodnutí dnes
+2. Nejúčinnější páka pro zkrácení cesty (zvedni úspory? sniž výdaje? jaký konkrétní krok?)
+3. Klíčové riziko mého plánu (sequence-of-returns, inflace, neúplná diverzifikace…)
+4. Akce pro tento měsíc (jeden konkrétní krok, ne generický plán)
+
+Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni přímo bodem 1.`;
+
+        try {
+            const text = await callAI(prompt, provider, { groqKey, geminiKey, chatKey });
+            const esc = s => String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+            out.innerHTML = text.split('\n').map(l => esc(l)).join('<br>');
+        } catch(e) {
+            out.innerHTML = '<span style="color:#fb7185">' + e.message + '</span>';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function callAI(prompt, provider, keys) {
+        if (provider === 'gemini' && keys.geminiKey) {
+            const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys.geminiKey), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts:[{text:prompt}] }], generationConfig: { temperature: 0.4, maxOutputTokens: 500 } })
+            });
+            if (!r.ok) throw new Error('Gemini chyba: ' + r.status);
+            const j = await r.json();
+            return j.candidates?.[0]?.content?.parts?.[0]?.text || '(prázdná odpověď)';
+        }
+        if (provider === 'chatgpt' && keys.chatKey) {
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + keys.chatKey },
+                body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{role:'user',content:prompt}], temperature: 0.4, max_tokens: 500 })
+            });
+            if (!r.ok) throw new Error('ChatGPT chyba: ' + r.status);
+            const j = await r.json();
+            return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
+        }
+        if (!keys.groqKey) throw new Error('Chybí Groq klíč. Nastav ho v globálním Nastavení.');
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + keys.groqKey },
+            body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{role:'user',content:prompt}], temperature: 0.4, max_tokens: 500 })
+        });
+        if (!r.ok) throw new Error('Groq chyba: ' + r.status);
+        const j = await r.json();
+        return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
+    }
+
+    window.addEventListener('message', e => {
+        if (e.data && e.data.type === 'finance-theme') {
+            document.documentElement.classList.toggle('light', e.data.theme === 'light');
+            if (chart) compute(); // přebarvit graf
+        }
+    });
+
+    (function init(){
+        const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');
+        document.documentElement.classList.toggle('light', theme === 'light');
+        load();
+        compute();
+        lucide.createIcons();
+    })();
+</script>
+</body>
+</html>
