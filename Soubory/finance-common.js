@@ -83,8 +83,11 @@
         if (v) writeUnified(key, v);
     });
 
-    /* Google Sheets URL — jeden sjednocený `finance_sheets_url` převedeme
-       i do legacy klíčů, které jednotlivé moduly hledají. */
+    /* Google Sheets URL — pokud máme legacy URL z minula a `finance_sheets_url`
+       je prázdné, převedeme jí. ALE: legacy klíče už NEzrcadlíme dál, protože
+       jejich syncToCloud rutiny posílají raw pole bez `?module=`, což skončí
+       v listu `mod_unknown`. Nový auto-sync přes `finance_sheets_url` zapisuje
+       do správných `mod_<modul>` listů — necháme jen ten. */
     var legacySheetsKeys = [
         'google_sync_pension',
         'FinanceAI_api',
@@ -102,11 +105,9 @@
             if (v && /^https?:\/\//.test(v)) { unifiedSheets = v; writeUnified('finance_sheets_url', v); break; }
         }
     }
-    if (unifiedSheets) {
-        legacySheetsKeys.forEach(function (k) {
-            if (readUnified(k) !== unifiedSheets) writeUnified(k, unifiedSheets);
-        });
-    }
+    // Vymažeme legacy klíče, ať starý syncToCloud nepošle žádný raw POST.
+    // Sync teď řídí výhradně `finance_sheets_url` + auto-sync přes meta tagy.
+    legacySheetsKeys.forEach(function (k) { deleteUnified(k); });
 
     /* Téma — master `finance_theme`, aliasy do všech historických klíčů. */
     var theme = readUnified('finance_theme') || 'dark';
@@ -371,6 +372,151 @@
         autoPullOnStart();
     }
 
+    /* ════════════════════════════════════════════════════════════
+       5) MODULE-DATA SYNC s uživatelovým Google Sheetem
+       ════════════════════════════════════════════════════════════
+       Toto je oddělené od cloud auth (FC_AUTH_URL):
+       - Cloud auth (centralizovaný) drží jen MALÝ config (AI klíče, téma, pořadí).
+       - Velká data jednotlivých modulů (transakce, cíle, půjčky, BTC investice,
+         předplatná, ...) chodí do listu uživatelova vlastního Google Sheetu
+         (URL je `finance_sheets_url`). Listy se jmenují `mod_<modulkey>`.
+
+       Modul ji aktivuje dvěma `<meta>` tagy v <head>:
+         <meta name="fc-module"      content="prijmy">
+         <meta name="fc-storage-key" content="FinanceAI_data">
+
+       Pak se automaticky stane:
+         a) Při startu se z user's Sheetu stáhne `mod_prijmy` a zapíše do
+            localStorage['FinanceAI_data'] (pokud se liší od stávající hodnoty).
+            Po zápisu se dispatchne CustomEvent `fc-module-data-updated`,
+            který modul může poslouchat a překreslit.
+         b) Každý další zápis do localStorage['FinanceAI_data'] z modulu
+            (po editu, importu, smazání) se debounced (3 s) pushne zpět
+            do user's Sheetu jako `{action:"saveData", module:"prijmy", data:[...]}`. */
+
+    function _userSheetUrl() {
+        var u = readUnified('finance_sheets_url') || '';
+        return /^https?:\/\//.test(u) ? u : '';
+    }
+    function _appendQuery(url, qs) {
+        return url + (url.indexOf('?') === -1 ? '?' : '&') + qs;
+    }
+    function _sheetUrlWithToken(extraQs) {
+        var u = _userSheetUrl(); if (!u) return '';
+        var t = readUnified('finance_sheets_token');
+        if (t) u = _appendQuery(u, 'token=' + encodeURIComponent(t));
+        if (extraQs) u = _appendQuery(u, extraQs);
+        return u;
+    }
+
+    /* Pošle libovolný JSON objekt jako data modulu. */
+    async function pushModuleData(moduleName, data) {
+        var base = _userSheetUrl();
+        if (!base) return false; // user nemá Sheet nastavený — nic neděláme
+        var t = readUnified('finance_sheets_token');
+        var body = { action: 'saveData', module: moduleName, data: data };
+        if (t) body.token = t;
+        try {
+            var r = await fetch(base, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(body),
+                redirect: 'follow'
+            });
+            if (!r.ok) return false;
+            var j = await r.json().catch(function () { return null; });
+            return !!(j && j.ok);
+        } catch (e) { return false; }
+    }
+
+    /* Stáhne `mod_<moduleName>`. Vrací parsovaný JSON nebo null. */
+    async function pullModuleData(moduleName) {
+        var url = _sheetUrlWithToken('action=getData&module=' + encodeURIComponent(moduleName));
+        if (!url) return null;
+        try {
+            var r = await fetch(url);
+            if (!r.ok) return null;
+            var j = await r.json().catch(function () { return null; });
+            if (!j || !j.ok) return null;
+            return (j.data == null) ? null : j.data;
+        } catch (e) { return null; }
+    }
+
+    /* Debounced push pro daný modul. */
+    var _modulePushTimers = {};
+    function scheduleModulePush(moduleName, dataProvider, delayMs) {
+        if (!_userSheetUrl()) return;
+        if (_modulePushTimers[moduleName]) clearTimeout(_modulePushTimers[moduleName]);
+        _modulePushTimers[moduleName] = setTimeout(function () {
+            delete _modulePushTimers[moduleName];
+            try {
+                var data = (typeof dataProvider === 'function') ? dataProvider() : dataProvider;
+                pushModuleData(moduleName, data);
+            } catch (e) {}
+        }, typeof delayMs === 'number' ? delayMs : 3000);
+    }
+
+    /* Auto-sync hook — najde meta tagy v <head> a napojí localStorage zápis na cloud. */
+    function autoSyncModuleViaMeta() {
+        var mModule = document.querySelector('meta[name="fc-module"]');
+        var mKey    = document.querySelector('meta[name="fc-storage-key"]');
+        if (!mModule || !mKey || !mModule.content || !mKey.content) return;
+        var moduleName = mModule.content.trim();
+        var storageKey = mKey.content.trim();
+
+        // 2) Hook localStorage.setItem pro daný klíč — auto-push do cloudu.
+        //    Instalujeme ho HNED (nikoliv až po DOMContentLoaded), aby zachytil
+        //    i případné zápisy z modulových inline skriptů na konci <body>.
+        var _origSetItem = localStorage.setItem.bind(localStorage);
+        var _suppressPushOnce = false;
+        localStorage.setItem = function (k, v) {
+            _origSetItem(k, v);
+            if (k !== storageKey) return;
+            if (_suppressPushOnce) { _suppressPushOnce = false; return; }
+            scheduleModulePush(moduleName, function () {
+                try { return JSON.parse(v); } catch (e) { return v; }
+            });
+        };
+
+        // 1) Při startu: pull remote → pokud existuje a liší se od localu, přepiš local a překresli modul.
+        //    Použijeme hard-reload jako fallback (modul se znovu načte s čerstvými daty z localStorage).
+        function initialPull() {
+            if (!_userSheetUrl()) return;
+            pullModuleData(moduleName).then(function (remote) {
+                if (remote == null) return; // user's Sheet ještě nemá záznam — necháme local
+                var remoteStr;
+                try { remoteStr = JSON.stringify(remote); } catch (e) { return; }
+                var local = lsGet(storageKey);
+                if (local === remoteStr) return;
+                // Zapíšeme remote do localu (s potlačením push hooku, ať se to nevrátí jako push)
+                _suppressPushOnce = true;
+                try { localStorage.setItem(storageKey, remoteStr); } catch (e) {}
+                // Pošleme event — modul ho může poslouchat a překreslit bez reloadu
+                var handled = false;
+                try {
+                    var ev = new CustomEvent('fc-module-data-updated', {
+                        detail: { module: moduleName, data: remote, storageKey: storageKey },
+                        cancelable: true
+                    });
+                    handled = !window.dispatchEvent(ev); // preventDefault() => handled
+                } catch (e) {}
+                // Fallback: hard-reload po krátké pauze, pokud modul listener nepřevzal řízení.
+                // Reload se dělá jen jednou — po něm už lokál == remote, takže další initialPull nic neudělá.
+                setTimeout(function () {
+                    if (handled || window._fcSkipReload) return;
+                    try { location.reload(); } catch (e) {}
+                }, 250);
+            }).catch(function () { /* ignore */ });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initialPull);
+        } else {
+            initialPull();
+        }
+    }
+    // Spustit IHNED — meta tagy už jsou v <head> nad tímto skriptem.
+    autoSyncModuleViaMeta();
+
     /* ════════════  PUBLIC API  ════════════ */
     window.FinanceCommon = {
         /* legacy helpers (zachovány kvůli kompatibilitě) */
@@ -401,12 +547,17 @@
 
         /* cloud sync */
         cloud: {
-            pull:           pull,
-            push:           push,
-            scheduleSync:   scheduleSync,
-            collectConfig:  collectConfig,
-            applyConfig:    applyConfig,
-            keys:           CLOUD_KEYS
+            pull:               pull,
+            push:               push,
+            scheduleSync:       scheduleSync,
+            collectConfig:      collectConfig,
+            applyConfig:        applyConfig,
+            keys:               CLOUD_KEYS,
+            /* NEW: module-data sync proti uživatelovu Sheetu */
+            pushModule:         pushModuleData,
+            pullModule:         pullModuleData,
+            scheduleModulePush: scheduleModulePush,
+            hasSheetsUrl:       function () { return !!_userSheetUrl(); }
         }
     };
 })();

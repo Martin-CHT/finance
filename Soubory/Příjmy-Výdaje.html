@@ -441,8 +441,10 @@
         html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
         html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
-    <!-- finance-common.js: sjednocené nastavení mezi Nastavení.html a moduly -->
-    <script src="finance-common.js" defer></script>
+    <!-- finance-common.js: sjednocené nastavení + auto-sync modulových dat -->
+    <meta name="fc-module" content="prijmy">
+    <meta name="fc-storage-key" content="FinanceAI_data">
+    <script src="finance-common.js"></script>
 </head>
 
 <body class="antialiased pb-16">

@@ -375,7 +375,10 @@
         html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
     <!-- finance-common.js: sjednocené nastavení mezi Nastavení.html a moduly -->
-    <script src="finance-common.js" defer></script>
+    <!-- auto-sync modulu Spoření do user's Google Sheetu (mod_sporeni) -->
+    <meta name="fc-module" content="sporeni">
+    <meta name="fc-storage-key" content="sporici_data_ai_tree">
+    <script src="finance-common.js"></script>
 </head>
 
 <body class="min-h-screen flex flex-col text-sm">

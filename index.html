@@ -8,8 +8,10 @@
     <title>Finanční centrum | Finance Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- finance-common.js: sjednocené nastavení + cloud auth/sync -->
-    <script src="Soubory/finance-common.js" defer></script>
+    <!-- finance-common.js: sjednocené nastavení + cloud auth/sync.
+         Bez defer — chceme legacy migraci hned, ať se zaregistrovaly sessions
+         (kvůli rychlému vyplnění login chipu z localStorage). -->
+    <script src="Soubory/finance-common.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
@@ -311,6 +313,22 @@
                     <span class="ldot"></span>
                     <span class="luser" id="loginChipLabel">Přihlásit</span>
                 </a>
+                <script>
+                    /* Synchronně nastav login chip z localStorage, aby nedocházelo k bliknutí „Přihlásit"
+                       u přihlášených uživatelů. Spouští se okamžitě po vykreslení chipu. */
+                    (function () {
+                        try {
+                            var u = localStorage.getItem('fc_session_user');
+                            var t = localStorage.getItem('fc_session_token');
+                            if (u && t) {
+                                var c = document.getElementById('loginChip');
+                                var l = document.getElementById('loginChipLabel');
+                                if (c) { c.classList.add('online'); c.title = 'Přihlášen jako ' + u + ' — kliknutím otevřete Nastavení'; }
+                                if (l) l.textContent = u;
+                            }
+                        } catch (e) {}
+                    })();
+                </script>
                 <div class="w-px h-4 bg-slate-800"></div>
                 <button onclick="toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
                     class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
@@ -856,19 +874,22 @@
             const chip = document.getElementById('loginChip');
             const lbl = document.getElementById('loginChipLabel');
             if (!chip || !lbl) return;
+            // Čteme session přímo z localStorage — funguje i před načtením
+            // finance-common.js, takže nedochází k bliknutí „Přihlásit".
+            let user = '', token = '';
             try {
-                const FC = window.FinanceCommon;
-                if (FC && FC.auth && FC.auth.isLoggedIn()) {
-                    const s = FC.auth.getSession();
-                    chip.classList.add('online');
-                    chip.title = 'Přihlášen jako ' + s.user + ' — kliknutím otevřete Nastavení';
-                    lbl.textContent = s.user;
-                } else {
-                    chip.classList.remove('online');
-                    chip.title = 'Cloud účet — kliknutím se přihlásíte v Nastavení';
-                    lbl.textContent = 'Přihlásit';
-                }
+                user  = localStorage.getItem('fc_session_user')  || '';
+                token = localStorage.getItem('fc_session_token') || '';
             } catch (e) {}
+            if (user && token) {
+                chip.classList.add('online');
+                chip.title = 'Přihlášen jako ' + user + ' — kliknutím otevřete Nastavení';
+                lbl.textContent = user;
+            } else {
+                chip.classList.remove('online');
+                chip.title = 'Cloud účet — kliknutím se přihlásíte v Nastavení';
+                lbl.textContent = 'Přihlásit';
+            }
         }
     </script>
 </body>

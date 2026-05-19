@@ -8,8 +8,9 @@
     <title>Nastavení | Finance Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- finance-common.js: sjednocené nastavení + cloud auth/sync -->
-    <script src="finance-common.js" defer></script>
+    <!-- finance-common.js: sjednocené nastavení + cloud auth/sync.
+         Bez defer — chceme migraci legacy klíčů hned (před inline init níže). -->
+    <script src="finance-common.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
@@ -353,6 +354,15 @@
                 <b class="text-slate-300">localStorage zůstává primární úložiště</b> — Sheets je jen záloha / synchronizace mezi zařízeními.
             </p>
 
+            <div class="p-3 rounded-lg mb-3" style="background: rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3);">
+                <p class="text-[12px] text-amber-200 leading-relaxed flex items-start gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                    <span>
+                        <b>Pokud již máš starší verzi Apps Scriptu nasazenou</b> (např. ti vznikl list <span class="font-mono text-amber-100">mod_unknown</span> namísto <span class="font-mono text-amber-100">mod_prijmy</span>, <span class="font-mono text-amber-100">mod_sporeni</span> apod.), nahraď ji <b>celým kódem z návodu níže</b> a klikni <span class="font-mono text-amber-100">Deploy → Manage deployments → Edit (tužka) → New version → Deploy</span>. URL se nemění, jen běží nová verze. Bez redeploye nebudou modulová data v Sheetu (transakce, cíle, půjčky, BTC…) korektně ukládána do svých listů.
+                    </span>
+                </p>
+            </div>
+
             <label class="fld">Web App URL <span class="text-[9px] text-slate-600">(končí na „/exec")</span></label>
             <input id="inpSheets" type="text" class="input" placeholder="https://script.google.com/macros/s/AKfycbx.../exec">
             <p class="text-[11px] text-slate-500 mt-1">
@@ -408,17 +418,18 @@ function doGet(e) {
 function doPost(e) {
   if (!checkToken(e)) return _json({ok:false, error:'bad token'});
   const body = JSON.parse(e.postData.contents || '{}');
-  if (body.action === 'saveConfig') { writeConfig(body.data || {}); return _json({ok:true}); }
-  if (body.action === 'saveData')   { writeModule(body.module, body.data); return _json({ok:true}); }
-
-  // Zpětná kompatibilita: starší moduly posílaly přímo pole transakcí.
-  // Pokusíme se uhádnout modul z parametru ?module= nebo Refereru.
-  if (Array.isArray(body) || Array.isArray(body.data)) {
-    const mod = e.parameter.module || _guessModule(e);
-    writeModule(mod || 'unknown', Array.isArray(body) ? body : body.data);
-    return _json({ok:true, status:'success', message:'OK (legacy format)'});
+  if (body.action === 'saveConfig') { writeConfig(body.data || body.config || {}); return _json({ok:true}); }
+  if (body.action === 'saveData')   {
+    if (!body.module) return _json({ok:false, error:'missing module'});
+    writeModule(body.module, body.data);
+    return _json({ok:true});
   }
-  return _json({ok:false, error:'unknown action'});
+  if (body.action === 'getConfig')  return _json({ok:true, config: readConfig()});
+  if (body.action === 'getData')    return _json({ok:true, data: readModule(body.module)});
+
+  // Legacy POSTy bez 'action' (starý syncToCloud z dřívější verze) — ignorujeme,
+  // ať neplníme list 'mod_unknown'. Nový sync používá action:'saveData'.
+  return _json({ok:true, ignored:true, hint:'use action:saveData with module:name'});
 }
 
 function checkToken(e) { return !TOKEN || e.parameter.token === TOKEN; }
@@ -438,19 +449,16 @@ function readModule(name) {
   if (!name) return null;
   const sh = _getSheet('mod_' + name);
   const raw = sh.getRange(1,1).getValue();
+  if (raw === '' || raw == null) return null;
   try { return JSON.parse(raw); } catch (_) { return raw; }
 }
 function writeModule(name, data) {
-  const sh = _getSheet('mod_' + (name || 'unknown')); sh.clear();
+  const sh = _getSheet('mod_' + name); sh.clear();
   sh.getRange(1,1).setValue(JSON.stringify(data));
 }
 function _getSheet(name) {
   const ss = SpreadsheetApp.getActive();
   return ss.getSheetByName(name) || ss.insertSheet(name);
-}
-function _guessModule(e) {
-  // Apps Script ve Web App neumí číst Referer; vrátíme prázdné a zapíšeme do 'unknown'.
-  return '';
 }
 function _json(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
