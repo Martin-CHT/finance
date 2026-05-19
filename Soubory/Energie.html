@@ -136,6 +136,13 @@
                 <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Měsíční náklady (Kč)</h3>
                 <div style="height:320px;"><canvas id="chartOverview"></canvas></div>
             </div>
+
+            <div class="panel mt-4" style="background:rgba(245,158,11,0.05); border-color:rgba(245,158,11,0.25);">
+                <h3 class="text-sm font-semibold text-amber-300 mb-2 flex items-center gap-2"><i data-lucide="brain-circuit" class="w-4 h-4"></i> AI analýza spotřeby</h3>
+                <p class="text-[11px] text-slate-400 mb-3">AI prozkoumá tvé odečty, najde anomálie a porovná s typickou domácností. Nejde o převyprávění dat — hledá konkrétní úspory.</p>
+                <button class="btn btn-primary" onclick="runEnergieAI()" id="energieAiBtn"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Spustit analýzu</button>
+                <div id="energieAiOut" class="mt-3 text-sm text-slate-300 leading-relaxed"></div>
+            </div>
         </div>
     </section>
 
@@ -509,6 +516,101 @@
         save();
         if (currentMeter === 'overview') renderOverview(); else renderMeter();
         closeModal('Tariff');
+    }
+
+    // ─── AI analýza spotřeby ───
+    async function runEnergieAI() {
+        const out = document.getElementById('energieAiOut');
+        const btn = document.getElementById('energieAiBtn');
+        if (!out || !btn) return;
+        const groqKey   = (localStorage.getItem('groq_api_key')   || getCookie('groq_api_key')   || '').trim();
+        const geminiKey = (localStorage.getItem('gemini_api_key') || getCookie('gemini_api_key') || '').trim();
+        const chatKey   = (localStorage.getItem('chatgpt_api_key')|| getCookie('chatgpt_api_key')|| '').trim();
+        const provider  = (localStorage.getItem('ai_provider')    || getCookie('ai_provider')    || 'groq').trim();
+        if (!groqKey && !geminiKey && !chatKey) {
+            out.innerHTML = '<span style="color:#fb7185">Nastav AI klíč v globálním Nastavení.</span>';
+            return;
+        }
+        btn.disabled = true; out.innerHTML = '<i>Analyzuji…</i>';
+
+        // Předpočítáme metriky pro každé médium
+        const metrics = {};
+        ['electricity','water','gas'].forEach(meter => {
+            const m = DB.meters?.[meter];
+            if (!m || !Array.isArray(m.readings) || m.readings.length < 2) return;
+            const sorted = m.readings.slice().sort((a,b) => (a.date || '').localeCompare(b.date || ''));
+            const totalCons = (sorted[sorted.length-1]?.value || 0) - (sorted[0]?.value || 0);
+            const days = Math.max(1, (new Date(sorted[sorted.length-1].date) - new Date(sorted[0].date)) / 86400000);
+            const dailyAvg = totalCons / days;
+            const yearlyEst = dailyAvg * 365;
+            const unitPrice = Number(m.tariff?.vt) || 0;
+            const monthlyFixed = Number(m.tariff?.fixedMonthly) || 0;
+            const yearlyCost = yearlyEst * unitPrice + monthlyFixed * 12;
+            metrics[meter] = { totalCons, days: Math.round(days), dailyAvg, yearlyEst, unitPrice, monthlyFixed, yearlyCost, supplier: m.tariff?.name || '?' };
+        });
+
+        // Typický český průměr (pro porovnání)
+        const benchmark = {
+            electricity: { yearly: 2500, unit: 'kWh', note: 'běžná domácnost bez vytápění elektřinou' },
+            water: { yearly: 30, unit: 'm³ × osoba', note: 'cca 35 m³ na osobu/rok' },
+            gas: { yearly: 12000, unit: 'kWh', note: 'rodinný dům s plynovým vytápěním' }
+        };
+
+        const lines = Object.entries(metrics).map(([meter, m]) => {
+            const b = benchmark[meter];
+            const ratio = m.yearlyEst / b.yearly;
+            return `- ${meter.toUpperCase()}: ${m.yearlyEst.toFixed(0)} ${b.unit}/rok (${m.yearlyCost.toFixed(0)} Kč, ${b.note}) → ${ratio < 0.8 ? 'POD průměrem' : ratio > 1.3 ? 'NAD průměrem' : 'v normě'} (${(ratio*100).toFixed(0)}% benchmarku)`;
+        }).join('\n');
+
+        const prompt = `Jsi expert na energetickou efektivitu domácností v ČR. Mluv česky, věcně, žádné generické rady.
+
+METRIKY DOMÁCNOSTI (roční extrapolace z odečtů):
+${lines || '(žádné odečty)'}
+
+POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod:
+1. **Médium s největším potenciálem úspory** — kde se nejvíc plýtvá vs. benchmark, konkrétní příčina.
+2. **Konkrétní úsporný krok** (LED osvětlení? jiný tarif? regulace topení? bojler nastavení?) s odhadem úspory v Kč/rok.
+3. **Sezónní anomálie** k prověření — neobvyklý skok mezi odečty (zima/léto)?
+4. **Optimalizace dodavatele / tarifu** — vyplatí se přejít? Na co se zaměřit při srovnání?
+
+Formátuj <b>tučně</b> klíčová slova. Žádný opis dat výše.`;
+
+        try {
+            const text = await callEnergieAI(prompt, provider, { groqKey, geminiKey, chatKey });
+            const esc = s => String(s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+            out.innerHTML = esc(text).replace(/\*\*(.*?)\*\*/g, '<b style="color:#fbbf24;">$1</b>').replace(/\n/g, '<br>');
+        } catch (e) {
+            out.innerHTML = '<span style="color:#fb7185">' + e.message + '</span>';
+        } finally { btn.disabled = false; }
+    }
+
+    async function callEnergieAI(prompt, provider, keys) {
+        if (provider === 'gemini' && keys.geminiKey) {
+            const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys.geminiKey), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts:[{text:prompt}] }], generationConfig: { temperature: 0.4, maxOutputTokens: 600 } })
+            });
+            if (!r.ok) throw new Error('Gemini ' + r.status);
+            const j = await r.json();
+            return j.candidates?.[0]?.content?.parts?.[0]?.text || '(prázdná odpověď)';
+        }
+        if (provider === 'chatgpt' && keys.chatKey) {
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+keys.chatKey },
+                body: JSON.stringify({ model:'gpt-4o-mini', messages:[{role:'user',content:prompt}], temperature: 0.4, max_tokens: 600 })
+            });
+            if (!r.ok) throw new Error('ChatGPT ' + r.status);
+            const j = await r.json();
+            return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
+        }
+        if (!keys.groqKey) throw new Error('Chybí Groq klíč v Nastavení.');
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+keys.groqKey },
+            body: JSON.stringify({ model:'llama-3.3-70b-versatile', messages:[{role:'user',content:prompt}], temperature: 0.4, max_tokens: 600 })
+        });
+        if (!r.ok) throw new Error('Groq ' + r.status);
+        const j = await r.json();
+        return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
     }
 
     window.addEventListener('message', e => {

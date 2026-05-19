@@ -1168,7 +1168,7 @@
                             if (t.origMena && t.origMena !== "CZK" && t.origSuma) {
                                 let newCzk = t.origSuma / this.rates[t.origMena];
                                 let finalS = Math.abs(newCzk);
-                                if (!t.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) finalS = -finalS;
+                                if (!this.isIncomeType(t.pohyb)) finalS = -finalS;
                                 if (Math.abs(t.suma - finalS) > 0.01) { t.suma = finalS; changed = true; }
                             }
                         });
@@ -1351,9 +1351,10 @@
                 let czkVal = sumaOrig / (this.rates[mena] || 1);
                 let finalInfo = info;
 
-                // Znaménková logika
+                // Znaménková logika — slovní hranice, aby „Předplatné" / „Platba"
+                // nezachytly substring „plat" a omylem se neoznačily jako příjem.
                 let s = Math.abs(czkVal);
-                if (!typ.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+                if (!this.isIncomeType(typ)) s = -s;
 
                 this.data.unshift({
                     id: Date.now(), pohyb: typ, info: finalInfo, suma: s, ucet: ucet, saving: saving ? "ANO" : "NE", isExcluded: false,
@@ -1364,6 +1365,179 @@
                 this.save();
                 this.render();
                 e.target.reset();
+            },
+
+            /* Centralizovaná detekce příjmu — bere v potaz slovní hranice. */
+            isIncomeType(pohyb) {
+                return /\b(?:příjem|prijem|mzda|plat|odměna|dividenda|úrok|bonus)\b/i.test(String(pohyb || ''));
+            },
+
+            /* Otočí znaménko sumy (přírůstek ↔ úbytek). */
+            flipSign(id) {
+                const t = this.data.find(x => x.id === id);
+                if (!t) return;
+                t.suma = -t.suma;
+                if (typeof t.origSuma === 'number') t.origSuma = -t.origSuma;
+                this.save(); this.render();
+            },
+
+            /* ════════════════════════════════════════════════════════════
+               Provázanost s ostatními moduly:
+               - pohyb=Předplatné       → upsert do predplatna_v1.items
+               - pohyb=Spoření / saving → upsert do sporici_data_ai_tree
+               - pohyb=Půjčka           → upsert do pujcky_data_v1
+               Mapování přes „linkedTxId" v cílovém modulu.
+               Pokud se transakce odstraní, propojený záznam se taky odstraní.
+               ════════════════════════════════════════════════════════════ */
+            syncCrossModules() {
+                try {
+                    const liveIds = new Set(this.data.map(t => t.id));
+                    const norm = s => String(s || '').toLowerCase();
+                    const txsPredplatne = this.data.filter(t => norm(t.pohyb) === 'předplatné' || norm(t.pohyb) === 'predplatne');
+                    const txsSporeni    = this.data.filter(t => t.saving === 'ANO' || norm(t.pohyb).includes('spoření') || norm(t.pohyb).includes('sporeni'));
+                    const txsPujcka     = this.data.filter(t => norm(t.pohyb).includes('půjčka') || norm(t.pohyb).includes('pujcka') || norm(t.pohyb).includes('splátka') || norm(t.pohyb).includes('splatka'));
+
+                    this._upsertPredplatna(txsPredplatne, liveIds);
+                    this._upsertSporeni(txsSporeni, liveIds);
+                    this._upsertPujcky(txsPujcka, liveIds);
+                } catch (err) { console.warn('syncCrossModules failed', err); }
+            },
+
+            _upsertPredplatna(txs, liveTxIds) {
+                let db;
+                try { db = JSON.parse(localStorage.getItem('predplatna_v1')) || { items: [] }; }
+                catch (e) { db = { items: [] }; }
+                if (!Array.isArray(db.items)) db.items = [];
+
+                // Odstraň propojené položky, jejichž transakce už neexistuje
+                db.items = db.items.filter(it => !it.linkedTxId || liveTxIds.has(it.linkedTxId));
+
+                const today = new Date().toISOString().slice(0, 10);
+                const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+                txs.forEach(t => {
+                    const name = (t.info || '').trim();
+                    if (!name) return;
+                    let item = db.items.find(i => i.linkedTxId === t.id);
+                    if (item) {
+                        item.name = name;
+                        item.amount = Math.abs(Number(t.suma) || 0);
+                        item.currency = t.origMena || 'CZK';
+                    } else {
+                        db.items.push({
+                            id: 'sub_link_' + t.id,
+                            linkedTxId: t.id,
+                            name: name,
+                            provider: '',
+                            amount: Math.abs(Number(t.suma) || 0),
+                            currency: t.origMena || 'CZK',
+                            cycle: 'monthly',
+                            category: 'Z Příjmů',
+                            nextBilling: nextMonth,
+                            contractEnd: null,
+                            paymentMethod: t.ucet || '',
+                            notes: 'Automaticky propojeno z modulu Příjmy & Výdaje (' + today + ')',
+                            active: true
+                        });
+                    }
+                });
+                localStorage.setItem('predplatna_v1', JSON.stringify(db));
+            },
+
+            _upsertSporeni(txs, liveTxIds) {
+                let tree;
+                try { tree = JSON.parse(localStorage.getItem('sporici_data_ai_tree')); }
+                catch (e) { tree = null; }
+                if (!Array.isArray(tree)) tree = [];
+
+                // Zploštění tree (rekurzivně)
+                const flatten = (arr, out) => {
+                    arr.forEach(n => {
+                        if (n.type === 'folder' && Array.isArray(n.children)) flatten(n.children, out);
+                        else out.push(n);
+                    });
+                };
+                const allLeaves = [];
+                flatten(tree, allLeaves);
+
+                // Odstraň automaticky propojené listy, jejichž transakce už neexistuje
+                const removeLinked = (arr) => {
+                    return arr.filter(n => {
+                        if (n.type === 'folder' && Array.isArray(n.children)) {
+                            n.children = removeLinked(n.children);
+                            return true;
+                        }
+                        return !n.linkedTxId || liveTxIds.has(n.linkedTxId);
+                    });
+                };
+                tree = removeLinked(tree);
+
+                // Upsert
+                txs.forEach(t => {
+                    const goalName = (t.info || '').trim();
+                    if (!goalName) return;
+                    const findInArr = (arr) => {
+                        for (const n of arr) {
+                            if (n.linkedTxId === t.id) return n;
+                            if (n.type === 'folder' && Array.isArray(n.children)) {
+                                const f = findInArr(n.children); if (f) return f;
+                            }
+                        }
+                        return null;
+                    };
+                    const leaf = findInArr(tree);
+                    const amount = Math.abs(Number(t.suma) || 0);
+                    if (leaf) {
+                        leaf.name = goalName;
+                        leaf.initial = amount; // už naspořeno (vklad z transakce)
+                    } else {
+                        tree.push({
+                            id: 'goal_link_' + t.id,
+                            linkedTxId: t.id,
+                            type: 'goal',
+                            name: goalName,
+                            target: '',           // ať si uživatel doplní cíl ručně
+                            initial: amount,
+                            monthly: '',
+                            startDate: new Date().toISOString().slice(0, 10),
+                            extras: { note: 'Automaticky propojeno z modulu Příjmy & Výdaje' }
+                        });
+                    }
+                });
+                localStorage.setItem('sporici_data_ai_tree', JSON.stringify(tree));
+            },
+
+            _upsertPujcky(txs, liveTxIds) {
+                let loans;
+                try { loans = JSON.parse(localStorage.getItem('pujcky_data_v1')); }
+                catch (e) { loans = null; }
+                if (!Array.isArray(loans)) loans = [];
+
+                // Odstraň propojené půjčky, jejichž transakce už neexistuje
+                loans = loans.filter(l => !l.linkedTxId || liveTxIds.has(l.linkedTxId));
+
+                txs.forEach(t => {
+                    const loanName = (t.info || '').trim();
+                    if (!loanName) return;
+                    let loan = loans.find(l => l.linkedTxId === t.id);
+                    const amount = Math.abs(Number(t.suma) || 0);
+                    if (loan) {
+                        loan.name = loanName;
+                        loan.principal = amount;
+                    } else {
+                        loans.push({
+                            id: 'loan_link_' + t.id,
+                            linkedTxId: t.id,
+                            name: loanName,
+                            principal: amount,
+                            rate: 0,
+                            termMonths: 12,
+                            startDate: new Date().toISOString().slice(0, 10),
+                            note: 'Automaticky propojeno z modulu Příjmy & Výdaje — doplň úrok a dobu',
+                            extras: {}
+                        });
+                    }
+                });
+                localStorage.setItem('pujcky_data_v1', JSON.stringify(loans));
             },
 
             toggleExclude(id) {
@@ -1381,6 +1555,8 @@
 
             save() {
                 localStorage.setItem('FinanceAI_data', JSON.stringify(this.data));
+                // Provázanost s ostatními moduly — Předplatná, Spoření, Půjčky
+                this.syncCrossModules();
                 if (this.apiUrl && this.cloudReady && !this.isSyncingFromCloud) this.syncToCloud();
             },
 
@@ -1534,6 +1710,10 @@
                             <td class="text-right font-mono font-bold text-sm ${t.suma > 0 ? 'text-emerald-400' : 'text-rose-400'}">${this.fmt(t.suma)}</td>
                             <td>
                                 <div class="flex items-center justify-center gap-1">
+                                    <button onclick="app.flipSign(${t.id})" title="Otočit znaménko (přírůstek ↔ úbytek)"
+                                        class="${pdg} text-slate-600 hover:bg-slate-700 rounded hover:text-amber-400 transition font-mono text-xs font-bold">
+                                        ${t.suma > 0 ? '−' : '+'}
+                                    </button>
                                     <button onclick="app.toggleExclude(${t.id})" title="Vyloučit z výpočtu"
                                         class="${pdg} ${t.isExcluded ? 'text-sky-400 bg-sky-400/10 rounded' : 'text-slate-600 hover:bg-slate-700 rounded hover:text-slate-400'} transition">
                                         <i data-lucide="${t.isExcluded ? 'eye' : 'eye-off'}" class="${icn}"></i>
@@ -1647,7 +1827,7 @@
                 try {
                     const res = await this.callAI(input, `Převeď text na JSON: {"pohyb":"...","info":"...","suma":123,"ucet":"...","saving":"ANO/NE"}. Saving=ANO jen u spoření. Suma vždy kladná v JSON.`);
                     const tx = JSON.parse(res.replace(/```json|```/g, '').trim());
-                    let s = Math.abs(tx.suma); if (!tx.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+                    let s = Math.abs(tx.suma); if (!this.isIncomeType(tx.pohyb)) s = -s;
                     this.data.unshift({ id: Date.now(), ...tx, suma: s, ucet: tx.ucet || 'Běžný', date: new Date().toISOString(), isExcluded: false });
                     this.save(); this.render(); document.getElementById('ai-input').value = "";
                 } catch (e) { alert("AI data nerozpoznala. Zkuste prosím větu přeformulovat."); }
@@ -1891,7 +2071,7 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                            }
                            let czkVal = t.origSuma / (this.rates[t.origMena] || 1);
                            let s = Math.abs(czkVal);
-                           if (!t.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+                           if (!this.isIncomeType(t.pohyb)) s = -s;
                            t.suma = s;
 
                            // Spořící stav hromadný form overriduje natvrdo, jelikož checkbox nelze snadno "ignorovat" v tomto UI
@@ -1910,7 +2090,7 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                    t.origMena = mena;
                    let czkVal = t.origSuma / (this.rates[mena] || 1);
                    let s = Math.abs(czkVal);
-                   if (!t.pohyb.toLowerCase().match(/prijem|příjem|mzda|plat/)) s = -s;
+                   if (!this.isIncomeType(t.pohyb)) s = -s;
                    t.suma = s;
                    t.saving = savingCheckbox ? "ANO" : "NE";
                 }
@@ -2019,9 +2199,13 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
             getBadgeStyle(c, isSav) {
                 const l = c.toLowerCase();
                 if (isSav || l.includes('spoření')) return 'bg-sky-400/10 border-sky-400/25 text-sky-400';
-                if (l.match(/prijem|příjem|mzda|plat/)) return 'bg-emerald-400/10 border-emerald-400/25 text-emerald-400';
-                if (l.match(/vydaj|výdaj/)) return 'bg-orange-400/10 border-orange-400/25 text-orange-400';
-                if (l.match(/licence|zábava/)) return 'bg-purple-400/10 border-purple-400/25 text-purple-400';
+                // „Předplatné" sjednocujeme s výdajem (fuchsiový tón — ladí s modulem Předplatná)
+                if (l.includes('předplatné') || l.includes('predplatne')) return 'bg-fuchsia-400/10 border-fuchsia-400/25 text-fuchsia-400';
+                if (l.includes('půjčka') || l.includes('pujcka') || l.includes('splátka')) return 'bg-rose-400/10 border-rose-400/25 text-rose-400';
+                // slovní hranice — aby „Předplatné" / „Platba" nedoslaly nesprávnou barvu příjmu kvůli substringu „plat"
+                if (this.isIncomeType(c)) return 'bg-emerald-400/10 border-emerald-400/25 text-emerald-400';
+                if (l.match(/\b(?:vydaj|výdaj|platba)\b/)) return 'bg-orange-400/10 border-orange-400/25 text-orange-400';
+                if (l.match(/\b(?:licence|zábava|streaming)\b/)) return 'bg-purple-400/10 border-purple-400/25 text-purple-400';
                 return 'bg-slate-700/50 border-slate-600 text-slate-400';
             },
 

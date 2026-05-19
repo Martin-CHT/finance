@@ -354,10 +354,17 @@
     }
 
     /* CustomEvent — stránky (Nastavení.html, Index.html) se hooknou
-       a překreslí svůj login indikátor / pole. */
+       a překreslí svůj login indikátor / pole.
+       V iframe pošleme zprávu i do parent okna, aby Index.html mohl reloadnout
+       všechny ostatní iframe moduly (aby si stáhly data z user's Sheetu pod novou sessionou). */
     function notifyChange() {
         try {
             window.dispatchEvent(new CustomEvent('fc-session-change', { detail: getSession() }));
+        } catch (e) {}
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'fc-session-change', session: getSession() }, '*');
+            }
         } catch (e) {}
     }
 
@@ -456,6 +463,129 @@
         }, typeof delayMs === 'number' ? delayMs : 3000);
     }
 
+    /* ═══ Helpers pro merge / konflikt ═══ */
+    function _isEmpty(d) {
+        if (d == null) return true;
+        if (Array.isArray(d)) return d.length === 0;
+        if (typeof d === 'object') {
+            if (Array.isArray(d.items)) return d.items.length === 0;
+            return Object.keys(d).length === 0;
+        }
+        return false;
+    }
+    function _countItems(d) {
+        if (Array.isArray(d)) return d.length;
+        if (d && Array.isArray(d.items)) return d.items.length;
+        if (d && typeof d === 'object') return Object.keys(d).length;
+        return 0;
+    }
+    function _mergeArraysById(local, remote) {
+        // Union podle id; v případě konfliktu lokální verze vyhrává.
+        var byId = {};
+        var withoutIdLocal = [], withoutIdRemote = [];
+        (Array.isArray(remote) ? remote : []).forEach(function (it) {
+            if (it && it.id != null) byId[it.id] = { remote: it };
+            else withoutIdRemote.push(it);
+        });
+        (Array.isArray(local) ? local : []).forEach(function (it) {
+            if (it && it.id != null) {
+                if (byId[it.id]) byId[it.id].local = it; // local wins
+                else byId[it.id] = { local: it };
+            } else {
+                withoutIdLocal.push(it);
+            }
+        });
+        var out = [];
+        Object.keys(byId).forEach(function (k) {
+            var pair = byId[k];
+            out.push(pair.local || pair.remote);
+        });
+        // Položky bez ID nemůžeme deduplikovat — bereme jen lokální (předpokládáme,
+        // že cloudové bez ID jsou starší). Pokud uživatel preferuje merge i bez ID,
+        // lze v budoucnu udělat fuzzy match podle obsahu.
+        return out.concat(withoutIdLocal);
+    }
+    function _mergeData(local, remote) {
+        if (Array.isArray(local) && Array.isArray(remote)) {
+            return _mergeArraysById(local, remote);
+        }
+        if (local && remote && Array.isArray(local.items) && Array.isArray(remote.items)) {
+            var merged = Object.assign({}, remote, local);
+            merged.items = _mergeArraysById(local.items, remote.items);
+            return merged;
+        }
+        // Strukturně neporovnatelné → lokální vyhrává
+        return local;
+    }
+    function _escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+        });
+    }
+
+    /* Dialog: konflikt cloud vs. local. callback dostane 'local'/'remote'/'merge'/'cancel'. */
+    function showConflictDialog(moduleName, local, remote, callback) {
+        if (document.getElementById('fc-conflict-dlg')) return; // jeden najednou
+        var localCount = _countItems(local);
+        var remoteCount = _countItems(remote);
+        var dlg = document.createElement('div');
+        dlg.id = 'fc-conflict-dlg';
+        dlg.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.85);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;font-family:Inter,system-ui,sans-serif;color:#f8fafc;';
+        var localJson = '';
+        var remoteJson = '';
+        try { localJson  = JSON.stringify(local,  null, 2).slice(0, 3000); } catch (e) {}
+        try { remoteJson = JSON.stringify(remote, null, 2).slice(0, 3000); } catch (e) {}
+        dlg.innerHTML =
+          '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:0.75rem;max-width:34rem;width:100%;padding:1.5rem;box-shadow:0 25px 60px rgba(0,0,0,0.5);">' +
+            '<h3 style="margin:0 0 0.5rem;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:0.5rem;">' +
+              '<span style="color:#fbbf24;font-size:1.2rem;">⚠</span>' +
+              'Konflikt synchronizace · modul <span style="color:#38bdf8;font-family:JetBrains Mono,monospace;">' + _escapeHtml(moduleName) + '</span>' +
+            '</h3>' +
+            '<p style="margin:0 0 1rem;font-size:0.85rem;color:#94a3b8;line-height:1.5;">' +
+              'Lokální data a cloud data se liší. Žádná data <b style="color:#cbd5e1;">se ti při této volbě neztratí</b> — můžeš sloučit (nejbezpečnější) nebo vybrat, která verze přepíše druhou.' +
+            '</p>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">' +
+              '<div style="background:#020617;border:1px solid #1e293b;border-radius:0.5rem;padding:0.85rem;">' +
+                '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;">💾 Tento prohlížeč</div>' +
+                '<div style="font-family:JetBrains Mono,monospace;font-size:1.5rem;font-weight:700;color:#38bdf8;margin-top:0.2rem;">' + localCount + '</div>' +
+                '<div style="font-size:0.68rem;color:#64748b;">položek lokálně</div>' +
+              '</div>' +
+              '<div style="background:#020617;border:1px solid #1e293b;border-radius:0.5rem;padding:0.85rem;">' +
+                '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;">☁ Google Sheets</div>' +
+                '<div style="font-family:JetBrains Mono,monospace;font-size:1.5rem;font-weight:700;color:#a78bfa;margin-top:0.2rem;">' + remoteCount + '</div>' +
+                '<div style="font-size:0.68rem;color:#64748b;">položek v cloudu</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:0.5rem;">' +
+              '<button id="fc-conf-merge" style="padding:0.65rem 0.85rem;background:#0ea5e9;color:#fff;border:none;border-radius:0.4rem;cursor:pointer;font-weight:500;font-size:0.85rem;text-align:left;">' +
+                '🔗 <b>Sloučit</b> · přidat unikátní z obou (při duplicitě stejného ID vyhrává lokální)' +
+              '</button>' +
+              '<button id="fc-conf-remote" style="padding:0.65rem 0.85rem;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:0.4rem;cursor:pointer;font-size:0.85rem;text-align:left;">' +
+                '☁ Použít <b>cloud</b> verzi (přepsat lokální)' +
+              '</button>' +
+              '<button id="fc-conf-local" style="padding:0.65rem 0.85rem;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:0.4rem;cursor:pointer;font-size:0.85rem;text-align:left;">' +
+                '💾 Použít <b>lokální</b> verzi (přepsat cloud)' +
+              '</button>' +
+              '<button id="fc-conf-cancel" style="padding:0.55rem;background:transparent;color:#64748b;border:1px solid #1e293b;border-radius:0.4rem;cursor:pointer;font-size:0.75rem;">' +
+                'Rozhodnu se později (nic neměnit)' +
+              '</button>' +
+              '<details style="margin-top:0.5rem;">' +
+                '<summary style="cursor:pointer;font-size:0.72rem;color:#64748b;padding:0.25rem 0;">Zobrazit JSON detail (lokál vlevo, cloud vpravo)</summary>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.4rem;max-height:14rem;overflow:auto;">' +
+                  '<pre style="background:#020617;padding:0.5rem;border:1px solid #1e293b;border-radius:0.3rem;color:#cbd5e1;font-size:0.6rem;line-height:1.3;font-family:JetBrains Mono,monospace;white-space:pre-wrap;word-break:break-all;margin:0;">' + _escapeHtml(localJson) + '</pre>' +
+                  '<pre style="background:#020617;padding:0.5rem;border:1px solid #1e293b;border-radius:0.3rem;color:#cbd5e1;font-size:0.6rem;line-height:1.3;font-family:JetBrains Mono,monospace;white-space:pre-wrap;word-break:break-all;margin:0;">' + _escapeHtml(remoteJson) + '</pre>' +
+                '</div>' +
+              '</details>' +
+            '</div>' +
+          '</div>';
+        function close(choice) { dlg.remove(); callback(choice); }
+        document.body.appendChild(dlg);
+        dlg.querySelector('#fc-conf-merge').onclick  = function () { close('merge'); };
+        dlg.querySelector('#fc-conf-remote').onclick = function () { close('remote'); };
+        dlg.querySelector('#fc-conf-local').onclick  = function () { close('local'); };
+        dlg.querySelector('#fc-conf-cancel').onclick = function () { close('cancel'); };
+    }
+
     /* Auto-sync hook — najde meta tagy v <head> a napojí localStorage zápis na cloud. */
     function autoSyncModuleViaMeta() {
         var mModule = document.querySelector('meta[name="fc-module"]');
@@ -464,9 +594,7 @@
         var moduleName = mModule.content.trim();
         var storageKey = mKey.content.trim();
 
-        // 2) Hook localStorage.setItem pro daný klíč — auto-push do cloudu.
-        //    Instalujeme ho HNED (nikoliv až po DOMContentLoaded), aby zachytil
-        //    i případné zápisy z modulových inline skriptů na konci <body>.
+        // Hook localStorage.setItem pro daný klíč — auto-push do cloudu (debounced 3 s)
         var _origSetItem = localStorage.setItem.bind(localStorage);
         var _suppressPushOnce = false;
         localStorage.setItem = function (k, v) {
@@ -478,35 +606,52 @@
             });
         };
 
-        // 1) Při startu: pull remote → pokud existuje a liší se od localu, přepiš local a překresli modul.
-        //    Použijeme hard-reload jako fallback (modul se znovu načte s čerstvými daty z localStorage).
+        function applyAndReload(newData) {
+            _suppressPushOnce = true;
+            try { localStorage.setItem(storageKey, JSON.stringify(newData)); } catch (e) {}
+            setTimeout(function () { try { location.reload(); } catch (e) {} }, 150);
+        }
+
         function initialPull() {
             if (!_userSheetUrl()) return;
             pullModuleData(moduleName).then(function (remote) {
-                if (remote == null) return; // user's Sheet ještě nemá záznam — necháme local
-                var remoteStr;
-                try { remoteStr = JSON.stringify(remote); } catch (e) { return; }
-                var local = lsGet(storageKey);
-                if (local === remoteStr) return;
-                // Zapíšeme remote do localu (s potlačením push hooku, ať se to nevrátí jako push)
-                _suppressPushOnce = true;
-                try { localStorage.setItem(storageKey, remoteStr); } catch (e) {}
-                // Pošleme event — modul ho může poslouchat a překreslit bez reloadu
-                var handled = false;
+                if (remote == null) return; // cloud prázdný → necháme lokál
+
+                var localRaw = lsGet(storageKey);
+                var local = null;
+                try { local = localRaw ? JSON.parse(localRaw) : null; } catch (e) { local = null; }
+
+                // Lokál je prázdný → použij remote bez ptaní (žádný konflikt).
+                if (_isEmpty(local)) {
+                    applyAndReload(remote);
+                    return;
+                }
+                // Identické → nic neudělej.
                 try {
-                    var ev = new CustomEvent('fc-module-data-updated', {
-                        detail: { module: moduleName, data: remote, storageKey: storageKey },
-                        cancelable: true
-                    });
-                    handled = !window.dispatchEvent(ev); // preventDefault() => handled
+                    if (JSON.stringify(local) === JSON.stringify(remote)) return;
                 } catch (e) {}
-                // Fallback: hard-reload po krátké pauze, pokud modul listener nepřevzal řízení.
-                // Reload se dělá jen jednou — po něm už lokál == remote, takže další initialPull nic neudělá.
-                setTimeout(function () {
-                    if (handled || window._fcSkipReload) return;
-                    try { location.reload(); } catch (e) {}
-                }, 250);
-            }).catch(function () { /* ignore */ });
+
+                // Rozdíl → zeptej se uživatele
+                showConflictDialog(moduleName, local, remote, function (choice) {
+                    if (choice === 'remote') {
+                        applyAndReload(remote);
+                    } else if (choice === 'local') {
+                        // Pošli lokál do cloudu, lokál zůstává; krátký toast místo reloadu
+                        pushModuleData(moduleName, local);
+                    } else if (choice === 'merge') {
+                        var merged = _mergeData(local, remote);
+                        _suppressPushOnce = true;
+                        try { localStorage.setItem(storageKey, JSON.stringify(merged)); } catch (e) {}
+                        // Počkáme na dokončení pushe, ať se po reloadu neukáže další konflikt
+                        pushModuleData(moduleName, merged).then(function () {
+                            try { location.reload(); } catch (e) {}
+                        }, function () {
+                            try { location.reload(); } catch (e) {}
+                        });
+                    }
+                    // 'cancel' → nic neměnit
+                });
+            }).catch(function () { /* ignore network errors */ });
         }
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initialPull);

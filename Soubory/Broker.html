@@ -157,6 +157,13 @@
                     <li>Limit pro povinné přiznání: 100 000 Kč příležitostných příjmů z prodeje cenných papírů ročně.</li>
                 </ul>
             </div>
+
+            <div class="panel" style="background:rgba(56,189,248,0.05); border-color:rgba(56,189,248,0.25);">
+                <h3 class="text-sm font-semibold text-sky-300 mb-2 flex items-center gap-2"><i data-lucide="brain-circuit" class="w-4 h-4"></i> AI audit portfolia</h3>
+                <p class="text-[11px] text-slate-400 mb-3">AI projde tvé pozice, transakce a daňovou situaci a najde optimalizace (rebalancing, daňové optimalizace, diverzifikační rizika). Žádné generické rady — konkrétní akce.</p>
+                <button class="btn btn-primary" onclick="runBrokerAI()" id="brokerAiBtn"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Spustit audit</button>
+                <div id="brokerAiOut" class="mt-3 text-sm text-slate-300 leading-relaxed"></div>
+            </div>
         </div>
     </section>
 
@@ -554,6 +561,112 @@
         document.getElementById('taxDiv').textContent = fmtCZK(div);
         document.getElementById('taxRealized').textContent = fmtCZK(realized);
         document.getElementById('taxFees').textContent = fmtCZK(fees);
+    }
+
+    // ─── AI Audit ───
+    async function runBrokerAI() {
+        const out = document.getElementById('brokerAiOut');
+        const btn = document.getElementById('brokerAiBtn');
+        if (!out || !btn) return;
+        const groqKey   = (localStorage.getItem('groq_api_key')   || getCookie('groq_api_key')   || '').trim();
+        const geminiKey = (localStorage.getItem('gemini_api_key') || getCookie('gemini_api_key') || '').trim();
+        const chatKey   = (localStorage.getItem('chatgpt_api_key')|| getCookie('chatgpt_api_key')|| '').trim();
+        const provider  = (localStorage.getItem('ai_provider')    || getCookie('ai_provider')    || 'groq').trim();
+        if (!groqKey && !geminiKey && !chatKey) {
+            out.innerHTML = '<span style="color:#fb7185">Nastav AI klíč v globálním Nastavení.</span>';
+            return;
+        }
+        btn.disabled = true; out.innerHTML = '<i>Analyzuji…</i>';
+
+        // Předpočítané metriky (ne raw dump)
+        const positions = DB.positions || [];
+        const transactions = DB.transactions || [];
+        const totalValue = positions.reduce((s,p) => s + (Number(p.currentPrice) || Number(p.avgPrice) || 0) * (Number(p.quantity) || 0), 0);
+        const totalCost = positions.reduce((s,p) => s + (Number(p.avgPrice) || 0) * (Number(p.quantity) || 0), 0);
+        const pnl = totalValue - totalCost;
+        const pnlPct = totalCost > 0 ? (pnl / totalCost * 100) : 0;
+        const byType = {};
+        positions.forEach(p => {
+            const t = (p.type || 'unknown').toLowerCase();
+            const v = (Number(p.currentPrice) || Number(p.avgPrice) || 0) * (Number(p.quantity) || 0);
+            byType[t] = (byType[t] || 0) + v;
+        });
+        const typeLines = Object.entries(byType)
+            .sort((a,b) => b[1] - a[1])
+            .map(([t, v]) => `- ${t}: ${fmtCZK(v)} (${totalValue > 0 ? (v/totalValue*100).toFixed(0) : 0}%)`).join('\n');
+        const topPositions = positions
+            .map(p => ({ ...p, value: (Number(p.currentPrice) || Number(p.avgPrice) || 0) * (Number(p.quantity) || 0) }))
+            .sort((a,b) => b.value - a.value)
+            .slice(0, 5)
+            .map(p => `- ${p.ticker} (${p.type}): ${fmtCZK(p.value)} (${totalValue > 0 ? (p.value/totalValue*100).toFixed(0) : 0}%)`).join('\n');
+
+        const currentYear = new Date().getFullYear();
+        const taxDivs = transactions.filter(x => x.type === 'dividend' && (x.date || '').startsWith(currentYear)).reduce((s,x) => s + (Number(x.total) || 0), 0);
+        const taxRealized = transactions.filter(x => x.type === 'sell' && (x.date || '').startsWith(currentYear)).reduce((s,x) => s + (Number(x.total) || 0), 0);
+
+        const prompt = `Jsi specialista na osobní investice (akcie, ETF, dluhopisy, P2P) v českém kontextu. Mluv česky, věcně, žádné disclaimery.
+
+METRIKY PORTFOLIA:
+- Celková hodnota: ${fmtCZK(totalValue)}
+- Vložený kapitál: ${fmtCZK(totalCost)}
+- Nerealizovaný P&L: ${fmtCZK(pnl)} (${pnlPct.toFixed(1)}%)
+- Počet pozic: ${positions.length}
+- Počet transakcí: ${transactions.length}
+
+ROZDĚLENÍ PODLE TYPU AKTIV:
+${typeLines || '(žádné pozice)'}
+
+TOP 5 POZIC:
+${topPositions || '(žádné)'}
+
+DAŇOVÝ ROK ${currentYear}:
+- Dividendy: ${fmtCZK(taxDivs)}
+- Realizované zisky (prodeje): ${fmtCZK(taxRealized)}
+
+POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod:
+1. **Koncentrační riziko** — je portfolio příliš závislé na jedné pozici/typu/regionu? Pojmenuj konkrétně.
+2. **Daňová optimalizace** pro tento rok — 3letý časový test (osvobození), 100 000 Kč limit, harvest losses?
+3. **Diverzifikační mezera** — chybí třída aktiv (dluhopisy, geografie, sektor)? Konkrétní návrh ETF/aktiva.
+4. **Akce do měsíce** — jeden konkrétní krok (rebalanc, daňová prodej/nákup, doplnění...).
+
+Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
+
+        try {
+            const text = await callBrokerAI(prompt, provider, { groqKey, geminiKey, chatKey });
+            const esc = s => String(s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+            out.innerHTML = esc(text).replace(/\*\*(.*?)\*\*/g, '<b style="color:#38bdf8;">$1</b>').replace(/\n/g, '<br>');
+        } catch (e) {
+            out.innerHTML = '<span style="color:#fb7185">' + e.message + '</span>';
+        } finally { btn.disabled = false; }
+    }
+
+    async function callBrokerAI(prompt, provider, keys) {
+        if (provider === 'gemini' && keys.geminiKey) {
+            const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys.geminiKey), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts:[{text:prompt}] }], generationConfig: { temperature: 0.4, maxOutputTokens: 600 } })
+            });
+            if (!r.ok) throw new Error('Gemini ' + r.status);
+            const j = await r.json();
+            return j.candidates?.[0]?.content?.parts?.[0]?.text || '(prázdná odpověď)';
+        }
+        if (provider === 'chatgpt' && keys.chatKey) {
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+keys.chatKey },
+                body: JSON.stringify({ model:'gpt-4o-mini', messages:[{role:'user',content:prompt}], temperature: 0.4, max_tokens: 600 })
+            });
+            if (!r.ok) throw new Error('ChatGPT ' + r.status);
+            const j = await r.json();
+            return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
+        }
+        if (!keys.groqKey) throw new Error('Chybí Groq klíč v Nastavení.');
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+keys.groqKey },
+            body: JSON.stringify({ model:'llama-3.3-70b-versatile', messages:[{role:'user',content:prompt}], temperature: 0.4, max_tokens: 600 })
+        });
+        if (!r.ok) throw new Error('Groq ' + r.status);
+        const j = await r.json();
+        return j.choices?.[0]?.message?.content || '(prázdná odpověď)';
     }
 
     window.addEventListener('message', e => {

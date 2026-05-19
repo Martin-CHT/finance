@@ -1040,8 +1040,40 @@ function doPost(e) {
                 }
                 currentSaved = Math.max(0, currentSaved);
 
-                const prompt = `Cíl: "${goal.name}". Cílová částka: ${target} Kč. Naspořeno: ${currentSaved} Kč. Měsíčně: ${monthly} Kč. Zhodnoť.`;
-                const systemInst = `Jsi přátelský finanční poradce. Mluvíš česky. Zhodnoť postup, odhadni datum splnění a dej 2-3 specifické tipy na ušetření. HTML tagy (<b>, <ul>). Max 150 slov.`;
+                // Předpočítáme metriky (ne raw data) — AI dostává strukturovaný kontext, ne data k převyprávění.
+                const progressPct = target > 0 ? Math.round((currentSaved / target) * 100) : 0;
+                const remaining = Math.max(0, target - currentSaved);
+                const monthsToGoal = monthly > 0 ? Math.ceil(remaining / monthly) : Infinity;
+                const yearsToGoal = monthsToGoal === Infinity ? '∞' : (monthsToGoal / 12).toFixed(1);
+                const targetDate = monthsToGoal === Infinity ? 'nikdy (nulová úložka)' :
+                    new Date(Date.now() + monthsToGoal * 30.44 * 86400000).toLocaleDateString('cs-CZ', { month: 'long', year: 'numeric' });
+                const startDate = goal.startDate || new Date().toISOString().slice(0,10);
+                const monthsSinceStart = Math.max(1, Math.round((Date.now() - new Date(startDate).getTime()) / (30.44 * 86400000)));
+                const actualMonthlyRate = currentSaved > Number(goal.initial || 0)
+                    ? Math.round((currentSaved - Number(goal.initial || 0)) / monthsSinceStart)
+                    : 0;
+                const onTrack = actualMonthlyRate >= monthly * 0.9;
+
+                const prompt = `Jsi přátelský finanční poradce specializovaný na spořicí cíle. Mluv česky, věcně, bez převyprávění dat.
+
+METRIKY CÍLE:
+- Cíl: ${goal.name}
+- Cílová částka: ${target.toLocaleString('cs-CZ')} Kč
+- Naspořeno dnes: ${currentSaved.toLocaleString('cs-CZ')} Kč (${progressPct}% z cíle)
+- Zbývá: ${remaining.toLocaleString('cs-CZ')} Kč
+- Plánovaná měsíční úložka: ${monthly.toLocaleString('cs-CZ')} Kč
+- Skutečná průměrná úložka za posledních ${monthsSinceStart} měs.: ${actualMonthlyRate.toLocaleString('cs-CZ')} Kč/měs
+- Tempo: ${onTrack ? 'V PLÁNU' : 'POMALEJI než plán'}
+- Odhadované dosažení (při aktuální plánované úložce): ${targetDate} (za ${yearsToGoal} roků)
+
+POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod:
+1. **Stojí to?** Jednou větou: jsi na trajektorii cíl dosáhnout, nebo ne — a proč.
+2. **Konkrétní akce tento měsíc** (ne „šetři víc" — buď konkrétní: o kolik Kč, kde to vzít).
+3. **Riziko / past** která tě může od cíle odklonit (inflace, ztráta příjmu, lifestyle creep, ...).
+4. **Smart hack** — jeden trik / nástroj specifický pro tenhle typ cíle (např. high-yield účet, spořicí výzva, automat).
+
+Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180 slov. Žádný opis metrik výše.`;
+                const systemInst = `Jsi přátelský, ale věcný finanční poradce. Mluvíš česky. Nikdy nepřevyprávíš data, která už uživatel vidí v UI — jdeš rovnou k analýze a akci.`;
                 const response = await callAI(prompt, systemInst);
                 resultDiv.innerHTML = response;
             } catch (error) {

@@ -295,7 +295,7 @@
                 </div>
                 <div>
                     <h1 class="text-sm font-bold tracking-tight text-slate-100 leading-tight">Finance Terminal</h1>
-                    <p class="text-[10px] text-slate-500 leading-tight font-mono">Finanční centrum · v2025</p>
+                    <p class="text-[10px] text-slate-500 leading-tight font-mono">Finanční centrum · v2026</p>
                 </div>
             </a>
 
@@ -309,7 +309,7 @@
                 <span class="status-dot" title="Spojení s lokálním úložištěm (cookies + localStorage). Zelená = data se ukládají v prohlížeči."></span>
                 <span class="text-[10px] text-slate-500 font-mono hidden sm:inline"
                       title="Aplikace běží zcela lokálně v prohlížeči. Data jsou v localStorage; cloud synchronizace je volitelná v Nastavení.">localStorage · online</span>
-                <a id="loginChip" href="Soubory/Nastavení.html" title="Cloud účet — kliknutím otevřete Nastavení">
+                <a id="loginChip" href="#" onclick="event.preventDefault(); switchTab('nastaveni');" title="Cloud účet — kliknutím otevřete Nastavení">
                     <span class="ldot"></span>
                     <span class="luser" id="loginChipLabel">Přihlásit</span>
                 </a>
@@ -381,7 +381,7 @@
 
                 <!-- Footer note -->
                 <p class="text-[11px] text-slate-600 text-center pb-6 max-w-2xl mx-auto leading-relaxed">
-                    Finance Terminal sjednocuje rozpočet, spoření, investice, půjčky, fondy, evidenci majetku a Bitcoin DCA do jednoho rozhraní. Data zůstávají soukromá ve vašem prohlížeči, AI poradce a synchronizace s Google Sheets jsou volitelné a konfigurují se v sekci <a href="#" onclick="event.preventDefault(); switchTab('nastaveni');" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">Nastavení</a>.
+                    Máš nápad na vylepšení nebo jsi narazil na chybu? Posílej podněty přes <a href="https://github.com/Martin-CHT/finance/issues/new" target="_blank" rel="noopener" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">GitHub issues</a>. Nastavení (AI klíče, Google Sheets sync, pořadí modulů) najdeš v <a href="#" onclick="event.preventDefault(); switchTab('nastaveni');" class="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline">Nastavení</a>.
                 </p>
             </div>
         </div>
@@ -853,6 +853,21 @@
                     renderAll();
                     if (currentTab === 'dashboard') switchTab('dashboard');
                 }
+            });
+
+            // Když se uživatel přihlásí (postMessage z iframe Nastavení),
+            // reloadneme všechny iframe moduly, aby si stáhly data ze Sheetu pod novou sessionou.
+            window.addEventListener('message', function (e) {
+                if (!e.data || e.data.type !== 'fc-session-change') return;
+                updateLoginChip();
+                document.querySelectorAll('.app-frame').forEach(function (f) {
+                    if (f.src) {
+                        // Reset src tak, aby se iframe znovu načetla
+                        var src = f.dataset.src || f.src;
+                        f.src = 'about:blank';
+                        setTimeout(function () { f.src = src; }, 30);
+                    }
+                });
             });
 
             // Auto-sync pořadí modulů do cloudu po drag&drop nebo resetu.
