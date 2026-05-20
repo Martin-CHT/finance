@@ -69,14 +69,18 @@
     function readUnified(key) { return lsGet(key) || getCookie(key); }
     function writeUnified(key, value) {
         if (value == null) value = '';
+        // Coerceme na string — Apps Script může vrátit číslo/boolean,
+        // localStorage stejně uloží stringovou variantu, ale naše srovnání
+        // by jinak vždy selhalo (kvůli strict equality).
+        var strVal = (typeof value === 'string') ? value : String(value);
         // KLÍČOVÉ: setItem se stejnou hodnotou ZBYTEČNĚ vyvolá `storage` event
         // v jiných oknech/iframech, což u nás způsobovalo smyčku po loginu:
         //   pull → applyConfig → writeUnified(key, sameValue) → storage event v parentu
         //   → renderAll → recreate iframes → každý iframe pull → loop.
         // Skipneme zápis, pokud je hodnota identická.
-        if (lsGet(key) !== value) lsSet(key, value);
+        if (lsGet(key) !== strVal) lsSet(key, strVal);
         // Cookie nevyvolává storage event, takže ji můžeme aktualizovat vždy.
-        setCookie(key, value, COOKIE_DAYS);
+        setCookie(key, strVal, COOKIE_DAYS);
     }
     function deleteUnified(key) { lsDel(key); delCookie(key); }
 
@@ -281,7 +285,13 @@
         notifyChange();
     }
 
-    /* ── Pull / push configu ── */
+    /* ── Pull / push configu ──
+       KLÍČOVÉ: na úspěšný pull NEVYVOLÁVÁME `fc-session-change`.
+       Důvod: ten event v index.html spouští renderAll() → recreate iframes →
+       každý iframe znovu volá autoPullOnStart → smyčka. Změny config-hodnot
+       (téma, pořadí, viditelnost, AI klíče) jdou v applyConfig přes
+       writeUnified → setItem → `storage` event (jen pro reálně změněné klíče),
+       takže parent reaguje selektivně. */
     async function pull() {
         var s = getSession();
         if (!s.user || !s.token) return null;
@@ -297,18 +307,20 @@
                     if (relog && relog.ok) {
                         setSession(s.user, relog.token, s.hash);
                         applyConfig(relog.config || {});
+                        // Token se obnovil — login state se efektivně změnil, notifikuj.
                         notifyChange();
                         return relog.config || {};
                     }
                 } catch (e) {}
             }
-            // relogin neuspěl → vyčistíme session, aby uživatel ručně zadal heslo
+            // relogin neuspěl → vyčistíme session, aby uživatel ručně zadal heslo.
+            // To je skutečná změna login-state, notifikujeme.
             clearSession();
             notifyChange();
             return null;
         }
         applyConfig(res.config || {});
-        notifyChange();
+        // Úspěšný pull = config refresh, ne session change. Nesignalizujeme.
         return res.config || {};
     }
 

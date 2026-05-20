@@ -81,7 +81,7 @@ function wireStrategies() {
     toast('Smazáno');
   });
 }
-function escapeHtml(s) { return String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// escapeHtml je definován dále v souboru (cca řádek 809) — duplicitní deklaraci sem nedávat.
 
 function displayCurrency() {
   return (state.settings.displayCurrency || 'USD').toUpperCase();
@@ -807,10 +807,7 @@ function formatDate(dateStr) {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 }
 function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function toast(msg, type = '') {
   const t = $('#toast');

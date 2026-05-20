@@ -856,19 +856,31 @@
 
             // Login chip — initial render + naslouchání na změny session.
             updateLoginChip();
+
+            // Debounce renderAll: když přijde víc storage eventů blízko sebe
+            // (login často změní víc CLOUD_KEYS najednou), batchneme do jednoho
+            // re-renderu. Tím se vyhneme rozjeté smyčce recreate-iframes.
+            var _renderAllTmr = null;
+            function scheduleRenderAll() {
+                if (_renderAllTmr) return; // už naplánovaný
+                _renderAllTmr = setTimeout(function () {
+                    _renderAllTmr = null;
+                    renderAll();
+                    if (currentTab === 'dashboard') switchTab('dashboard');
+                }, 120);
+            }
+
             window.addEventListener('fc-session-change', function () {
                 updateLoginChip();
                 // Cloud pull mohl změnit pořadí / téma — překreslíme dlaždice
-                renderAll();
-                if (currentTab === 'dashboard') switchTab('dashboard');
+                scheduleRenderAll();
             });
 
             // Když uživatel v Nastavení iframe změní viditelnost/skupinu,
             // dashboard se musí překreslit.
             window.addEventListener('storage', function (e) {
                 if (['fc_module_visibility','fc_module_groups','fc_module_order'].includes(e.key)) {
-                    renderAll();
-                    if (currentTab === 'dashboard') switchTab('dashboard');
+                    scheduleRenderAll();
                 }
             });
 
