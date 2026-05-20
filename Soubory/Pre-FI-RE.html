@@ -450,6 +450,13 @@ Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni
         }
     });
 
+    // Cloud sync re-render bez reloadu
+    window.addEventListener('fc-module-data-updated', e => {
+        if (!e.detail || e.detail.module !== 'pre-fi-re') return;
+        try { load(); compute(); }
+        catch (err) { console.warn('Pre-FI/RE re-render fail', err); }
+    });
+
     (function init(){
         const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');
         document.documentElement.classList.toggle('light', theme === 'light');

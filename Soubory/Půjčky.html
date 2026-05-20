@@ -1987,6 +1987,13 @@ function doPost(e) {
         window.addEventListener('message', e => {
             if (e.data?.type === 'finance-theme') applyTheme(e.data.theme);
         });
+
+        // Cloud sync re-render bez reloadu
+        window.addEventListener('fc-module-data-updated', e => {
+            if (!e.detail || e.detail.module !== 'pujcky') return;
+            try { app.loadData(); app.renderAll(); }
+            catch (err) { console.warn('Půjčky re-render fail', err); }
+        });
     </script>
 </body>
 

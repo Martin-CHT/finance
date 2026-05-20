@@ -1924,6 +1924,13 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
         window.addEventListener('message', e => {
             if (e.data?.type === 'finance-theme') applyTheme(e.data.theme);
         });
+
+        // Cloud sync nahrál čerstvá data — re-render bez reloadu
+        window.addEventListener('fc-module-data-updated', e => {
+            if (!e.detail || e.detail.module !== 'sporeni') return;
+            try { loadData(); renderAll(); }
+            catch (err) { console.warn('Spoření re-render fail', err); }
+        });
     </script>
 </body>
 

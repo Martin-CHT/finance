@@ -606,14 +606,49 @@
             });
         };
 
-        function applyAndReload(newData) {
+        // Cross-iframe sync: když jiný iframe (např. Příjmy přes syncCrossModules)
+        // zapíše do našeho storageKey, browser pošle `storage` event do ostatních
+        // window's stejného origin. Re-emitneme jako 'fc-module-data-updated',
+        // aby modul re-renderoval, A NAVÍC pushneme do cloudu — protože setItem
+        // hook ve zdrojovém iframu naše storageKey neoznačí jako svůj (kontroluje
+        // svůj vlastní). (Same-window setItem 'storage' event nevolá, takže smyčka nehrozí.)
+        window.addEventListener('storage', function (e) {
+            if (!e || e.key !== storageKey) return;
+            var parsed = null;
+            try { parsed = e.newValue ? JSON.parse(e.newValue) : null; } catch (err) {}
+            // Push do cloudu (debounced; ostatní iframe by toho ani neměl vědět)
+            if (parsed != null) {
+                scheduleModulePush(moduleName, parsed);
+            }
+            // Re-render modulu
+            try {
+                window.dispatchEvent(new CustomEvent('fc-module-data-updated', {
+                    detail: { module: moduleName, data: parsed, storageKey: storageKey, source: 'cross-iframe' }
+                }));
+            } catch (err) {}
+        });
+
+        /* Zapíše data do localStorage a pošle event, KTERÝ MODUL POSLOUCHÁ A SÁM SE PŘEKRESLÍ.
+           Žádný location.reload — destruktivní uprostřed psaní (předchozí verze flickerovala). */
+        function applyDataAndNotify(newData) {
             _suppressPushOnce = true;
             try { localStorage.setItem(storageKey, JSON.stringify(newData)); } catch (e) {}
-            setTimeout(function () { try { location.reload(); } catch (e) {} }, 150);
+            try {
+                window.dispatchEvent(new CustomEvent('fc-module-data-updated', {
+                    detail: { module: moduleName, data: newData, storageKey: storageKey }
+                }));
+            } catch (e) {}
         }
 
         function initialPull() {
             if (!_userSheetUrl()) return;
+            // Anti-loop: pull jen jednou za session per modul. Po dalším tab-switchi
+            // (iframe se znovu načte) bychom jinak fetchovali znovu a při jakékoliv
+            // serializační odlišnosti by ekran flickerl.
+            var sessKey = 'fc_pulled_' + moduleName;
+            try { if (sessionStorage.getItem(sessKey) === '1') return; } catch (e) {}
+            try { sessionStorage.setItem(sessKey, '1'); } catch (e) {}
+
             pullModuleData(moduleName).then(function (remote) {
                 if (remote == null) return; // cloud prázdný → necháme lokál
 
@@ -621,9 +656,9 @@
                 var local = null;
                 try { local = localRaw ? JSON.parse(localRaw) : null; } catch (e) { local = null; }
 
-                // Lokál je prázdný → použij remote bez ptaní (žádný konflikt).
+                // Lokál je prázdný → použij remote bez ptaní (žádný konflikt, žádný reload).
                 if (_isEmpty(local)) {
-                    applyAndReload(remote);
+                    applyDataAndNotify(remote);
                     return;
                 }
                 // Identické → nic neudělej.
@@ -631,23 +666,20 @@
                     if (JSON.stringify(local) === JSON.stringify(remote)) return;
                 } catch (e) {}
 
-                // Rozdíl → zeptej se uživatele
+                // Rozdíl → zeptej se uživatele. Konflikt dialog je opt-in akce,
+                // takže tady reload v případě výběru 'remote' nebo 'merge' DÁVÁ smysl —
+                // uživatel ho vědomě potvrdil.
                 showConflictDialog(moduleName, local, remote, function (choice) {
                     if (choice === 'remote') {
-                        applyAndReload(remote);
+                        applyDataAndNotify(remote);
                     } else if (choice === 'local') {
-                        // Pošli lokál do cloudu, lokál zůstává; krátký toast místo reloadu
+                        // Pošli lokál do cloudu, lokál zůstává.
                         pushModuleData(moduleName, local);
                     } else if (choice === 'merge') {
                         var merged = _mergeData(local, remote);
-                        _suppressPushOnce = true;
-                        try { localStorage.setItem(storageKey, JSON.stringify(merged)); } catch (e) {}
-                        // Počkáme na dokončení pushe, ať se po reloadu neukáže další konflikt
-                        pushModuleData(moduleName, merged).then(function () {
-                            try { location.reload(); } catch (e) {}
-                        }, function () {
-                            try { location.reload(); } catch (e) {}
-                        });
+                        applyDataAndNotify(merged);
+                        // Push merged do cloudu, ať druhé zařízení dostane sloučenou verzi.
+                        pushModuleData(moduleName, merged);
                     }
                     // 'cancel' → nic neměnit
                 });

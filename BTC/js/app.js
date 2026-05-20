@@ -822,3 +822,14 @@ function toast(msg, type = '') {
 }
 
 init();
+
+// Cloud sync (finance-common.js) re-render bez reloadu.
+window.addEventListener('fc-module-data-updated', (e) => {
+  if (!e.detail || e.detail.module !== 'btc') return;
+  try {
+    state = storage.load();
+    applyStateToUI();
+    if (typeof renderStrategies === 'function') renderStrategies();
+    if (typeof refresh === 'function') refresh();
+  } catch (err) { console.warn('BTC re-render fail', err); }
+});

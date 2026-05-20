@@ -854,6 +854,17 @@
                         this.applyTheme(e.data.theme);
                     }
                 });
+
+                // Cloud sync re-render bez reloadu
+                const self = this;
+                window.addEventListener('fc-module-data-updated', e => {
+                    if (!e.detail || e.detail.module !== 'majetek') return;
+                    try {
+                        const raw = localStorage.getItem(STORAGE_KEY);
+                        self.items = raw ? JSON.parse(raw) : [];
+                        self.refreshAll();
+                    } catch (err) { console.warn('Majetek re-render fail', err); }
+                });
             },
 
             /* ── Persistence ── */

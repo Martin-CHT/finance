@@ -70,6 +70,7 @@
             </div>
         </a>
         <div class="flex items-center gap-2">
+            <button class="btn btn-secondary" id="btnRefreshPrices" onclick="refreshAllPrices()" title="Stáhnout aktuální ceny ze Stooq (free, bez klíče)"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Ceny</button>
             <button class="btn btn-secondary" onclick="openModal('tx')"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Transakce</button>
             <button class="btn btn-primary" onclick="openModal('pos')"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Pozice</button>
         </div>
@@ -168,7 +169,7 @@
     </section>
 
     <p class="text-[10px] text-slate-600 text-center font-mono py-4">
-        Data v localStorage <code>broker_v1</code> · ceny se aktualizují ručně (Yahoo Finance API integrace bude přidána později)
+        Data v localStorage <code>broker_v1</code> · ceny stahuje <a href="https://stooq.com" target="_blank" class="text-sky-400 hover:underline">Stooq</a> (zdarma, bez klíče, CORS povoleno)
     </p>
 </main>
 
@@ -674,6 +675,85 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
             document.documentElement.classList.toggle('light', e.data.theme === 'light');
         }
     });
+
+    // Cloud sync re-render bez reloadu
+    window.addEventListener('fc-module-data-updated', e => {
+        if (!e.detail || e.detail.module !== 'broker') return;
+        try { load(); renderAll(); }
+        catch (err) { console.warn('Broker re-render fail', err); }
+    });
+
+    // ─── Stooq price fetch (free, CORS-friendly) ───
+    // Stooq URL: https://stooq.com/q/l/?s=aapl.us&f=sd2t2ohlcv&h&e=csv
+    // Vrací CSV: Symbol,Date,Time,Open,High,Low,Close,Volume
+    function normalizeTickerForStooq(ticker) {
+        const t = String(ticker || '').trim().toLowerCase();
+        if (!t) return null;
+        // Pokud už obsahuje suffix (.us / .de / .uk / .pl ...) → použij jak je.
+        if (t.includes('.')) return t;
+        // Bez suffixu → defaultně .us (US burza)
+        return t + '.us';
+    }
+    async function fetchStooqPrice(ticker) {
+        const sym = normalizeTickerForStooq(ticker);
+        if (!sym) return null;
+        const url = 'https://stooq.com/q/l/?s=' + encodeURIComponent(sym) + '&f=sd2t2ohlcv&h&e=csv';
+        try {
+            const r = await fetch(url);
+            if (!r.ok) return null;
+            const csv = await r.text();
+            const lines = csv.trim().split('\n');
+            if (lines.length < 2) return null;
+            const cols = lines[1].split(',');
+            // Symbol, Date, Time, Open, High, Low, Close, Volume
+            const close = parseFloat(cols[6]);
+            const date = cols[1];
+            if (!isFinite(close) || close <= 0 || cols[6] === 'N/D') return null;
+            return { price: close, date: date };
+        } catch (e) { return null; }
+    }
+    async function refreshAllPrices() {
+        const btn = document.getElementById('btnRefreshPrices');
+        if (!btn) return;
+        const positions = DB.positions || [];
+        if (!positions.length) { toast('Žádné pozice k aktualizaci'); return; }
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Stahuji…';
+        try { lucide.createIcons(); } catch(e){}
+
+        let ok = 0, fail = 0, failNames = [];
+        // Sekvenčně (Stooq je benevolentní, ale neudělejme z toho DDoS)
+        for (const p of positions) {
+            const res = await fetchStooqPrice(p.ticker);
+            if (res) {
+                p.currentPrice = res.price;
+                p.lastUpdate = res.date;
+                ok++;
+            } else {
+                fail++;
+                failNames.push(p.ticker);
+            }
+        }
+        save();
+        renderAll();
+        btn.disabled = false;
+        btn.innerHTML = original;
+        try { lucide.createIcons(); } catch(e){}
+        if (fail === 0) {
+            toast('Aktualizováno ' + ok + ' pozic');
+        } else {
+            toast('OK: ' + ok + ' · selhalo: ' + fail + ' (' + failNames.slice(0,3).join(', ') + (failNames.length > 3 ? ', …' : '') + ')');
+        }
+    }
+    function toast(msg) {
+        // Lehký inline toast
+        const t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;padding:0.7rem 1rem;background:#0369a1;color:#fff;border-radius:0.4rem;font-size:0.8rem;z-index:200;box-shadow:0 10px 25px rgba(0,0,0,0.4)';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3000);
+    }
 
     (function init(){
         const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');

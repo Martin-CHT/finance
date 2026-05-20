@@ -674,6 +674,13 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty):
         }
     });
 
+    // Cloud sync re-render bez reloadu
+    window.addEventListener('fc-module-data-updated', e => {
+        if (!e.detail || e.detail.module !== 'predplatna') return;
+        try { load(); render(); }
+        catch (err) { console.warn('Předplatná re-render fail', err); }
+    });
+
     // ─── Init ───
     (function init(){
         const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');

@@ -620,6 +620,13 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis dat výše.`;
         }
     });
 
+    // Cloud sync re-render bez reloadu
+    window.addEventListener('fc-module-data-updated', e => {
+        if (!e.detail || e.detail.module !== 'energie') return;
+        try { load(); if (currentMeter === 'overview') renderOverview(); else renderMeter(); }
+        catch (err) { console.warn('Energie re-render fail', err); }
+    });
+
     (function init(){
         const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');
         document.documentElement.classList.toggle('light', theme === 'light');

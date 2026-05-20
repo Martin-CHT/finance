@@ -1853,6 +1853,17 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
         window.addEventListener('message', e => {
             if (e.data?.type === 'finance-theme') app.applyTheme(e.data.theme);
         });
+
+        // Cloud sync re-render bez reloadu
+        window.addEventListener('fc-module-data-updated', e => {
+            if (!e.detail || e.detail.module !== 'investice') return;
+            try {
+                app.settings = JSON.parse(localStorage.getItem('pension_settings')) || app.settings;
+                app.overrides = JSON.parse(localStorage.getItem('pension_overrides')) || app.overrides;
+                if (typeof app.applySettingsToForm === 'function') app.applySettingsToForm();
+                if (typeof app.calculate === 'function') app.calculate();
+            } catch (err) { console.warn('Investice re-render fail', err); }
+        });
     </script>
 </body>
 

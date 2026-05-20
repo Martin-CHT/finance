@@ -585,7 +585,9 @@
                         <div class="sm:col-span-2">
                             <label class="section-label block mb-1.5">Částka &amp; Měna</label>
                             <div class="flex items-center gap-2">
-                                <input id="in-suma" type="number" step="0.01" placeholder="0.00" required
+                                <input id="in-suma" type="text" inputmode="decimal" placeholder="0,00 (nebo -700 / +700)" required
+                                    pattern="[+\-]?[0-9]+([.,][0-9]+)?"
+                                    title="Použij minus (-700) pro výdaj nebo plus (+700) pro příjem — přepíše automatickou detekci podle typu."
                                     oninput="app.updatePreviewAdd()"
                                     class="pro-input font-mono text-base flex-1">
                                 <select id="in-mena" onchange="app.updatePreviewAdd()" class="pro-input w-24 text-center font-mono">
@@ -863,7 +865,10 @@
                 <div>
                     <label class="section-label block mb-1">Cena a Měna</label>
                     <div class="flex items-center gap-2">
-                        <input id="ed-suma" type="number" step="0.01" required oninput="app.updatePreviewEdit()"
+                        <input id="ed-suma" type="text" inputmode="decimal"
+                            pattern="[+\-]?[0-9]+([.,][0-9]+)?"
+                            title="Použij minus (-700) pro výdaj, plus (+700) pro příjem"
+                            required oninput="app.updatePreviewEdit()"
                             class="pro-input font-mono text-lg font-bold flex-1">
                         <select id="ed-mena" onchange="app.updatePreviewEdit()" class="pro-input w-20 text-center font-mono">
                             <option value="CZK">CZK</option>
@@ -1344,17 +1349,28 @@
                 const typ = document.getElementById('in-typ').value.trim();
                 const ucet = document.getElementById('in-ucet').value.trim();
                 const info = document.getElementById('in-info').value.trim();
-                const sumaOrig = parseFloat(document.getElementById('in-suma').value);
+                // Raw string (zachováváme leading +/-); parsujeme i s čárkou jako desetinným.
+                const sumaRaw = String(document.getElementById('in-suma').value || '').trim().replace(',', '.');
+                const sumaOrig = parseFloat(sumaRaw);
+                if (!isFinite(sumaOrig)) { return; }
+                const explicitSign = /^[+\-]/.test(sumaRaw); // uživatel napsal +700 nebo -700
                 const mena = document.getElementById('in-mena').value;
                 const saving = document.getElementById('in-saving').checked;
 
                 let czkVal = sumaOrig / (this.rates[mena] || 1);
                 let finalInfo = info;
 
-                // Znaménková logika — slovní hranice, aby „Předplatné" / „Platba"
-                // nezachytly substring „plat" a omylem se neoznačily jako příjem.
-                let s = Math.abs(czkVal);
-                if (!this.isIncomeType(typ)) s = -s;
+                // Znaménková logika:
+                //  - Pokud uživatel napsal +/- explicitně → respektujeme jeho znaménko
+                //    (czkVal už nese správný znak z parseFloat).
+                //  - Jinak fallback na detekci typu (Příjem/Plat/Mzda → +, ostatní → -).
+                let s;
+                if (explicitSign) {
+                    s = czkVal;
+                } else {
+                    s = Math.abs(czkVal);
+                    if (!this.isIncomeType(typ)) s = -s;
+                }
 
                 this.data.unshift({
                     id: Date.now(), pohyb: typ, info: finalInfo, suma: s, ucet: ucet, saving: saving ? "ANO" : "NE", isExcluded: false,
@@ -2055,9 +2071,19 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                 const p = document.getElementById('ed-typ').value.trim();
                 const info = document.getElementById('ed-info').value.trim();
                 const ucet = document.getElementById('ed-ucet').value.trim();
-                const sumaRaw = document.getElementById('ed-suma').value;
+                const sumaRawStr = String(document.getElementById('ed-suma').value || '').trim().replace(',', '.');
+                const sumaRaw = sumaRawStr; // pro zpětnou kompatibilitu níže
+                const explicitSign = /^[+\-]/.test(sumaRawStr);
                 const mena = document.getElementById('ed-mena').value;
                 const savingCheckbox = document.getElementById('ed-saving').checked;
+
+                /* Pomocná: spočítá CZK suma + znaménko podle (1) explicitního +/- nebo (2) typu pohybu. */
+                const computeSuma = (origSumaAbs, signedOrig, typPohyb, menaCode) => {
+                    const czkVal = signedOrig / (this.rates[menaCode] || 1);
+                    if (explicitSign) return czkVal; // respektovat znaménko zadané v inputu
+                    const abs = Math.abs(czkVal);
+                    return this.isIncomeType(typPohyb) ? abs : -abs;
+                };
 
                 if (this.editingMass) {
                    this.data.forEach(t => {
@@ -2066,15 +2092,16 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                            if(info) t.info = info;
                            if(ucet) t.ucet = ucet;
                            if(sumaRaw) {
-                               t.origSuma = Math.abs(parseFloat(sumaRaw));
+                               const orig = parseFloat(sumaRawStr);
+                               t.origSuma = Math.abs(orig);
                                t.origMena = mena;
+                               t.suma = computeSuma(t.origSuma, orig, t.pohyb, t.origMena);
+                           } else {
+                               // jen znaménko se může změnit kvůli pohybu
+                               let s = Math.abs(t.origSuma) / (this.rates[t.origMena] || 1);
+                               if (!this.isIncomeType(t.pohyb)) s = -s;
+                               t.suma = s;
                            }
-                           let czkVal = t.origSuma / (this.rates[t.origMena] || 1);
-                           let s = Math.abs(czkVal);
-                           if (!this.isIncomeType(t.pohyb)) s = -s;
-                           t.suma = s;
-
-                           // Spořící stav hromadný form overriduje natvrdo, jelikož checkbox nelze snadno "ignorovat" v tomto UI
                            t.saving = savingCheckbox ? "ANO" : "NE";
                        }
                    });
@@ -2086,12 +2113,10 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                    t.pohyb = p;
                    t.info = info;
                    t.ucet = ucet;
-                   t.origSuma = Math.abs(parseFloat(sumaRaw));
+                   const orig = parseFloat(sumaRawStr);
+                   t.origSuma = Math.abs(orig);
                    t.origMena = mena;
-                   let czkVal = t.origSuma / (this.rates[mena] || 1);
-                   let s = Math.abs(czkVal);
-                   if (!this.isIncomeType(t.pohyb)) s = -s;
-                   t.suma = s;
+                   t.suma = computeSuma(t.origSuma, orig, t.pohyb, mena);
                    t.saving = savingCheckbox ? "ANO" : "NE";
                 }
 
@@ -2224,6 +2249,15 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
 
         window.addEventListener('message', e => {
             if (e.data?.type === 'finance-theme') app.applyTheme(e.data.theme);
+        });
+
+        // Cloud sync nahrál čerstvá data — re-render bez reloadu
+        window.addEventListener('fc-module-data-updated', e => {
+            if (!e.detail || e.detail.module !== 'prijmy') return;
+            try {
+                app.data = JSON.parse(localStorage.getItem('FinanceAI_data')) || [];
+                app.render();
+            } catch (err) { console.warn('fc-module-data-updated render fail', err); }
         });
     </script>
 </body>
