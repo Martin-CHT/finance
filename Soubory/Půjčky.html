@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Správa půjček a splátkových kalendářů s AI asistentem">
     <title>Půjčky &amp; Splátky | Finance Terminal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind-loader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -1153,6 +1153,12 @@ function doPost(e) {
 
             deleteCurrentLoan() {
                 if (!confirm('Opravdu smazat tuto půjčku?')) return;
+                // Bi-directional linking: pokud půjčka vznikla z transakce v Příjmech,
+                // zeptáme se, zda smazat i propojený záznam.
+                const loan = this.loans.find(l => l.id === this.activeLoanId);
+                if (loan && loan.linkedTxId && window.FinanceCommon?.crossModule) {
+                    window.FinanceCommon.crossModule.promptHandleLinked(loan.linkedTxId, 'Půjčky');
+                }
                 this.loans = this.loans.filter(l => l.id !== this.activeLoanId);
                 this.activeLoanId = this.loans.length > 0 ? this.loans[0].id : null;
                 this.viewMode = this.loans.length > 0 ? 'detail' : 'overview';

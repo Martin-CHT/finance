@@ -6,7 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Finanční centrum — jednotný přístup ke všem finančním nástrojům.">
     <title>Finanční centrum | Finance Terminal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- PWA: install-to-home-screen + offline cache -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0ea5e9">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <script src="Soubory/tailwind-loader.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- finance-common.js: sjednocené nastavení + cloud auth/sync.
          Bez defer — chceme legacy migraci hned, ať se zaregistrovaly sessions
@@ -201,10 +211,17 @@
             display: inline-block;
             box-shadow: 0 0 4px #22c55e;
             animation: pulse-dot 2s ease-in-out infinite;
+            transition: background 0.2s, box-shadow 0.2s;
         }
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
+        }
+        /* Sync mode — modrá pulzace rychleji */
+        .status-dot.syncing {
+            background: #38bdf8;
+            box-shadow: 0 0 6px #38bdf8;
+            animation: pulse-dot 0.6s ease-in-out infinite;
         }
 
         /* ── KPI strip ── */
@@ -855,6 +872,31 @@
                 }
             });
 
+            // Sync indikátor: zachycujeme jak vlastní eventy z parent okna
+            // (FinanceCommon.ui.setSyncBusy), tak postMessage z iframů.
+            var _syncBusyTimeout = null;
+            function setStatusDotSyncing(busy) {
+                var dot = document.querySelector('.status-dot');
+                if (!dot) return;
+                if (busy) {
+                    dot.classList.add('syncing');
+                    clearTimeout(_syncBusyTimeout);
+                    // Bezpečnostní timeout — kdyby setSyncBusy(false) z nějakého důvodu nepřišel
+                    _syncBusyTimeout = setTimeout(function () { dot.classList.remove('syncing'); }, 10000);
+                } else {
+                    dot.classList.remove('syncing');
+                    clearTimeout(_syncBusyTimeout);
+                }
+            }
+            window.addEventListener('fc-sync-state', function (e) {
+                if (e && e.detail) setStatusDotSyncing(!!e.detail.busy);
+            });
+            window.addEventListener('message', function (e) {
+                if (e.data && e.data.type === 'fc-sync-state') {
+                    setStatusDotSyncing(!!e.data.busy);
+                }
+            });
+
             // Když se uživatel přihlásí (postMessage z iframe Nastavení),
             // reloadneme všechny iframe moduly, aby si stáhly data ze Sheetu pod novou sessionou.
             window.addEventListener('message', function (e) {
@@ -883,6 +925,29 @@
             };
 
             lucide.createIcons();
+
+            // ── PWA: Service Worker (offline cache + install support) ──
+            // Funguje JEN na https:// nebo http://localhost — file:// browser zablokuje.
+            if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+                navigator.serviceWorker.register('sw.js').then(function (reg) {
+                    console.log('[PWA] Service worker registrován');
+                    // Auto-update: pokud je nová verze SW, převzít po restartu
+                    reg.addEventListener('updatefound', function () {
+                        var newSw = reg.installing;
+                        if (newSw) {
+                            newSw.addEventListener('statechange', function () {
+                                if (newSw.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[PWA] Nová verze připravená. Reload pro aktivaci.');
+                                }
+                            });
+                        }
+                    });
+                }).catch(function (err) {
+                    console.warn('[PWA] Registration failed:', err);
+                });
+            } else if (location.protocol === 'file:') {
+                console.info('[PWA] Service Worker je zakázán na file:// — pro offline mód spusť přes lokální server (např. `python -m http.server`) nebo nasaď na GitHub Pages.');
+            }
         })();
 
         function updateLoginChip() {

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Evidence spoření a finančních cílů s AI asistentem">
     <title>Spoření &amp; Cíle | Finance Terminal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind-loader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -1533,11 +1533,16 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
         }
 
         function deleteCurrentGoal() {
-            if (confirm('Opravdu chcete smazat tento cíl?')) {
-                findAndRemoveItem(activeGoalId);
-                const flat = getFlatGoals(); activeGoalId = flat.length > 0 ? flat[0].id : null;
-                resetCollapseState = true; saveData(); renderAll(); showToast('Cíl byl smazán');
+            const goal = findItemById(activeGoalId);
+            if (!confirm('Opravdu chcete smazat tento cíl?')) return;
+            // Bi-directional linking: pokud goal vznikl z transakce v Příjmech,
+            // zeptáme se, zda smazat i propojený záznam.
+            if (goal && goal.linkedTxId && window.FinanceCommon?.crossModule) {
+                window.FinanceCommon.crossModule.promptHandleLinked(goal.linkedTxId, 'Spoření');
             }
+            findAndRemoveItem(activeGoalId);
+            const flat = getFlatGoals(); activeGoalId = flat.length > 0 ? flat[0].id : null;
+            resetCollapseState = true; saveData(); renderAll(); showToast('Cíl byl smazán');
         }
 
         function deleteFolder(id) {

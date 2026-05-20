@@ -311,9 +311,11 @@
         if (!s.user || !s.token) return false;
         var cfg = collectConfig();
         try {
+            setSyncBusy && setSyncBusy(true);
             var res = await apiCall('saveConfig', { username: s.user, token: s.token, config: cfg });
             return !!(res && res.ok);
         } catch (e) { return false; }
+        finally { setSyncBusy && setSyncBusy(false); }
     }
 
     /* Sebere aktuální cloudově-synchronizované hodnoty z localStorage/cookies. */
@@ -423,6 +425,7 @@
         var t = readUnified('finance_sheets_token');
         var body = { action: 'saveData', module: moduleName, data: data };
         if (t) body.token = t;
+        setSyncBusy(true);
         try {
             var r = await fetch(base, {
                 method: 'POST',
@@ -434,6 +437,7 @@
             var j = await r.json().catch(function () { return null; });
             return !!(j && j.ok);
         } catch (e) { return false; }
+        finally { setSyncBusy(false); }
     }
 
     /* Stáhne `mod_<moduleName>`. Vrací parsovaný JSON nebo null. */
@@ -694,6 +698,140 @@
     // Spustit IHNED — meta tagy už jsou v <head> nad tímto skriptem.
     autoSyncModuleViaMeta();
 
+    /* ════════════════════════════════════════════════════════════
+       6.5) UI HELPERS — toast + sync indikátor
+       ════════════════════════════════════════════════════════════
+       Sjednocený toast pro všechny moduly, aby UX byl konzistentní.
+       Sync indikátor vysílá CustomEvent 'fc-sync-state' s {busy:true|false},
+       který parent index.html zachytí a anime status dot. */
+
+    var _toastEl = null;
+    function _ensureToastEl() {
+        if (_toastEl && document.body && document.body.contains(_toastEl)) return _toastEl;
+        var el = document.createElement('div');
+        el.id = 'fc-toast';
+        el.style.cssText = [
+            'position:fixed', 'right:1rem', 'bottom:1rem', 'z-index:2147483646',
+            'padding:0.7rem 1rem', 'border-radius:0.5rem', 'font-size:0.8rem',
+            'font-family:Inter,system-ui,sans-serif', 'color:#fff',
+            'box-shadow:0 10px 25px rgba(0,0,0,0.4)', 'opacity:0',
+            'transform:translateY(8px)', 'transition:opacity .2s, transform .2s',
+            'max-width:24rem', 'pointer-events:none'
+        ].join(';');
+        if (document.body) document.body.appendChild(el);
+        else document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(el); });
+        _toastEl = el;
+        return el;
+    }
+    var _toastTmr = null;
+    function showToast(msg, kind, durationMs) {
+        var el = _ensureToastEl();
+        var colors = {
+            success: '#15803d', error: '#b91c1c', info: '#0369a1', warn: '#b45309'
+        };
+        el.style.background = colors[kind] || colors.info;
+        el.textContent = String(msg == null ? '' : msg);
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+        clearTimeout(_toastTmr);
+        _toastTmr = setTimeout(function () {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(8px)';
+        }, durationMs || 3000);
+    }
+
+    /* Sync indikátor — vysílá event do parent / index.html. */
+    function setSyncBusy(busy) {
+        try {
+            window.dispatchEvent(new CustomEvent('fc-sync-state', { detail: { busy: !!busy } }));
+            // I do parent okna pro iframe→parent komunikaci
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'fc-sync-state', busy: !!busy }, '*');
+            }
+        } catch (e) {}
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       6) CROSS-MODULE LINKING (bi-directional)
+       ════════════════════════════════════════════════════════════
+       Smazání položky s `linkedTxId` v podružném modulu (Spoření/Předplatná/Půjčky)
+       může také smazat propojenou transakci v Příjmech & Výdaje. Modul před tím
+       zeptá uživatele přes confirm(). */
+
+    /* Smaže transakci s daným ID z FinanceAI_data v localStorage.
+       Vrací true, pokud něco smazala, false jinak. */
+    function deleteLinkedTransaction(linkedTxId) {
+        if (linkedTxId == null) return false;
+        try {
+            var raw = localStorage.getItem('FinanceAI_data');
+            if (!raw) return false;
+            var arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return false;
+            var before = arr.length;
+            arr = arr.filter(function (t) { return t && t.id !== linkedTxId; });
+            if (arr.length === before) return false;
+            localStorage.setItem('FinanceAI_data', JSON.stringify(arr));
+            return true;
+        } catch (e) { return false; }
+    }
+
+    /* Označí transakci jako vyloučenou (isExcluded=true) místo smazání —
+       zachová auditní stopu. */
+    function excludeLinkedTransaction(linkedTxId) {
+        if (linkedTxId == null) return false;
+        try {
+            var raw = localStorage.getItem('FinanceAI_data');
+            if (!raw) return false;
+            var arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return false;
+            var found = false;
+            arr = arr.map(function (t) {
+                if (t && t.id === linkedTxId) { found = true; return Object.assign({}, t, { isExcluded: true }); }
+                return t;
+            });
+            if (!found) return false;
+            localStorage.setItem('FinanceAI_data', JSON.stringify(arr));
+            return true;
+        } catch (e) { return false; }
+    }
+
+    /* Najde transakci podle ID (pro confirmation dialog). */
+    function findLinkedTransaction(linkedTxId) {
+        if (linkedTxId == null) return null;
+        try {
+            var raw = localStorage.getItem('FinanceAI_data');
+            if (!raw) return null;
+            var arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return null;
+            return arr.find(function (t) { return t && t.id === linkedTxId; }) || null;
+        } catch (e) { return null; }
+    }
+
+    /* High-level prompt + delete. Vrací jednu z hodnot:
+       - 'deleted' (uživatel zvolil smazat),
+       - 'excluded' (uživatel zvolil jen vyloučit),
+       - 'kept' (uživatel chce zachovat),
+       - 'no-link' (linkedTxId neukazuje na žádnou tx — nic neudělá). */
+    function promptHandleLinkedTransaction(linkedTxId, sourceLabel) {
+        var tx = findLinkedTransaction(linkedTxId);
+        if (!tx) return 'no-link';
+        var preview = (tx.pohyb || '?') + ' · ' + (tx.info || '') + ' · ' +
+                      (typeof tx.suma === 'number' ? tx.suma.toFixed(0) + ' Kč' : '');
+        var msg = 'V Příjmech & Výdaje je propojený záznam:\n\n  ' + preview + '\n\n' +
+                  'Chceš ho také smazat?\n\n' +
+                  'OK = smazat\nZrušit = ponechat (zůstane v Příjmech, jen bez propojení)';
+        // Browser confirm: 2 možnosti (OK/Cancel). Pro 3. možnost (exclude) by byl
+        // potřeba vlastní modal — pro jednoduchost zatím jen smazat/ponechat.
+        // Modul (caller) může předem nabídnout vyloučení jiným způsobem.
+        try {
+            if (confirm(msg)) {
+                deleteLinkedTransaction(linkedTxId);
+                return 'deleted';
+            }
+            return 'kept';
+        } catch (e) { return 'kept'; }
+    }
+
     /* ════════════  PUBLIC API  ════════════ */
     window.FinanceCommon = {
         /* legacy helpers (zachovány kvůli kompatibilitě) */
@@ -735,6 +873,20 @@
             pullModule:         pullModuleData,
             scheduleModulePush: scheduleModulePush,
             hasSheetsUrl:       function () { return !!_userSheetUrl(); }
+        },
+
+        /* bi-directional cross-module linking */
+        crossModule: {
+            deleteLinkedTransaction:  deleteLinkedTransaction,
+            excludeLinkedTransaction: excludeLinkedTransaction,
+            findLinkedTransaction:    findLinkedTransaction,
+            promptHandleLinked:       promptHandleLinkedTransaction
+        },
+
+        /* UI helpers — jednotný toast + sync indikátor */
+        ui: {
+            toast:        showToast,
+            setSyncBusy:  setSyncBusy
         }
     };
 })();

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Předplatná — evidence opakovaných závazků Finance Terminal.">
     <title>Předplatná | Finance Terminal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind-loader.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <meta name="fc-module" content="predplatna">
     <meta name="fc-storage-key" content="predplatna_v1">
@@ -525,6 +525,12 @@
     function removeCurrent() {
         if (!currentEditId) return;
         if (!confirm('Opravdu smazat toto předplatné?')) return;
+        // Bi-directional linking: pokud item vznikl z transakce v Příjmech,
+        // zeptáme se, zda smazat i propojený záznam.
+        const item = DB.items.find(x => x.id === currentEditId);
+        if (item && item.linkedTxId && window.FinanceCommon?.crossModule) {
+            window.FinanceCommon.crossModule.promptHandleLinked(item.linkedTxId, 'Předplatná');
+        }
         DB.items = DB.items.filter(x => x.id !== currentEditId);
         save(); render(); closeModal();
         toast('Smazáno', 'info');
