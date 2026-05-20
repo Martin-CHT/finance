@@ -69,7 +69,13 @@
     function readUnified(key) { return lsGet(key) || getCookie(key); }
     function writeUnified(key, value) {
         if (value == null) value = '';
-        lsSet(key, value);
+        // KLÍČOVÉ: setItem se stejnou hodnotou ZBYTEČNĚ vyvolá `storage` event
+        // v jiných oknech/iframech, což u nás způsobovalo smyčku po loginu:
+        //   pull → applyConfig → writeUnified(key, sameValue) → storage event v parentu
+        //   → renderAll → recreate iframes → každý iframe pull → loop.
+        // Skipneme zápis, pokud je hodnota identická.
+        if (lsGet(key) !== value) lsSet(key, value);
+        // Cookie nevyvolává storage event, takže ji můžeme aktualizovat vždy.
         setCookie(key, value, COOKIE_DAYS);
     }
     function deleteUnified(key) { lsDel(key); delCookie(key); }

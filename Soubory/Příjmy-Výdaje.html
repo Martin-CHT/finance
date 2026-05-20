@@ -1416,6 +1416,23 @@
                     this._upsertPredplatna(txsPredplatne, liveIds);
                     this._upsertSporeni(txsSporeni, liveIds);
                     this._upsertPujcky(txsPujcka, liveIds);
+
+                    // Push do cloudu pro cílové moduly. Lokální setItem hook tady
+                    // nepustí push (sleduje jen vlastní storageKey = FinanceAI_data),
+                    // takže to musíme udělat ručně — jinak by se data ztratila,
+                    // pokud Spoření/Předplatná/Půjčky iframe nebyl loaded a tudíž
+                    // se nedostal storage event a nepushl je sám.
+                    // Předáváme provider funkci, aby debounced push vzal aktuální
+                    // hodnotu (ne snapshot z teď).
+                    if (window.FinanceCommon && window.FinanceCommon.cloud && window.FinanceCommon.cloud.hasSheetsUrl()) {
+                        try {
+                            const cloud = window.FinanceCommon.cloud;
+                            const _parse = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || fb); } catch(_) { return JSON.parse(fb); } };
+                            cloud.scheduleModulePush('sporeni',    () => _parse('sporici_data_ai_tree', '[]'));
+                            cloud.scheduleModulePush('predplatna', () => _parse('predplatna_v1',       '{"items":[]}'));
+                            cloud.scheduleModulePush('pujcky',     () => _parse('pujcky_data_v1',      '[]'));
+                        } catch (e) { console.warn('cross-modul cloud push fail', e); }
+                    }
                 } catch (err) { console.warn('syncCrossModules failed', err); }
             },
 

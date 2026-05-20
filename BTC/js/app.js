@@ -821,15 +821,20 @@ function toast(msg, type = '') {
   toast._t = setTimeout(() => (t.hidden = true), 3000);
 }
 
-init();
+// Init defensivně — kdyby cokoli z init() throwlo, alespoň víme co a UI dál žije
+try {
+  init();
+} catch (err) {
+  console.error('BTC init() failed:', err);
+}
 
 // Cloud sync (finance-common.js) re-render bez reloadu.
 window.addEventListener('fc-module-data-updated', (e) => {
-  if (!e.detail || e.detail.module !== 'btc') return;
   try {
+    if (!e || !e.detail || e.detail.module !== 'btc') return;
     state = storage.load();
-    applyStateToUI();
-    if (typeof renderStrategies === 'function') renderStrategies();
-    if (typeof refresh === 'function') refresh();
+    try { applyStateToUI(); } catch(_) {}
+    try { renderStrategies(); } catch(_) {}
+    try { refresh(); } catch(_) {}
   } catch (err) { console.warn('BTC re-render fail', err); }
 });
