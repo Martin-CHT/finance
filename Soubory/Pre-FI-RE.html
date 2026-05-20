@@ -143,6 +143,7 @@
             <button class="btn btn-primary" onclick="compute()"><i data-lucide="calculator" class="w-3.5 h-3.5"></i> Přepočítat</button>
             <button class="btn btn-secondary" onclick="autofill()" title="Pokus se odhadnout aktuální majetek z dat ostatních modulů"><i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Auto-vyplnit z modulů</button>
             <button class="btn btn-secondary" onclick="saveInputs()"><i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit nastavení</button>
+            <button class="btn btn-secondary" onclick="openModuleHelp()" title="Nápověda"><i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Nápověda</button>
         </div>
     </section>
 
@@ -456,6 +457,70 @@ Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni
         try { load(); compute(); }
         catch (err) { console.warn('Pre-FI/RE re-render fail', err); }
     });
+
+    // ─── Nápověda modulu ───
+    function openModuleHelp() {
+        if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+        window.FinanceCommon.help.show({
+            title: 'Pre-FI/RE — Předčasná penze',
+            subtitle: 'Kalkulačka finanční nezávislosti. Kdy můžeš odejít? Kolik potřebuješ?',
+            sections: [
+                { kind:'intro', heading:'🎯 K čemu modul slouží',
+                  body:'<p><b>FIRE</b> = <b>F</b>inancial <b>I</b>ndependence, <b>R</b>etire <b>E</b>arly. Hnutí lidí, kteří chtějí odejít z práce dřív než v 65 — tím, že nashromáždí takový kapitál, jehož 4% ročně pokryjí jejich výdaje.</p>'+
+                       '<p>Tenhle modul ti spočítá:</p>'+
+                       '<ul>'+
+                            '<li><b>FIRE číslo</b> — kolik kapitálu potřebuješ.</li>'+
+                            '<li><b>Roky do FIRE</b> — kdy ho při tvé úložce dosáhneš.</li>'+
+                            '<li><b>Které z 5 FIRE úrovní</b> (Pre / Lean / Standard / Fat / Coast) jsi.</li>'+
+                       '</ul>' },
+                { kind:'steps', heading:'📝 Postup',
+                  body:'<ol>'+
+                        '<li><b>Věk</b> — kolik ti je dnes.</li>'+
+                        '<li><b>Roční výdaje</b> — kolik ročně utratíš (potřebuješ na život).</li>'+
+                        '<li><b>Aktuální majetek</b> — všechen kapitál, který už máš (investice + spoření + nemovitosti − dluhy). Klikni <b>Auto-vyplnit z modulů</b> pro odhad.</li>'+
+                        '<li><b>Měsíční úspora</b> — kolik z výplaty zbude na investice.</li>'+
+                        '<li><b>Předpokládaný výnos</b> — reálný (po inflaci), typicky 4-5% pro akcie.</li>'+
+                        '<li><b>Withdrawal rate</b> — kolik % kapitálu si budeš ročně brát. Default 4% (Trinity study).</li>'+
+                        '<li><b>Scénář</b> — Lean (–30% výdajů, skromně), Standard, Fat (+50%, komfort), Coast (přestaneš spořit a čekáš na compound).</li>'+
+                        '<li>Klikni <b>Přepočítat</b>. Pak <b>Uložit nastavení</b>.</li>'+
+                        '<li><b>AI rada</b> → strukturovaný feedback.</li>'+
+                      '</ol>' },
+                { kind:'features', heading:'✨ Vychytávky',
+                  body:'<ul>'+
+                        '<li><b>3 KPI</b> — Aktuální majetek (% FIRE), FIRE číslo, Roky do FIRE.</li>'+
+                        '<li><b>Graf kapitálu v čase</b> — křivka, kde tě protne FIRE linka.</li>'+
+                        '<li><b>Auto-vyplnit z modulů</b> — pokus odhadne aktuální majetek z Spoření + Investic + Fondů + BTC.</li>'+
+                        '<li><b>5 scénářů FIRE</b>:'+
+                            '<ul>'+
+                                '<li><b>Lean FIRE</b> — výdaje −30% (skromný režim).</li>'+
+                                '<li><b>Standard FIRE</b> — aktuální výdaje × 25.</li>'+
+                                '<li><b>Fat FIRE</b> — výdaje +50% (komfort).</li>'+
+                                '<li><b>Coast FIRE</b> — bod, kdy už nemusíš spořit, jen čekat na compound.</li>'+
+                                '<li><b>Barista FIRE</b> — částečný úvazek pokrývá výdaje + zdravotku.</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li><b>AI rada</b> — strukturovaný výstup: kde stojíš, páka, riziko, akce.</li>'+
+                      '</ul>' },
+                { kind:'tips', heading:'💡 Tipy & triky',
+                  body:'<ul>'+
+                        '<li><b>Snížení výdajů má dvojí efekt</b>: 1) potřebuješ menší FIRE číslo, 2) ušetříš víc → rychleji ho dosáhneš.</li>'+
+                        '<li><b>Sekvenční riziko</b> — když narazíš na 50% propad trhu hned po odchodu, 4% withdrawal může portfolio zničit. Pro early retirement opatrnější 3.5%.</li>'+
+                        '<li><b>Daňová optimalizace</b> — DPS, ETF s daňovou amnestií po 3 letech držby — výrazně zkracuje FIRE.</li>'+
+                        '<li><b>Coast FIRE</b> je realistický mezistup: jakmile máš dost na to, aby compound dorostlo k FIRE bez další úložky, můžeš snížit úvazek nebo zkusit nižší placenou ale smysluplnější práci.</li>'+
+                        '<li><b>Inflace</b> v reálném výnosu už zahrnutá (4-5% reálných). Pokud používáš nominální výnos (7%), musíš FIRE číslo růst.</li>'+
+                      '</ul>' },
+                { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                  body:'<p><b>Auto-vyplnit z modulů</b> čte:</p>'+
+                       '<ul>'+
+                            '<li><b>Spoření</b> → součet všech naspořených částek u cílů.</li>'+
+                            '<li><b>Investice & Penze</b> → aktuální kapitál z pension_settings.</li>'+
+                            '<li><b>Fondy</b> → aktuální hodnota podílů.</li>'+
+                            '<li><b>BTC</b> → součet investic × aktuální cena.</li>'+
+                       '</ul>'+
+                       '<p style="margin-top:0.6rem">Pro <b>výdaje</b> modul nečte data z Příjmů automaticky — musíš zadat ručně, protože FIRE počítá s typickým ročním výdajem, ne s aktuálním měsícem.</p>' }
+            ]
+        });
+    }
 
     (function init(){
         const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');

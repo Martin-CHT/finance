@@ -472,6 +472,10 @@
 
             <!-- Actions -->
             <div class="flex items-center gap-2">
+                <button onclick="openModuleHelp()" class="btn-secondary" title="Jak používat tento modul (nápověda)">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Nápověda</span>
+                </button>
                 <button onclick="app.exportData()" class="btn-secondary">
                     <i data-lucide="download" class="w-3.5 h-3.5"></i>
                     <span class="hidden sm:inline">Export</span>
@@ -2276,6 +2280,83 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                 app.render();
             } catch (err) { console.warn('fc-module-data-updated render fail', err); }
         });
+
+        // ─── Nápověda modulu ───
+        function openModuleHelp() {
+            if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+            window.FinanceCommon.help.show({
+                title: 'Příjmy & Výdaje',
+                subtitle: 'Centrální deník všech transakcí — všechno ostatní (Spoření, Předplatná, Půjčky) se sem propojuje.',
+                sections: [
+                    {
+                        kind: 'intro',
+                        heading: '🎯 K čemu modul slouží',
+                        body:
+                            '<p>Eviduje <b>každou jednu finanční transakci</b> — příjmy, výdaje, spoření, splátky půjček, předplatné. To je tvůj <b>jediný zdroj pravdy</b> o cashflow.</p>' +
+                            '<p>Modul má 3 záložky:</p>' +
+                            '<ul>' +
+                                '<li><b>Deník</b> — formulář pro přidání transakce + tabulka všech záznamů.</li>' +
+                                '<li><b>Analýza</b> — KPI a grafy (struktura výdajů, cashflow trend, míra úspor).</li>' +
+                                '<li><b>AI Rádce</b> — strukturovaná AI analýza tvých dat s konkrétními doporučeními.</li>' +
+                            '</ul>'
+                    },
+                    {
+                        kind: 'steps',
+                        heading: '📝 Jak přidat transakci (krok za krokem)',
+                        body:
+                            '<ol>' +
+                                '<li><b>Typ</b> — co to bylo. Datalist napovídá z předchozích záznamů. Klíčová slova jako <code>Spoření</code>, <code>Předplatné</code>, <code>Půjčka</code> spouští <b>auto-propojení</b> s ostatními moduly (viz Provázanost).</li>' +
+                                '<li><b>Účet</b> — odkud peníze šly / na který přišly (Běžný, Spořicí, Hotovost…). Také z datalistu.</li>' +
+                                '<li><b>Popis</b> — krátká poznámka. U Předplatného/Spoření slouží jako <b>název cíle / služby</b>.</li>' +
+                                '<li><b>Částka & Měna</b> — <b>kladné číslo = příjem, záporné = výdaj</b>. Můžeš napsat třeba <code>+12500</code>, <code>-269</code> nebo jen <code>269</code> a systém znaménko odvodí z typu (Mzda → +, Předplatné → −).</li>' +
+                                '<li><b>Položka je spoření</b> — zaškrtnutí explicitně označí transakci jako spoření (jinak detekce z typu).</li>' +
+                                '<li>Uložit. Záznam se objeví v deníku a propaguje do dalších modulů, pokud spadá pod jejich kategorii.</li>' +
+                            '</ol>'
+                    },
+                    {
+                        kind: 'features',
+                        heading: '✨ Vychytávky',
+                        body:
+                            '<ul>' +
+                                '<li><b>AI rychlovstup</b> — místo formuláře napiš větu typu „Včera jsem koupil benzín za 1500 Kč" a AI z toho vytvoří strukturovanou transakci. Vyžaduje uložený AI klíč v Nastavení.</li>' +
+                                '<li><b>Přepínač řazení</b> v hlavičce sloupců (TYP / POPIS / SUMA…) — klik mění směr.</li>' +
+                                '<li><b>Kompaktní pohled</b> — checkbox „Kompakt" zhustí tabulku pro víc položek na obrazovce.</li>' +
+                                '<li><b>Filtr účtů</b> — chip „Běžný / Spořicí / …" zobrazí jen transakce z daného účtu.</li>' +
+                                '<li><b>Hromadné akce</b> — checkboxy u řádků + tlačítka pro hromadnou úpravu / smazání / vyloučení z analýzy.</li>' +
+                                '<li><b>Vyloučení z analýzy</b> — ikona oka skryje záznam z grafů a součtů (např. jednorázové dárky nebo refundace), ale ponechá ho v deníku.</li>' +
+                                '<li><b>Flip znaménka</b> — tlačítka +/− v akcích řádku obrátí znaménko, pokud's omylem uložil(a) opačně.</li>' +
+                                '<li><b>Měnová konverze</b> — částka v EUR/USD se automaticky přepočítává na CZK aktuálním kurzem z ČNB.</li>' +
+                                '<li><b>FX status</b> v top liště — zelená tečka = kurzy načteny, oranžová = používá fallback.</li>' +
+                            '</ul>'
+                    },
+                    {
+                        kind: 'tips',
+                        heading: '💡 Tipy & triky',
+                        body:
+                            '<ul>' +
+                                '<li>Pro pravidelné výdaje (Netflix, mobil) <b>nedělej kopii každý měsíc</b> — vytvoř záznam v modulu <b>Předplatná</b>. Tady se ti pak propojí automaticky.</li>' +
+                                '<li>Spořicí transakce dělej <b>se záporným znaménkem na běžném účtu</b> a kladným na spořicím (převod). Modul Spoření & Cíle vytvoří goal automaticky.</li>' +
+                                '<li>Export do JSON = kompletní záloha. Pravidelně si stáhni před experimenty.</li>' +
+                                '<li>Když chceš v Analýze vidět <b>jen určité kategorie</b>, vyluč ostatní záznamy ikonou oka.</li>' +
+                                '<li>AI Rádce funguje líp s aspoň 30 dny dat — málo záznamů → generická rada.</li>' +
+                            '</ul>'
+                    },
+                    {
+                        kind: 'linked',
+                        heading: '🔗 Provázanost s ostatními moduly',
+                        body:
+                            '<p>Modul je <b>centrum všeho</b>. Když přidáš transakci určitého typu, automaticky se zrcadlí:</p>' +
+                            '<ul>' +
+                                '<li><b>Typ obsahuje „Předplatné"</b> → vznikne položka v <b>Předplatná</b> (název = popis transakce, částka = absolutní hodnota, cyklus měsíční jako default — upravíš tam).</li>' +
+                                '<li><b>Typ obsahuje „Spoření"</b> nebo zaškrtnut <i>Položka je spoření</i> → vznikne goal v <b>Spoření & Cíle</b> (cílovou částku doplníš tam).</li>' +
+                                '<li><b>Typ obsahuje „Půjčka" / „Splátka"</b> → vznikne záznam v <b>Půjčky & Splátky</b>.</li>' +
+                            '</ul>' +
+                            '<div class="example"><b>Příklad:</b> Přidáš transakci „Netflix" s typem „Předplatné" za −269 Kč. → V modulu Předplatná uvidíš <i>Netflix · měsíčně · 269 Kč · příští platba za 30 dní</i>. Tam jen doplníš pravdivý cyklus a další platbu.</div>' +
+                            '<p style="margin-top:0.6rem">Při smazání transakce v Příjmech se propojený záznam v cílovém modulu odstraní automaticky (po potvrzení).</p>'
+                    }
+                ]
+            });
+        }
     </script>
 </body>
 

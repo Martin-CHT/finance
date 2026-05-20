@@ -324,6 +324,11 @@
                     <span class="hidden sm:inline">Import</span>
                     <input type="file" class="hidden" accept=".json" onchange="app.importData(event)">
                 </label>
+                <button onclick="openModuleHelp()" title="Nápověda"
+                        class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-transparent hover:border-slate-700 transition-colors">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Nápověda</span>
+                </button>
                 <div class="w-px h-4 bg-slate-700 mx-1"></div>
                 <button onclick="resetAll()" class="px-2.5 py-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded border border-transparent hover:border-rose-500/20 transition-colors uppercase tracking-wide">
                     Reset
@@ -1864,6 +1869,50 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
                 if (typeof app.calculate === 'function') app.calculate();
             } catch (err) { console.warn('Investice re-render fail', err); }
         });
+
+        // ─── Nápověda modulu ───
+        function openModuleHelp() {
+            if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+            window.FinanceCommon.help.show({
+                title: 'Investice & Penze',
+                subtitle: 'Penzijní kalkulačka se složeným úrokem — prognóza kapitálu, scénáře inflace, AI poradce.',
+                sections: [
+                    { kind:'intro', heading:'🎯 K čemu modul slouží',
+                      body:'<p>Spočítá, <b>kolik budeš mít v penzi</b>, pokud budeš pravidelně investovat zadanou částku při zadaném výnosu — efekt <b>složeného úroku</b>.</p>'+
+                           '<p>A naopak: pokud chceš mít v penzi měsíční rentu X Kč, ukáže, kolik kapitálu k tomu potřebuješ a jakou úložkou se k němu dostat.</p>' },
+                    { kind:'steps', heading:'📝 Postup',
+                      body:'<ol>'+
+                            '<li><b>Tvůj věk dnes</b> — počáteční bod.</li>'+
+                            '<li><b>Začátek renty</b> — věk, kdy plánuješ začít čerpat (typicky 60-65).</li>'+
+                            '<li><b>Měsíční vklad</b> — kolik teď pravidelně investuješ.</li>'+
+                            '<li><b>Předpokládaný výnos % p.a.</b> — historický průměr akciového portfolia ~7% nominálně, ~5% reálně (po inflaci). Konzervativní fond ~4%.</li>'+
+                            '<li><b>Cílová renta</b> — kolik Kč/měs chceš v penzi mít.</li>'+
+                            '<li>Modul vykreslí <b>kapitál v čase</b> + <b>tabulku po letech</b>.</li>'+
+                            '<li><b>AI Analýza</b> a <b>Tržní výhled</b> dají strukturované doporučení (4 body) a scénáře inflace.</li>'+
+                          '</ol>' },
+                    { kind:'features', heading:'✨ Vychytávky',
+                      body:'<ul>'+
+                            '<li><b>Konečný kapitál</b> KPI — kolik budeš mít v okamžiku odchodu.</li>'+
+                            '<li><b>Věčná renta (4% rule)</b> — kolik si můžeš měsíčně brát, aniž bys kapitál vyčerpal(a). 4% pravidlo je americký standard (přežiješ 30 let i přes recese).</li>'+
+                            '<li><b>Rozdíl od cíle</b> — jak moc ti chybí (mínus) nebo přebývá (plus) oproti tvé cílové rentě.</li>'+
+                            '<li><b>Roční override</b> — pokud čekáš v určitém roce mimořádný vklad (dědictví, prodej nemovitosti) nebo výběr (rekonstrukce), klikni na rok v tabulce a uprav. Graf zohlední.</li>'+
+                            '<li><b>AI Analýza plánu</b> — strukturovaný výstup: stojí plán? kde je páka? riziko? akce do měsíce?</li>'+
+                            '<li><b>AI Tržní výhled</b> — scénáře inflace 3/5/8%, ČNB výhled, dopad na tvůj výnos.</li>'+
+                          '</ul>' },
+                    { kind:'tips', heading:'💡 Tipy & triky',
+                      body:'<ul>'+
+                            '<li><b>Nominální vs. reálný výnos</b> — 7% nominálně při 3% inflaci = 4% reálně. Tabulka ukazuje nominální čísla, ale za 30 let bude 1 milion mít kupní sílu dnešních ~400 tisíc.</li>'+
+                            '<li><b>Začni co nejdřív</b> — složený úrok exponenciálně. 1 000 Kč/měs od 25 do 65 (7%) = ~2.6M; od 35 do 65 = ~1.2M. Stejná úložka, jiný horizont.</li>'+
+                            '<li><b>Konzistence > výška</b> — radši 2 000 Kč/měs po 30 letech než 5 000 Kč po 10 letech.</li>'+
+                            '<li><b>DPS / III. pilíř</b> — státní příspěvek max 340 Kč/měs + daňová úleva. Stojí to za to.</li>'+
+                            '<li><b>4% rule není zákon</b> — pro velmi dlouhý horizont (40+ let) je opatrnější použít 3.5%.</li>'+
+                          '</ul>' },
+                    { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                      body:'<p>Modul je <b>standalone kalkulačka</b> — neimportuje data z Příjmů ani Spoření (zatím). Modul <b>Pre-FI/RE</b> využívá podobné výpočty pro scénář předčasné penze.</p>'+
+                           '<p>Pro <b>celkový majetek</b> (penze + spoření + investice + nemovitosti) použij <b>Pre-FI/RE</b> modul, který kombinuje data z víc zdrojů.</p>' }
+                ]
+            });
+        }
     </script>
 </body>
 

@@ -73,6 +73,7 @@
             </div>
         </a>
         <div class="flex items-center gap-2">
+            <button class="btn btn-secondary" onclick="openModuleHelp()" title="Nápověda"><i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Nápověda</button>
             <button class="btn btn-secondary" onclick="openTariff()" title="Tarify a fixní poplatky"><i data-lucide="settings-2" class="w-3.5 h-3.5"></i> Tarify</button>
             <button class="btn btn-primary" onclick="openAdd()"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Přidat odečet</button>
         </div>
@@ -626,6 +627,65 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis dat výše.`;
         try { load(); if (currentMeter === 'overview') renderOverview(); else renderMeter(); }
         catch (err) { console.warn('Energie re-render fail', err); }
     });
+
+    // ─── Nápověda modulu ───
+    function openModuleHelp() {
+        if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+        window.FinanceCommon.help.show({
+            title: 'Energie',
+            subtitle: 'Odečty elektřiny, vody a plynu. Spotřeba, náklad, trend, srovnání s benchmark domácností.',
+            sections: [
+                { kind:'intro', heading:'🎯 K čemu modul slouží',
+                  body:'<p>Pokud máš v bytě/domě <b>vlastní měřidla</b> a chceš mít kontrolu nad spotřebou (a fakturací), zde si vedeš <b>odečty</b>. Modul z nich počítá spotřebu mezi odečty, náklad podle tvého tarifu a srovnává tě s <b>průměrnou českou domácností</b>.</p>'+
+                       '<p>Poznáš tak: <i>„naše domácnost spotřebuje 4 500 kWh elektřiny ročně — to je 180% normálu, něco je špatně"</i>.</p>' },
+                { kind:'steps', heading:'📝 Postup',
+                  body:'<ol>'+
+                        '<li>Klikni <b>Tarify</b> (vpravo nahoře) a vyplň pro každé médium (elektřina/voda/plyn):'+
+                            '<ul>'+
+                                '<li><b>Cena za jednotku</b> (Kč/kWh nebo Kč/m³).</li>'+
+                                '<li><b>Fixní měsíční poplatek</b> (jistič, vodné, plynoměr).</li>'+
+                                '<li><b>Dodavatel</b> (volitelné).</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li>Klikni <b>Přidat odečet</b>:'+
+                            '<ul>'+
+                                '<li><b>Médium</b> — elektřina / voda / plyn.</li>'+
+                                '<li><b>Datum</b> + <b>Stav měřiče</b> (číslo na displeji).</li>'+
+                                '<li><b>Poznámka</b> volitelně.</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li>Modul automaticky spočítá spotřebu mezi předchozím a tímhle odečtem + odpovídající náklad.</li>'+
+                        '<li>Po pár odečtech klikni <b>Spustit analýzu</b> v Přehledu → AI ti řekne, kde plýtváš.</li>'+
+                      '</ol>' },
+                { kind:'features', heading:'✨ Vychytávky',
+                  body:'<ul>'+
+                        '<li><b>4 záložky</b>: Přehled (všechna tři média + graf), Elektřina, Voda, Plyn.</li>'+
+                        '<li><b>Per-meter tabulka</b> — odečty s automaticky spočítanou spotřebou, dny mezi, nákladem.</li>'+
+                        '<li><b>Tarif manager</b> — pro každé médium nastavíš cenu a fixní poplatek. Modul to zohlední v každém výpočtu.</li>'+
+                        '<li><b>Roční extrapolace</b> — z pár odečtů odhadne roční spotřebu (přepočet podle dnů mezi měřeními).</li>'+
+                        '<li><b>Benchmark českých domácností</b>:'+
+                            '<ul>'+
+                                '<li>Elektřina ~2 500 kWh/rok (bez vytápění)</li>'+
+                                '<li>Voda ~35 m³/osoba/rok</li>'+
+                                '<li>Plyn ~12 000 kWh/rok (rodinný dům s vytápěním)</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li><b>AI analýza spotřeby</b> — najde médium s největší úsporou, navrhne konkrétní krok (LED, tarif, izolace), odhadne úsporu v Kč/rok.</li>'+
+                        '<li><b>Graf měsíčních nákladů</b> (v Přehledu) — všechna tři média v jednom (různé barvy).</li>'+
+                      '</ul>' },
+                { kind:'tips', heading:'💡 Tipy & triky',
+                  body:'<ul>'+
+                        '<li><b>Frekvence odečtů</b> — minimum 1× měsíčně, ideál týdně. Dodavatelé čtou ~ročně, ale ty potřebuješ vidět trend.</li>'+
+                        '<li><b>Změna tarifu</b> — pokud měníš dodavatele uprostřed roku, vytvoř <b>2 odečty na stejný den</b>: poslední za starou cenou, první za novou. Pak v tarifu změň cenu, modul od dalšího odečtu počítá s novou.</li>'+
+                        '<li><b>Anomálie</b> — neobvyklý skok ve spotřebě = něco se stalo (zapomenutá lednička v garáži, kapající kohoutek, vypadlá izolace). Odečty týdně toto chytí.</li>'+
+                        '<li><b>VT/NT u elektřiny</b> — pokud máš dvoutarif, vede odečet jen pro VT (vysoký) jako default. Pro plnou evidenci by bylo potřeba rozšířit modul — řekni mi.</li>'+
+                        '<li><b>Plyn jako kWh nebo m³</b> — modul počítá v jednotce, kterou zadáš. Účet bývá v m³, ale cena se může uvádět v Kč/kWh — pak m³ × 10.55 (typický kalorický výkon) = kWh.</li>'+
+                      '</ul>' },
+                { kind:'linked', heading:'🔗 Provázanost',
+                  body:'<p>Modul je <b>standalone</b>. Měsíční náklady se v budoucnu mohou automaticky propsat do Předplatných (energie = fixní opakovaný náklad), ale zatím to musíš zadávat ručně do Příjmů jako transakci typu „Energie".</p>' }
+            ]
+        });
+    }
 
     (function init(){
         const theme = (localStorage.getItem('finance_theme') || getCookie('finance_theme') || 'dark');

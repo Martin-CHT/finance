@@ -413,6 +413,11 @@
                 </div>
                 <div class="w-px h-4 bg-slate-800 hidden sm:block"></div>
                 <h2 class="text-slate-300 font-medium text-sm" id="header-title">—</h2>
+                <button onclick="openModuleHelp()" title="Nápověda"
+                        class="ml-2 flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded border border-slate-800 hover:border-slate-700 transition-colors">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Nápověda</span>
+                </button>
             </div>
         </div>
     </nav>
@@ -1936,6 +1941,56 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
             try { loadData(); renderAll(); }
             catch (err) { console.warn('Spoření re-render fail', err); }
         });
+
+        // ─── Nápověda modulu ───
+        function openModuleHelp() {
+            if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+            window.FinanceCommon.help.show({
+                title: 'Spoření & Cíle',
+                subtitle: 'Plánování spořicích cílů s hierarchií složek, grafem trajektorie a AI koučem.',
+                sections: [
+                    { kind:'intro', heading:'🎯 K čemu modul slouží',
+                      body:'<p>Vizualizuje, kolik <b>chceš naspořit</b>, kolik <b>už máš</b>, a jak rychle se k cíli blížíš při tvé měsíční úložce. Cíle můžeš seskupovat do <b>složek</b> (např. „Krátkodobé", „Auto", „Penze"). Každý cíl má graf trajektorie naspořeno-vs-cíl.</p>' },
+                    { kind:'steps', heading:'📝 Postup',
+                      body:'<ol>'+
+                            '<li>V sidebaru klikni <b>Cíl</b> (nový list) nebo <b>Složka</b> (kontejner).</li>'+
+                            '<li>V detailu cíle vyplň:'+
+                                '<ul>'+
+                                    '<li><b>Název</b> — co spoříš.</li>'+
+                                    '<li><b>Cílová částka</b> — kolik celkem chceš. Pokud netušíš, klikni <b>Odhad AI</b> (např. „nové auto Octavia" → ~600 000 Kč).</li>'+
+                                    '<li><b>Měsíční úložka</b> — kolik můžeš pravidelně dávat stranou.</li>'+
+                                    '<li><b>Aktuálně naspořeno</b> — startovní balík (i nula).</li>'+
+                                    '<li><b>Datum startu</b> — kdy začínáš.</li>'+
+                                '</ul>'+
+                            '</li>'+
+                            '<li><b>Mimořádný vklad</b> (bonus, dar): „+ Mimořádný vklad" v detailu — graf to zohlední k danému datu.</li>'+
+                            '<li><b>AI coaching</b> → strukturované doporučení (stihneš? co změnit?).</li>'+
+                          '</ol>' },
+                    { kind:'features', heading:'✨ Vychytávky',
+                      body:'<ul>'+
+                            '<li><b>Hierarchie složek</b> — vnořuj cíle. Hodí se pro „Krátkodobé / Střednědobé / Dlouhodobé".</li>'+
+                            '<li><b>Drag & drop</b> — přetáhni řádek za úchyt vlevo pro změnu pořadí nebo přesun do/ze složky.</li>'+
+                            '<li><b>Globální KPI</b> v top liště — <i>Měs. úložka</i> (součet všech) a <i>Celkem naspořeno</i>.</li>'+
+                            '<li><b>Graf trajektorie</b> — modrá = plán, zelená = skutečnost (s mimořádnými vklady), pruhovaná = cíl.</li>'+
+                            '<li><b>Odhad AI</b> — navrhne realistickou částku pro český trh.</li>'+
+                            '<li><b>AI coaching</b> — strukturovaná analýza: trajektorie, konkrétní akce, riziko, smart hack.</li>'+
+                            '<li><b>Export / Import</b> — JSON záloha celé hierarchie + mimořádných vkladů.</li>'+
+                          '</ul>' },
+                    { kind:'tips', heading:'💡 Tipy & triky',
+                      body:'<ul>'+
+                            '<li><b>Rozděl podle horizontu</b> — krátkodobé (do 1 roku), střednědobé (1–5 let), dlouhodobé (5+).</li>'+
+                            '<li>U dlouhodobých cílů reálná hodnota peněz padá kvůli inflaci. Nominální cíl ≈ dnešní cena × (1.03)^N.</li>'+
+                            '<li><b>Mimořádné vklady</b> evidence i u jednorázových darů (Vánoce od babičky) — z grafu vidíš, kolik jsi dohnal(a).</li>'+
+                            '<li>Cíl s <b>realistickým deadline</b> (svatba v červnu) → AI coaching řekne, jestli to při aktuální úložce stihneš.</li>'+
+                            '<li><b>Test trajektorie</b>: úložka × měsíce-do-cíle + naspořeno < cíl → nedosáhneš.</li>'+
+                          '</ul>' },
+                    { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                      body:'<p>Když v <b>Příjmy & Výdaje</b> přidáš transakci s typem „<code>Spoření</code>" nebo zaškrtnutým <i>Položka je spoření</i>, automaticky se sem propíše goal (Název = popis transakce, Aktuálně naspořeno = absolutní hodnota; cílovou částku doplníš tady).</p>'+
+                          '<div class="example"><b>Příklad:</b> V Příjmech zapíšeš −3000 Kč „Spoření Amundi". → Tady vznikne cíl „Amundi" s naspořeno 3000 Kč. Doplníš cíl 100 000 Kč a měsíční úložku 3000 Kč. Graf: ~32 měsíců do cíle.</div>'+
+                          '<p style="margin-top:0.6rem">Modul <b>Pre-FI/RE</b> tato data čte pro výpočet celkového majetku.</p>' }
+                ]
+            });
+        }
     </script>
 </body>
 

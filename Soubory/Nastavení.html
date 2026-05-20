@@ -236,12 +236,18 @@
     <main class="max-w-4xl mx-auto px-4 py-6 space-y-5">
 
         <!-- Heading -->
-        <header class="mb-2">
-            <h2 class="text-lg font-bold text-slate-100">Sjednocené nastavení</h2>
-            <p class="text-xs text-slate-500 mt-1">
-                Veškerá konfigurace je společná pro všechny moduly (Příjmy, Spoření, Investice, Půjčky, Fondy, Majetek).
-                Hodnoty se ukládají do cookies prohlížeče a synchronizují se mezi zařízeními přes cloud účet níže.
-            </p>
+        <header class="mb-2 flex justify-between items-start gap-3 flex-wrap">
+            <div>
+                <h2 class="text-lg font-bold text-slate-100">Sjednocené nastavení</h2>
+                <p class="text-xs text-slate-500 mt-1">
+                    Veškerá konfigurace je společná pro všechny moduly (Příjmy, Spoření, Investice, Půjčky, Fondy, Majetek).
+                    Hodnoty se ukládají do cookies prohlížeče a synchronizují se mezi zařízeními přes cloud účet níže.
+                </p>
+            </div>
+            <button class="btn btn-secondary flex-shrink-0" onclick="openModuleHelp()" title="Jak používat Nastavení">
+                <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                Nápověda
+            </button>
         </header>
 
         <!-- ═══ Cloud účet (Google Sheets backend) ═══ -->
@@ -1189,6 +1195,73 @@ function _json(o) {
                 if (e.key === 'Enter') doLogin();
             });
         })();
+
+        // ─── Nápověda modulu ───
+        function openModuleHelp() {
+            if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+            window.FinanceCommon.help.show({
+                title: 'Nastavení',
+                subtitle: 'Centrální konfigurace — AI klíče, Google Sheets sync, cloud účet, moduly a téma.',
+                sections: [
+                    { kind:'intro', heading:'🎯 K čemu modul slouží',
+                      body:'<p>Sjednocená konfigurace pro <b>všechny moduly</b> Finance Terminalu. Klíče, URL, pořadí a téma se zadávají sem a propisují se napříč aplikací.</p>'+
+                           '<p>Co tady najdeš:</p>'+
+                           '<ol>'+
+                                '<li><b>Cloud účet</b> — přihlášení (synchronizace konfigurace mezi zařízeními)</li>'+
+                                '<li><b>AI API klíče</b> — Groq, Gemini, ChatGPT</li>'+
+                                '<li><b>Google Sheets synchronizace</b> — záloha modulových dat do tvého vlastního Sheetu</li>'+
+                                '<li><b>Moduly a jejich uspořádání</b> — viditelnost, skupiny, pořadí</li>'+
+                                '<li><b>Vzhled</b> — světlé / tmavé téma</li>'+
+                                '<li><b>Export / Import konfigurace</b> — záloha (volitelně zašifrovaná)</li>'+
+                           '</ol>' },
+                    { kind:'steps', heading:'📝 Doporučený postup pro nového uživatele',
+                      body:'<ol>'+
+                            '<li><b>Vytvoř si Google Sheet</b> a v něm Apps Script (návod viz sekce Google Sheets níže).</li>'+
+                            '<li><b>Web App URL</b> ze svého Apps Scriptu vlož do pole, klikni <b>Uložit URL</b>, pak <b>Otestovat spojení</b>.</li>'+
+                            '<li><b>Zaregistruj si cloud účet</b> nahoře (uživatelské jméno + heslo).</li>'+
+                            '<li>Získej <b>AI klíče</b>:'+
+                                '<ul>'+
+                                    '<li><b>Groq</b> — zdarma, rychlé (Llama). <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></li>'+
+                                    '<li><b>Gemini</b> — zdarma. <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></li>'+
+                                    '<li><b>ChatGPT</b> — placený. <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></li>'+
+                                '</ul>'+
+                            '</li>'+
+                            '<li>V sekci <b>Moduly a jejich uspořádání</b> skryj, co nepoužíváš, a roztřiď do skupin.</li>'+
+                            '<li><b>Vzhled</b> — vyber téma. Aplikuje se hned na všechny moduly.</li>'+
+                          '</ol>' },
+                    { kind:'features', heading:'✨ Funkce a vychytávky',
+                      body:'<ul>'+
+                            '<li><b>Cloud účet</b> sdílí AI klíče, téma, pořadí modulů a Sheets URL mezi zařízeními. Heslo se hashuje (PBKDF2 200k iterací) — server nikdy nevidí čistý text.</li>'+
+                            '<li><b>4 AI provideři</b> — Groq (rychlý zdarma), Gemini (Google zdarma), ChatGPT (OpenAI placený). Výchozí poskytovatel se volí dropdownem.</li>'+
+                            '<li><b>Test připojení</b> — tlačítko ověří, že klíče fungují (zavolá ping endpoint daného providera).</li>'+
+                            '<li><b>Sheets sync</b> = data každého modulu do listů <code>mod_<i>jméno</i></code> v tvém Sheetu. Funguje obousměrně (push při změně, pull při změně z jiného zařízení).</li>'+
+                            '<li><b>Apps Script návod</b> ↓ obsahuje hotový kód k nakopírování. Stačí Deploy → Web app.</li>'+
+                            '<li><b>Moduly hide/show</b> — checkbox u každého modulu skryje dlaždici i záložku z dashboardu.</li>'+
+                            '<li><b>Skupiny modulů</b> — pojmenuj kategorii (např. „Denní", „Investice"). Modul přiřadíš a v dashboardu se seskupí pod hlavičkou.</li>'+
+                            '<li><b>Encrypted export</b> — checkbox „Chránit heslem" zašifruje export přes AES-GCM 256. Bez hesla soubor nikdo nepřečte.</li>'+
+                            '<li><b>Reset</b> — tlačítko „Smazat veškerá nastavení" vrátí vše do výchozího stavu (jen v tomto prohlížeči — cloud zůstává).</li>'+
+                          '</ul>' },
+                    { kind:'tips', heading:'💡 Tipy & triky',
+                      body:'<ul>'+
+                            '<li><b>Order priorit AI</b>: pokud máš zadané Groq + Gemini + ChatGPT, modul použije „výchozího poskytovatele" z dropdownu. Můžeš třeba mít ChatGPT jen pro testy a default = Groq (rychlejší + free).</li>'+
+                            '<li><b>Sheets sync</b> má 3s debounce — opakovaná editace v rychlém sledu se sloučí do jednoho pushe. Šetří request kvótu.</li>'+
+                            '<li><b>Záloha konfigurace</b> — před experimenty udělej Export. Pokud něco rozbiješ, Import vrátí stav.</li>'+
+                            '<li><b>Encrypted export pro sdílení</b> — pokud si chceš poslat konfiguraci emailem, vždy s heslem. Email není bezpečný kanál.</li>'+
+                            '<li><b>Při změně Apps Scriptu</b> — po Deploy musíš zachovat URL stejnou (Edit existující deployment, ne New deployment). Jinak ti to vygeneruje novou URL a stará přestane fungovat.</li>'+
+                            '<li><b>Token pro Web App</b> (volitelný, v Pokročilém) je <b>jednoduchá ochrana</b> — bez tokenu by kdokoli s URL mohl číst tvá data. Stačí libovolný řetězec, hlavně ho zadej stejně do Apps Scriptu i sem.</li>'+
+                          '</ul>' },
+                    { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                      body:'<p>Tenhle modul je <b>centrální konfigurace</b> — všechny ostatní moduly z něj čtou:</p>'+
+                           '<ul>'+
+                                '<li><b>AI klíče</b> → každý modul s AI funkcí (Příjmy AI rádce, BTC, Spoření coach, atd.).</li>'+
+                                '<li><b>Sheets URL</b> → každý modul sem ukládá svá data (auto-sync přes meta tagy v HTML).</li>'+
+                                '<li><b>Téma</b> → přes postMessage do iframů.</li>'+
+                                '<li><b>Pořadí/viditelnost/skupiny</b> → dashboard (index.html).</li>'+
+                           '</ul>'+
+                           '<p style="margin-top:0.6rem">Můžeš tu klidně cokoliv vyplnit/změnit — moduly se přizpůsobí bez restartu.</p>' }
+                ]
+            });
+        }
     </script>
 
 </body>

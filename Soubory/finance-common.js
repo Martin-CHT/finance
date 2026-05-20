@@ -905,6 +905,138 @@
         ui: {
             toast:        showToast,
             setSyncBusy:  setSyncBusy
+        },
+
+        /* Help modal — strukturovaná nápověda pro každý modul */
+        help: {
+            show: showHelpModal,
+            hide: hideHelpModal
         }
     };
+
+    /* ════════════════════════════════════════════════════════════
+       HELP MODAL — strukturovaná nápověda pro každý modul
+       ────────────────────────────────────────────────────────────
+       Použití (z modulu):
+         FinanceCommon.help.show({
+           title: 'Příjmy & Výdaje',
+           subtitle: 'Sledování transakcí a cashflow',
+           sections: [
+             { kind: 'intro',    heading: '🎯 K čemu slouží', body: '<p>...</p>' },
+             { kind: 'steps',    heading: '📝 Postup', body: '<ol><li>...</li></ol>' },
+             { kind: 'features', heading: '✨ Vychytávky', body: '<ul>...</ul>' },
+             { kind: 'tips',     heading: '💡 Tipy & triky', body: '...' },
+             { kind: 'linked',   heading: '🔗 Provázanost', body: '...' }
+           ]
+         });
+       ════════════════════════════════════════════════════════════ */
+    function ensureHelpStyles() {
+        if (document.getElementById('fc-help-styles')) return;
+        var st = document.createElement('style');
+        st.id = 'fc-help-styles';
+        st.textContent =
+            '#fc-help-bg { position:fixed; inset:0; background:rgba(2,6,23,0.85); backdrop-filter:blur(6px); z-index:99999; display:none; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto; }' +
+            '#fc-help-bg.show { display:flex; }' +
+            '#fc-help-box { background:#0f172a; border:1px solid #1e293b; border-radius:0.75rem; max-width:48rem; width:100%; box-shadow:0 25px 50px rgba(0,0,0,0.5); margin:auto; }' +
+            '#fc-help-header { padding:1.25rem 1.5rem; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; position:sticky; top:0; background:#0f172a; border-radius:0.75rem 0.75rem 0 0; z-index:1; }' +
+            '#fc-help-title { font:600 1.1rem/1.3 Inter,sans-serif; color:#f8fafc; margin:0; }' +
+            '#fc-help-subtitle { font:400 0.78rem/1.4 Inter,sans-serif; color:#64748b; margin:0.2rem 0 0; }' +
+            '#fc-help-close { background:transparent; border:1px solid #1e293b; color:#94a3b8; width:2rem; height:2rem; border-radius:0.4rem; cursor:pointer; font:500 1rem Inter,sans-serif; flex-shrink:0; transition:all .15s; }' +
+            '#fc-help-close:hover { background:#1e293b; color:#f8fafc; }' +
+            '#fc-help-body { padding:1.25rem 1.5rem 1.5rem; }' +
+            '.fc-help-section { margin-bottom:1.5rem; padding:1rem 1.1rem; border-radius:0.55rem; border:1px solid #1e293b; background:#020617; }' +
+            '.fc-help-section:last-child { margin-bottom:0; }' +
+            '.fc-help-section h3 { font:600 0.92rem/1.3 Inter,sans-serif; color:#f8fafc; margin:0 0 0.7rem; display:flex; align-items:center; gap:0.4rem; }' +
+            '.fc-help-section.kind-intro    { border-left:3px solid #38bdf8; }' +
+            '.fc-help-section.kind-steps    { border-left:3px solid #a855f7; }' +
+            '.fc-help-section.kind-features { border-left:3px solid #22c55e; }' +
+            '.fc-help-section.kind-tips     { border-left:3px solid #fbbf24; background:rgba(251,191,36,0.05); }' +
+            '.fc-help-section.kind-linked   { border-left:3px solid #f472b6; }' +
+            '.fc-help-section.kind-warn     { border-left:3px solid #fb7185; background:rgba(244,63,94,0.05); }' +
+            '.fc-help-section p { font:400 0.85rem/1.55 Inter,sans-serif; color:#cbd5e1; margin:0 0 0.6rem; }' +
+            '.fc-help-section p:last-child { margin-bottom:0; }' +
+            '.fc-help-section ul, .fc-help-section ol { font:400 0.85rem/1.55 Inter,sans-serif; color:#cbd5e1; padding-left:1.3rem; margin:0.3rem 0 0.6rem; }' +
+            '.fc-help-section li { margin-bottom:0.35rem; }' +
+            '.fc-help-section li:last-child { margin-bottom:0; }' +
+            '.fc-help-section b, .fc-help-section strong { color:#f8fafc; font-weight:600; }' +
+            '.fc-help-section code, .fc-help-section .kbd { font:500 0.78rem/1 "JetBrains Mono",monospace; background:#1e293b; color:#7dd3fc; padding:0.12rem 0.45rem; border-radius:0.25rem; }' +
+            '.fc-help-section .example { margin-top:0.5rem; padding:0.6rem 0.8rem; background:#0f172a; border-left:2px solid #475569; border-radius:0 0.3rem 0.3rem 0; font:400 0.78rem/1.5 Inter,sans-serif; color:#94a3b8; }' +
+            '.fc-help-section .example b { color:#cbd5e1; }' +
+            '/* Light theme */' +
+            'html.light #fc-help-bg { background:rgba(241,245,249,0.85); }' +
+            'html.light #fc-help-box, html.light #fc-help-header { background:#ffffff; border-color:#e2e8f0; }' +
+            'html.light #fc-help-title { color:#0f172a; }' +
+            'html.light #fc-help-subtitle { color:#64748b; }' +
+            'html.light #fc-help-close { background:#f8fafc; color:#64748b; border-color:#e2e8f0; }' +
+            'html.light .fc-help-section { background:#f8fafc; border-color:#e2e8f0; }' +
+            'html.light .fc-help-section h3 { color:#0f172a; }' +
+            'html.light .fc-help-section p, html.light .fc-help-section ul, html.light .fc-help-section ol { color:#475569; }' +
+            'html.light .fc-help-section b, html.light .fc-help-section strong { color:#0f172a; }' +
+            'html.light .fc-help-section code, html.light .fc-help-section .kbd { background:#e2e8f0; color:#0369a1; }' +
+            'html.light .fc-help-section .example { background:#fff; color:#64748b; border-color:#cbd5e1; }';
+        document.head.appendChild(st);
+    }
+
+    function ensureHelpModal() {
+        if (document.getElementById('fc-help-bg')) return;
+        ensureHelpStyles();
+        var bg = document.createElement('div');
+        bg.id = 'fc-help-bg';
+        bg.innerHTML =
+            '<div id="fc-help-box" role="dialog" aria-modal="true" aria-labelledby="fc-help-title">' +
+              '<header id="fc-help-header">' +
+                '<div>' +
+                  '<h2 id="fc-help-title">Nápověda</h2>' +
+                  '<p id="fc-help-subtitle"></p>' +
+                '</div>' +
+                '<button id="fc-help-close" type="button" aria-label="Zavřít">×</button>' +
+              '</header>' +
+              '<div id="fc-help-body"></div>' +
+            '</div>';
+        bg.addEventListener('click', function (e) { if (e.target === bg) hideHelpModal(); });
+        if (document.body) document.body.appendChild(bg);
+        else document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(bg); });
+        // Close button
+        setTimeout(function () {
+            var btn = document.getElementById('fc-help-close');
+            if (btn) btn.addEventListener('click', hideHelpModal);
+        }, 0);
+        // ESC to close
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                var b = document.getElementById('fc-help-bg');
+                if (b && b.classList.contains('show')) hideHelpModal();
+            }
+        });
+    }
+
+    function showHelpModal(content) {
+        ensureHelpModal();
+        if (!content) return;
+        var titleEl    = document.getElementById('fc-help-title');
+        var subtitleEl = document.getElementById('fc-help-subtitle');
+        var bodyEl     = document.getElementById('fc-help-body');
+        var bg         = document.getElementById('fc-help-bg');
+        if (!titleEl || !bodyEl || !bg) return;
+        titleEl.textContent    = content.title || 'Nápověda';
+        subtitleEl.textContent  = content.subtitle || '';
+        subtitleEl.style.display = content.subtitle ? '' : 'none';
+        var html = '';
+        (content.sections || []).forEach(function (s) {
+            var kind = s.kind || 'intro';
+            html += '<section class="fc-help-section kind-' + kind + '">' +
+                      '<h3>' + (s.heading || '') + '</h3>' +
+                      (s.body || '') +
+                    '</section>';
+        });
+        bodyEl.innerHTML = html;
+        bg.classList.add('show');
+        document.body.style.overflow = 'hidden'; // prevent background scroll
+    }
+
+    function hideHelpModal() {
+        var bg = document.getElementById('fc-help-bg');
+        if (bg) bg.classList.remove('show');
+        document.body.style.overflow = '';
+    }
 })();

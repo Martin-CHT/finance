@@ -347,6 +347,10 @@
                     })();
                 </script>
                 <div class="w-px h-4 bg-slate-800"></div>
+                <button onclick="openDashboardHelp()" id="help-btn" title="Jak používat Finance Terminal — úvod"
+                    class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
+                    <i data-lucide="help-circle" class="w-4 h-4"></i>
+                </button>
                 <button onclick="toggleTheme()" id="theme-toggle" title="Přepnout světlý / tmavý režim"
                     class="text-slate-400 hover:text-slate-200 transition-colors p-1.5 rounded-md hover:bg-slate-800">
                     <i data-lucide="sun" class="w-4 h-4"></i>
@@ -961,6 +965,77 @@
                 console.info('[PWA] Service Worker je zakázán na file:// — pro offline mód spusť přes lokální server (např. `python -m http.server`) nebo nasaď na GitHub Pages.');
             }
         })();
+
+        // ─── Dashboard / overall app help ───
+        function openDashboardHelp() {
+            if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+            window.FinanceCommon.help.show({
+                title: 'Finance Terminal — úvodní seznámení',
+                subtitle: 'Co umí, kde je co a kde začít.',
+                sections: [
+                    { kind:'intro', heading:'🎯 Co je Finance Terminal',
+                      body:'<p>Sjednocené finanční centrum — <b>všechny tvé moduly</b> (transakce, spoření, půjčky, investice, BTC, energie…) na jednom místě s konzistentním UI a vzájemnou provázaností.</p>'+
+                           '<p><b>Data zůstávají tobě</b> — všechno běží v prohlížeči (localStorage). Volitelně si můžeš nastavit synchronizaci do <b>tvého vlastního</b> Google Sheetu (přes vlastní Apps Script).</p>' },
+                    { kind:'steps', heading:'📝 Kde začít (3 kroky)',
+                      body:'<ol>'+
+                            '<li><b>Klikni na Nastavení</b> v top liště (ozubené kolo vpravo).'+
+                                '<ul>'+
+                                    '<li>Vlož <b>AI API klíče</b> (Groq je free, doporučuju).</li>'+
+                                    '<li>Volitelně si nastav <b>Google Sheets synchronizaci</b> + cloud účet (podle návodu uvnitř).</li>'+
+                                '</ul>'+
+                            '</li>'+
+                            '<li><b>Začni s modulem Příjmy & Výdaje</b> — to je tvoje finanční páteř. Přidej pár transakcí.</li>'+
+                            '<li><b>Postupně přidávej další moduly</b> podle potřeby:'+
+                                '<ul>'+
+                                    '<li>Pravidelné platby → <b>Předplatná</b></li>'+
+                                    '<li>Spořicí cíle → <b>Spoření & Cíle</b></li>'+
+                                    '<li>Hypotéka, půjčky → <b>Půjčky & Splátky</b></li>'+
+                                    '<li>Investice → <b>Investice & Penze</b>, <b>BTC</b>, <b>Broker</b>, <b>Fondy</b></li>'+
+                                    '<li>Plán předčasné penze → <b>Pre-FI/RE</b></li>'+
+                                '</ul>'+
+                            '</li>'+
+                          '</ol>'+
+                          '<p style="margin-top:0.6rem"><b>V každém modulu</b> najdeš tlačítko „Nápověda" — detailní vysvětlení tohoto modulu.</p>' },
+                    { kind:'features', heading:'✨ Klíčové vychytávky',
+                      body:'<ul>'+
+                            '<li><b>Provázanost</b> — transakce typu „Spoření" / „Předplatné" / „Půjčka" v Příjmech automaticky vytvoří odpovídající záznam v cílovém modulu.</li>'+
+                            '<li><b>AI rádci</b> — v každém modulu strukturovaná analýza tvých dat (Groq / Gemini / ChatGPT). Žádné generické rady, vždy konkrétní akce.</li>'+
+                            '<li><b>Multi-zařízení</b> — cloud účet synchronizuje konfiguraci. Modulová data jdou do tvého vlastního Sheetu.</li>'+
+                            '<li><b>Skupiny modulů</b> — v Nastavení rozděl moduly do kategorií („Denní", „Investice", „Závazky"…) — Dashboard je seskupí.</li>'+
+                            '<li><b>Skrýt nepoužívané</b> — checkbox v Nastavení zhasne moduly, které nepoužíváš. Dlaždice i záložka zmizí.</li>'+
+                            '<li><b>Encrypted export</b> — kompletní záloha včetně AI klíčů, chráněná tvým heslem (AES-GCM).</li>'+
+                            '<li><b>PWA install</b> — z menu prohlížeče „Instalovat aplikaci" → Finance Terminal jako standalone app na ploše/telefonu.</li>'+
+                            '<li><b>Klávesové zkratky</b> — ESC zavře jakýkoliv otevřený modal/dialog.</li>'+
+                          '</ul>' },
+                    { kind:'tips', heading:'💡 Tipy pro efektivní použití',
+                      body:'<ul>'+
+                            '<li><b>Příjmy jsou centrum</b> — tady eviduj <b>každou jednu</b> transakci. Ostatní moduly se ti samy doplní.</li>'+
+                            '<li><b>Měsíční rituál</b> — 1× měsíčně (typicky první víkend) zkontroluj všechny moduly, doplň co chybí, podívej se na AI rádce.</li>'+
+                            '<li><b>Export záloh</b> každé 2–3 měsíce stáhni encrypted JSON (Nastavení → Export). Pojistka proti zničení dat.</li>'+
+                            '<li><b>AI klíče jsou sdílené</b> — zadáš jednou v Nastavení, fungují všude.</li>'+
+                            '<li><b>Když na něčem trávíš víc než 5 minut</b>, řekni mi — pravděpodobně to jde řešit ergonomičtěji.</li>'+
+                          '</ul>' },
+                    { kind:'linked', heading:'🔗 Mapa modulů',
+                      body:'<div class="example">' +
+                            '<b>Denní rutina</b><br>' +
+                            '• <b>Příjmy & Výdaje</b> — všechny transakce<br>' +
+                            '• <b>Předplatná</b> — opakované závazky<br><br>' +
+                            '<b>Cíle a plánování</b><br>' +
+                            '• <b>Spoření & Cíle</b> — krátko/střednědobé cíle<br>' +
+                            '• <b>Pre-FI/RE</b> — předčasná penze<br><br>' +
+                            '<b>Investice</b><br>' +
+                            '• <b>Investice & Penze</b> — penzijní kalkulačka<br>' +
+                            '• <b>Fondy Conseq</b> — DPS / fondy<br>' +
+                            '• <b>Broker</b> — akcie / ETF / P2P<br>' +
+                            '• <b>BTC Investice</b> — chytré DCA do krypta<br><br>' +
+                            '<b>Závazky a majetek</b><br>' +
+                            '• <b>Půjčky & Splátky</b> — amortizace dluhů<br>' +
+                            '• <b>Majetek & Odpisy</b> — elektronika a vybavení<br>' +
+                            '• <b>Energie</b> — odečty měřidel' +
+                           '</div>' }
+                ]
+            });
+        }
 
         function updateLoginChip() {
             const chip = document.getElementById('loginChip');

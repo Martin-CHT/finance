@@ -835,3 +835,63 @@ window.addEventListener('fc-module-data-updated', (e) => {
     try { refresh(); } catch(_) {}
   } catch (err) { console.warn('BTC re-render fail', err); }
 });
+
+// ─── Modul-level Nápověda (přes finance-common.js shared help) ───
+document.getElementById('btnHelp')?.addEventListener('click', () => {
+  if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+  window.FinanceCommon.help.show({
+    title: 'BTC Investice — chytré DCA',
+    subtitle: 'Multi-strategy DCA do kryptoměn s matematickým modelem + AI vrstvou.',
+    sections: [
+      { kind:'intro', heading:'🎯 K čemu modul slouží',
+        body:'<p><b>DCA</b> (Dollar Cost Averaging) = nakupuj pravidelně stejnou částku, ignoruj cenu. Tenhle modul to vychyluje: <b>když je BTC levný → kup víc, když je drahý → kup míň</b>. Vychází z toho, že historicky to vede k lepší průměrné nákupní ceně.</p>'+
+             '<p>Bez nahrazování tvého úsudku — model navrhne částku, ty rozhodneš, jestli ji koupíš.</p>' },
+      { kind:'steps', heading:'📝 Postup',
+        body:'<ol>'+
+              '<li><b>Vyber strategii</b> v horní liště (default „BTC Smart DCA") nebo vytvoř novou („+ Nová" pro multi-asset portfolio).</li>'+
+              '<li><b>Plán investice</b> (sekce 1):'+
+                  '<ul>'+
+                      '<li><b>Asset</b> — Bitcoin / Ethereum / vlastní (viz Nastavení).</li>'+
+                      '<li><b>Budget</b> — kolik celkem chceš investovat za dané období.</li>'+
+                      '<li><b>Období</b> + <b>Interval</b> — třeba 1 měsíc týdně = 4 nákupy.</li>'+
+                      '<li><b>Citlivost (k)</b> — jak silně reagovat na cenu. 1.5 = středně agresivní. Vyšší = víc kupuješ při poklesu / míň při vrcholu. Slider 0.5–3.</li>'+
+                  '</ul>'+
+              '</li>'+
+              '<li><b>Ulož plán</b>. Modul stáhne aktuální cenu a historii (CoinGecko, free).</li>'+
+              '<li><b>Doporučení</b> (sekce 2) ti řekne pro <i>tento interval</i>, kolik investovat (a verdict BUY / HOLD / SKIP).</li>'+
+              '<li>Pokud nákup uděláš, klikni <b>+ Zaznamenat investici</b> v sekci 6 — modul si pamatuje skutečnou historii.</li>'+
+              '<li><b>AI doporučení</b> (sekce 4) — Groq + Gemini se podívají na stejný kontext a dají druhý názor.</li>'+
+            '</ol>' },
+      { kind:'features', heading:'✨ Vychytávky',
+        body:'<ul>'+
+              '<li><b>Multi-strategy</b> — měj víc DCA portfolií pod jedním modulem (BTC, ETH, multi-asset, HODL pozice).</li>'+
+              '<li><b>Matematický model</b>:'+
+                  '<ul>'+
+                      '<li><b>Mayer Multiple</b> = cena / 200d klouzavý průměr. Mediánová hodnota ~1.4. Pod 1 = silný buy, nad 2.4 = silný sell.</li>'+
+                      '<li><b>Z-score (log price)</b> = jak je aktuální cena výjimečná oproti 365 dnům.</li>'+
+                      '<li><b>Multiplikátor</b> = clamp(formula, 0.2×, 2.5×) — finální násobič „rovnoměrné" DCA částky.</li>'+
+                  '</ul>'+
+              '</li>'+
+              '<li><b>AI vrstva</b> — Groq (llama 3.3) + Gemini (2.0/2.5) dostávají stejný kontext. Vrací 4 body: pohled, souhlas s modelem, riziko, akce.</li>'+
+              '<li><b>Graf 365 dní</b> — cena + 200d SMA + zóny BUY/HOLD/SKIP.</li>'+
+              '<li><b>Historie investic</b> — tvoje skutečné nákupy (vklad, cena BTC, získané BTC, hodnota dnes, P&L vůči ekvivalentnímu vkladu).</li>'+
+              '<li><b>Vlastní assety</b> (Nastavení) — CoinGecko ID (ethereum, solana, cardano…). Model funguje stejně.</li>'+
+              '<li><b>Měna zobrazení</b> — USD nebo CZK. Vklady ale vždy v CZK (přepočet aktuálním kurzem).</li>'+
+              '<li><b>Universal Help</b> — všechny sekce mají vysvětlivky (ⓘ ikony) s detailem.</li>'+
+            '</ul>' },
+      { kind:'tips', heading:'💡 Tipy & triky',
+        body:'<ul>'+
+              '<li><b>Citlivost k</b> — pokud věříš v dlouhodobý růst BTC a chceš agresivně nakupovat propady, dej k=2.0–2.5. Pokud chceš klidnější DCA, k=1.0.</li>'+
+              '<li><b>Multiplikátor pod 0.5</b> = přeskoč tento interval. Přepočti to k dalšímu (akumulace „nevyužitého" budgetu).</li>'+
+              '<li><b>Multiplikátor nad 2.0</b> = silný BUY signal. Některé strategie dokonce přidávají z rezervy nad rámec budgetu.</li>'+
+              '<li><b>AI druhý názor</b> — pokud Groq i Gemini souhlasí s modelem, je to silnější signál. Pokud se rozcházejí, čti důvody.</li>'+
+              '<li><b>HODL strategie</b> (vytvoř novou bez plánu) — pro jednorázové nákupy. Modul jen sleduje P&L bez doporučení.</li>'+
+              '<li>API klíče (Groq, Gemini) zadej v <b>globálním Nastavení</b> — sdílí se s ostatními moduly.</li>'+
+            '</ul>' },
+      { kind:'warn', heading:'⚠ Disclaimer',
+        body:'<p>Toto <b>není finanční poradenství</b>. Krypto je vysoce volatilní. Doporučení slouží jako analytický pomocník — finální rozhodnutí je vždy na tobě. Nikdy neinvestuj víc, než si můžeš dovolit ztratit.</p>' },
+      { kind:'linked', heading:'🔗 Provázanost',
+        body:'<p>Modul je <b>standalone</b>. AI klíče čte ze sdíleného úložiště (Nastavení). Pre-FI/RE čte aktuální hodnotu BTC × získaných BTC pro výpočet celkového majetku.</p>' }
+    ]
+  });
+});

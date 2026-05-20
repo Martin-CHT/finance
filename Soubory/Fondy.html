@@ -183,6 +183,10 @@
                 </div>
             </a>
             <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                <button onclick="openModuleHelp()" title="Nápověda"
+                    class="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 border border-slate-700">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Nápověda
+                </button>
                 <button onclick="generateAIReport()"
                     class="flex-1 sm:flex-none btn-ai text-white px-3 py-1.5 text-xs rounded-lg font-medium transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-1.5">
                     ✨ AI Analýza
@@ -953,6 +957,51 @@
             showModal('aiModal');
             switchAiProvider(getCookie('ai_provider') || 'groq');
             lucide.createIcons();
+        }
+
+        // ─── Nápověda modulu ───
+        function openModuleHelp() {
+            if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+            window.FinanceCommon.help.show({
+                title: 'Fondy Conseq',
+                subtitle: 'Sledování měsíčních vkladů a aktuální hodnoty fondů Conseq vs. inflace ČNB.',
+                sections: [
+                    { kind:'intro', heading:'🎯 K čemu modul slouží',
+                      body:'<p>Pokud používáš <b>Conseq Penzijní fond</b> (DPS/PP) nebo <b>Conseq Globální akciový</b> jako pravidelný investiční nástroj, tenhle modul ti vede evidenci vkladů a srovná je s <b>inflací ČNB</b>.</p>'+
+                           '<p>Vidíš nominální výnos i reálný (po inflaci) — to je klíčové pro pochopení, jestli tvé peníze opravdu rostou nebo jen drží krok s drahotou.</p>' },
+                    { kind:'steps', heading:'📝 Postup',
+                      body:'<ol>'+
+                            '<li>Klikni <b>+ Přidat měsíc</b>.</li>'+
+                            '<li>Vyplň:'+
+                                '<ul>'+
+                                    '<li><b>Měsíc</b> — kterého období se vklad týká.</li>'+
+                                    '<li><b>Vklad</b> — kolik jsi v daném měsíci poslal(a).</li>'+
+                                    '<li><b>Aktuální hodnota</b> — co ti aplikace Conseq ukazuje k poslednímu dni měsíce.</li>'+
+                                '</ul>'+
+                            '</li>'+
+                            '<li>Po pár měsících uvidíš výnos vs. inflaci.</li>'+
+                            '<li><b>AI Analýza</b> tlačítko vpravo nahoře → AI vyhodnotí trajektorii a navrhne kroky.</li>'+
+                          '</ol>' },
+                    { kind:'features', heading:'✨ Vychytávky',
+                      body:'<ul>'+
+                            '<li><b>3 KPI nahoře</b>: <i>Aktuální výnos</i> (nominálně), <i>Kumulovaná inflace</i> (ČNB), <i>Reálný výnos</i> (nominál − inflace).</li>'+
+                            '<li><b>Měsíční tabulka</b> s vývojem — vklad / hodnota / nominální P&L / reálný P&L.</li>'+
+                            '<li><b>Tampermonkey skript</b> (tlačítko „Instalovat skript") — automaticky vyplní formulář z portálu Conseq, ušetří ruční přepisování. Vyžaduje rozšíření Tampermonkey/Violentmonkey.</li>'+
+                            '<li><b>AI Analýza</b> — porovná tvůj výnos s alternativními investicemi a navrhne, jestli pokračovat / přesedlat.</li>'+
+                            '<li><b>Inflace ČNB</b> načítaná z oficiálního API — vždy aktuální.</li>'+
+                          '</ul>' },
+                    { kind:'tips', heading:'💡 Tipy & triky',
+                      body:'<ul>'+
+                            '<li><b>Tampermonkey skript</b> šetří dost času — nainstaluj si rozšíření a klikni „Instalovat skript". Na webu Conseq pak vidíš tlačítko „Export do Finance Terminal".</li>'+
+                            '<li><b>Reálný výnos</b> je správná metrika. Pokud fond rostl 4% nominálně, ale inflace byla 5%, fakticky jsi přišel(la) o 1% kupní síly.</li>'+
+                            '<li><b>Conseq DPS</b> má vstupní poplatek + spread mezi nákupem a prodejem podílů — započítej.</li>'+
+                            '<li>Pokud reálný výnos dlouhodobě (3+ roky) <b>záporný</b>, AI ti doporučí přesun do alternativy (ETF, BTC DCA).</li>'+
+                          '</ul>' },
+                    { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                      body:'<p>Modul je <b>standalone</b> — data o vkladech zůstávají tady. <b>Pre-FI/RE</b> autofill čte aktuální hodnotu z posledního měsíce pro výpočet celkového majetku.</p>'+
+                           '<p>V budoucnu se počítá s tím, že vklady budou propsané z modulu Příjmy & Výdaje (transakce typu „Fond Conseq").</p>' }
+                ]
+            });
         }
 
         async function callGroq(prompt, systemInstruction) {

@@ -269,6 +269,11 @@
                     <div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Doplaceno</div>
                     <div class="text-base font-bold text-slate-100 font-mono" id="global-paid">0 Kč</div>
                 </div>
+                <button onclick="openModuleHelp()" title="Nápověda"
+                        class="flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors"
+                        style="background:#1e293b;border:1px solid #334155;">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Nápověda
+                </button>
             </div>
         </header>
 
@@ -2000,6 +2005,56 @@ function doPost(e) {
             try { app.loadData(); app.renderAll(); }
             catch (err) { console.warn('Půjčky re-render fail', err); }
         });
+
+        // ─── Nápověda modulu ───
+        function openModuleHelp() {
+            if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+            window.FinanceCommon.help.show({
+                title: 'Půjčky & Splátky',
+                subtitle: 'Správa portfolia půjček a hypoték — amortizační plán, mimořádné splátky, AI strategie.',
+                sections: [
+                    { kind:'intro', heading:'🎯 K čemu modul slouží',
+                      body:'<p>Vede portfolio <b>všech tvých dluhů</b> (hypotéka, spotřebák, půjčka rodině) a každému počítá <b>amortizační plán</b> — jak se v čase mění poměr úroku a jistiny ve splátce.</p>'+
+                           '<p>Pomáhá rozhodnout: <b>splácet rychleji</b> mimořádnými splátkami, nebo radši peníze investovat?</p>' },
+                    { kind:'steps', heading:'📝 Postup',
+                      body:'<ol>'+
+                            '<li>V sidebaru <b>+ Přidat půjčku</b>.</li>'+
+                            '<li>Vyplň parametry:'+
+                                '<ul>'+
+                                    '<li><b>Název</b> — co to je („Hypotéka Komerčka", „Spotřebák Cetelem").</li>'+
+                                    '<li><b>Jistina</b> — částka, kterou jsi si půjčil(a).</li>'+
+                                    '<li><b>Úrok % p.a.</b> — roční úroková sazba (z smlouvy).</li>'+
+                                    '<li><b>Počet splátek</b> — celkový horizont (60 měsíců = 5 let).</li>'+
+                                    '<li><b>Datum první splátky</b> — graf začne odsud.</li>'+
+                                '</ul>'+
+                            '</li>'+
+                            '<li>Modul spočítá <b>měsíční splátku</b> a vykreslí amortizační tabulku.</li>'+
+                            '<li><b>Mimořádné splátky</b> přidávej průběžně přes „+ Mimořádná splátka" — graf přepočítá novou trajektorii.</li>'+
+                            '<li><b>AI coach</b> → strategie: vyplatí se mimořádně splácet, nebo investovat?</li>'+
+                          '</ol>' },
+                    { kind:'features', heading:'✨ Vychytávky',
+                      body:'<ul>'+
+                            '<li><b>Globální KPI</b> v top liště — <i>Celkový dluh</i>, <i>Měsíční splátka</i>, <i>Zbývá na úrocích</i>, <i>Doplaceno</i> (součet všech půjček).</li>'+
+                            '<li><b>Amortizační tabulka</b> — pro každou splátku ukazuje rozpad na úrok + jistinu + zbývající dluh. Hned vidíš, kolik na začátku jdou na úroky (typicky 80%).</li>'+
+                            '<li><b>Graf zůstatku</b> — křivka, jak se dluh snižuje. Mimořádné splátky vytvoří skoky dolů.</li>'+
+                            '<li><b>Mimořádné splátky</b> — zadej částku + datum, modul přepočítá zbytek (zkrácení horizontu vs. snížení splátky — můžeš volit režim).</li>'+
+                            '<li><b>AI Coach</b> — porovnává úsporu na úrocích z mimořádné splátky vs. potenciální výnos investice. Říká, co se ti vyplatí.</li>'+
+                            '<li><b>Export / Import</b> — JSON záloha celého portfolia.</li>'+
+                          '</ul>' },
+                    { kind:'tips', heading:'💡 Tipy & triky',
+                      body:'<ul>'+
+                            '<li><b>Úspora na úrocích</b> = každá tisícikoruna jistiny, kterou splatíš dřív, ušetří úrok za zbylé měsíce. Při 6% úroku a 10 letech do konce = ~600 Kč úspory za tisíc.</li>'+
+                            '<li><b>Hypotéka vs. fond</b>: jednoduchá poučka — pokud je úrok hypotéky <b>nižší</b> než průměrný výnos investice po inflaci (cca 5-7%), nemá smysl mimořádně splácet. Vyšší → splácej.</li>'+
+                            '<li><b>Re-fix hypotéky</b> — když končí fixace, modul ti pomůže porovnat nabídky bank (přepiš úrok a zkus, co dělá s celkovou cenou).</li>'+
+                            '<li><b>Pozor na sankci</b> — některé smlouvy mají poplatek za mimořádnou splátku mimo výročí. Před akcí ji započítej do úspory.</li>'+
+                          '</ul>' },
+                    { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                      body:'<p>Když v <b>Příjmy & Výdaje</b> přidáš transakci s typem obsahujícím „<code>Půjčka</code>" nebo „<code>Splátka</code>", automaticky se sem propíše záznam.</p>'+
+                           '<div class="example"><b>Příklad:</b> V Příjmech zapíšeš −15 000 Kč „Splátka hypotéky". → Tady se objeví půjčka „Splátka hypotéky" (jistina = 15 000 Kč jako default, opravíš na reálnou hodnotu). Doplníš úrok a horizont, modul dopočítá amortizaci.</div>'+
+                           '<p style="margin-top:0.6rem"><b>Pre-FI/RE</b> zahrnuje splátky půjček do tvých výdajů.</p>' }
+                ]
+            });
+        }
     </script>
 </body>
 

@@ -70,6 +70,7 @@
             </div>
         </a>
         <div class="flex items-center gap-2">
+            <button class="btn btn-secondary" onclick="openModuleHelp()" title="Nápověda"><i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Nápověda</button>
             <button class="btn btn-secondary" id="btnRefreshPrices" onclick="refreshAllPrices()" title="Stáhnout aktuální ceny ze Stooq (free, bez klíče)"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Ceny</button>
             <button class="btn btn-secondary" onclick="openModal('tx')"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Transakce</button>
             <button class="btn btn-primary" onclick="openModal('pos')"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Pozice</button>
@@ -682,6 +683,65 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
         try { load(); renderAll(); }
         catch (err) { console.warn('Broker re-render fail', err); }
     });
+
+    // ─── Nápověda modulu ───
+    function openModuleHelp() {
+        if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+        window.FinanceCommon.help.show({
+            title: 'Broker (Akcie / ETF / P2P)',
+            subtitle: 'Evidence pozic u brokerů + automatický pull cen + daňový pomocník + AI audit.',
+            sections: [
+                { kind:'intro', heading:'🎯 K čemu modul slouží',
+                  body:'<p>Pokud máš účet u brokera (<b>Degiro, XTB, IBKR, Trading 212, Patria…</b>) nebo na <b>P2P</b> platformě (Mintos, Bondster), tenhle modul vede evidenci tvých pozic a transakcí.</p>'+
+                       '<p>Spočítá aktuální hodnotu, nerealizovaný P&L, dividendy za rok a pomůže s daňovým přiznáním.</p>' },
+                { kind:'steps', heading:'📝 Postup',
+                  body:'<ol>'+
+                        '<li><b>Záložka Účty</b> → přidej brokerský účet (Degiro CZK, IBKR USD…). Měna účtu je výchozí pro pozice na něm.</li>'+
+                        '<li><b>Záložka Pozice</b> → přidej co aktuálně držíš:'+
+                            '<ul>'+
+                                '<li><b>Ticker</b> — burzovní symbol (např. <code>VWCE.DE</code>, <code>AAPL</code>).</li>'+
+                                '<li><b>Typ</b> — akcie / ETF / dluhopis / P2P.</li>'+
+                                '<li><b>Počet</b> + <b>Průměrná cena</b> (kolik tě stál jeden kus).</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li><b>Záložka Transakce</b> → eviduj nákupy / prodeje / dividendy / poplatky. To je důležité pro daňové výpočty.</li>'+
+                        '<li><b>Ceny</b> (tlačítko nahoře) → modul stáhne aktuální ceny ze Stooq (free, bez klíče) a aktualizuje pozice.</li>'+
+                        '<li><b>Záložka Daně</b> → vyber rok, modul ukáže dividendy + realizované zisky + AI audit s konkrétními optimalizacemi.</li>'+
+                      '</ol>' },
+                { kind:'features', heading:'✨ Vychytávky',
+                  body:'<ul>'+
+                        '<li><b>4 záložky</b>: Pozice / Transakce / Účty / Daně.</li>'+
+                        '<li><b>KPI nahoře</b>: Hodnota portfolia, Vložený kapitál, Nereal. P&L (% i absolutně), Dividendy tento rok.</li>'+
+                        '<li><b>Tlačítko „Ceny"</b> stáhne aktuální ceny ze <a href="https://stooq.com" target="_blank">Stooq</a> (free, žádný API klíč). Tickery rozpoznává podle suffixu:'+
+                            '<ul>'+
+                                '<li><code>AAPL</code> bez suffixu → automaticky <code>AAPL.US</code></li>'+
+                                '<li><code>VWCE.DE</code> → Xetra Frankfurt</li>'+
+                                '<li><code>CEZ.PL</code> → Varšava</li>'+
+                                '<li><code>O2.CZ</code> → BCPP Praha</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li><b>Daňový upozorňovač</b>:'+
+                            '<ul>'+
+                                '<li>3letý časový test — akcie/ETF držené >3 roky jsou osvobozeny.</li>'+
+                                '<li>USA dividendy 15% srážková — ČR pak doplňuje.</li>'+
+                                '<li>Limit 100 000 Kč příležitostných příjmů z prodeje.</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li><b>AI audit portfolia</b> — projde tvé pozice, najde koncentrační rizika, daňové optimalizace, diverzifikační mezery.</li>'+
+                      '</ul>' },
+                { kind:'tips', heading:'💡 Tipy & triky',
+                  body:'<ul>'+
+                        '<li><b>Při nákupu</b> vždy zapiš transakci s typem „buy" — modul z toho automaticky neaktualizuje pozice (pozice je samostatná entita), ale potřebuješ to pro výpočet realizovaných zisků při budoucím prodeji.</li>'+
+                        '<li><b>Časový test 3 roky</b> = u akcií držených >3 roky platíš 0% daň z prodejního zisku. Jeden z nejvýhodnějších českých daňových bonusů.</li>'+
+                        '<li><b>Drobné akcie pod 100k</b> — pokud prodáš za rok všechny akcie souhrnně pod 100 000 Kč, nepodáváš ani daňové přiznání (osvobození malých částek).</li>'+
+                        '<li><b>P2P úroky</b> jsou daňově méně výhodné — daní se 15% ve výplatě. AI audit ti řekne, jestli ti P2P platí.</li>'+
+                        '<li><b>Tickery</b> — pokud Stooq nezná, zkus formát <code>SYMBOL.SUFFIX</code> (<code>.us</code>, <code>.de</code>, <code>.uk</code>, <code>.pl</code>). Některé exotické (LSE penny stocks) prostě nejsou.</li>'+
+                      '</ul>' },
+                { kind:'linked', heading:'🔗 Provázanost',
+                  body:'<p>Modul je <b>standalone</b>. Pre-FI/RE čte aktuální hodnotu portfolia (součet pozic × současná cena) pro výpočet celkového majetku.</p>' }
+            ]
+        });
+    }
 
     // ─── Stooq price fetch (free, CORS-friendly) ───
     // Stooq URL: https://stooq.com/q/l/?s=aapl.us&f=sd2t2ohlcv&h&e=csv

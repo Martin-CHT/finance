@@ -361,6 +361,10 @@
                 <span class="status-dot"></span>
                 <span class="text-[10px] text-slate-500 font-mono hidden sm:inline mr-1">localStorage · online</span>
                 <div class="w-px h-4 bg-slate-700 mx-1"></div>
+                <button onclick="openModuleHelp()" class="btn btn-ghost" title="Nápověda">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Nápověda</span>
+                </button>
                 <button onclick="app.exportCsv()" class="btn btn-ghost" title="Export CSV">
                     <i data-lucide="download" class="w-3.5 h-3.5"></i>
                     <span class="hidden sm:inline">Export</span>
@@ -865,6 +869,51 @@
                         self.refreshAll();
                     } catch (err) { console.warn('Majetek re-render fail', err); }
                 });
+
+                // Globální helper pro nápovědu (volá se z navbar buttonu)
+                window.openModuleHelp = function () {
+                    if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+                    window.FinanceCommon.help.show({
+                        title: 'Majetek & Odpisy',
+                        subtitle: 'Evidence elektroniky a vybavení — lineární odpisy, hlídání záruční doby, statistiky portfolia.',
+                        sections: [
+                            { kind:'intro', heading:'🎯 K čemu modul slouží',
+                              body:'<p>Vede přehled o <b>hodnotných předmětech</b>, které vlastníš (notebooky, telefony, kola, foto, nářadí…). Pro každý počítá <b>lineární odpis</b> = jak rychle klesá tržní cena v čase.</p>'+
+                                   '<p>Hlídá taky <b>záruční dobu</b> — upozorní, kdy se blíží konec.</p>' },
+                            { kind:'steps', heading:'📝 Postup',
+                              body:'<ol>'+
+                                    '<li>Klikni <b>+ Položka</b>.</li>'+
+                                    '<li>Vyplň:'+
+                                        '<ul>'+
+                                            '<li><b>Název</b> + <b>Kategorie</b> (Elektronika / Kolo / Nářadí…).</li>'+
+                                            '<li><b>Pořizovací cena</b> + <b>Datum pořízení</b>.</li>'+
+                                            '<li><b>Životnost</b> v letech — kolik let plánuješ používat. Default pro elektroniku ~3 roky, pro nábytek ~10.</li>'+
+                                            '<li><b>Záruka</b> v měsících — kdy vyprší.</li>'+
+                                        '</ul>'+
+                                    '</li>'+
+                                    '<li>Modul automaticky počítá <b>aktuální hodnotu</b> (lineární odpis k dnešku) a <b>zbývající záruční dobu</b>.</li>'+
+                                  '</ol>' },
+                            { kind:'features', heading:'✨ Vychytávky',
+                              body:'<ul>'+
+                                    '<li><b>Lineární odpis</b> — `aktuální hodnota = pořizovací × (1 − stáří / životnost)`. Po uplynutí životnosti hodnota = 0.</li>'+
+                                    '<li><b>Varování záruky</b> — barevné zvýraznění položek, kterým končí záruka do 60 dní (žlutě) / 30 dní (oranžově) / vypršela (červeně).</li>'+
+                                    '<li><b>Statistiky portfolia</b> — celková aktuální hodnota, celkový odpis, počet aktivních položek.</li>'+
+                                    '<li><b>Grafy</b> — koláč podle kategorie, časová osa pořízení, věk vs. zbývající hodnota.</li>'+
+                                    '<li><b>Tabulka & filtrování</b> — třídění podle ceny, věku, kategorie. Filtr „jen v záruce" / „jen mimo".</li>'+
+                                    '<li><b>Export / Import CSV</b> — kompatibilní s Excelem.</li>'+
+                                  '</ul>' },
+                            { kind:'tips', heading:'💡 Tipy & triky',
+                              body:'<ul>'+
+                                    '<li><b>Při ztrátě / krádeži</b> — modul slouží jako důkaz pojišťovně. Můžeš si k položce přidat sériové číslo do poznámky.</li>'+
+                                    '<li><b>Realistická životnost</b>: telefon 3 roky, notebook 5, kolo 8, prachovka 20. Ovlivňuje rychlost odpisu, ale neopisuj z účetní vyhlášky — ber tržní realitu.</li>'+
+                                    '<li><b>Před koncem záruky</b> — zkontroluj věci, vrať/oprav cokoli, co kazí, dokud je zdarma.</li>'+
+                                    '<li><b>Rozhodnutí kupovat dál</b>: nový vs. opravit. Modul ti dá aktuální hodnotu — pokud oprava stojí víc než 50% hodnoty, raději kup nový.</li>'+
+                                  '</ul>' },
+                            { kind:'linked', heading:'🔗 Provázanost',
+                              body:'<p>Modul je <b>standalone</b>. Pre-FI/RE může v budoucnu počítat aktuální hodnotu majetku do tvého celkového jmění (zatím ne — typicky se elektronika do FIRE čísla nepočítá, protože je likvidní jen omezeně).</p>' }
+                        ]
+                    });
+                };
             },
 
             /* ── Persistence ── */

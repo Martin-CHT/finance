@@ -112,6 +112,10 @@
             </div>
         </a>
         <div class="flex items-center gap-2">
+            <button class="btn btn-secondary" onclick="openModuleHelp()" title="Nápověda">
+                <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Nápověda</span>
+            </button>
             <button class="btn btn-primary" onclick="openAdd()"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Přidat předplatné</button>
         </div>
     </div>
@@ -686,6 +690,74 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty):
         try { load(); render(); }
         catch (err) { console.warn('Předplatná re-render fail', err); }
     });
+
+    // ─── Nápověda modulu ───
+    function openModuleHelp() {
+        if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
+        window.FinanceCommon.help.show({
+            title: 'Předplatná',
+            subtitle: 'Evidence opakovaných závazků (Netflix, Spotify, mobil, pojistky, domény…) s plánováním měsíčních a ročních nákladů.',
+            sections: [
+                {
+                    kind: 'intro',
+                    heading: '🎯 K čemu modul slouží',
+                    body:
+                        '<p>Lidé typicky podceňují, kolik je stojí <b>součet drobných pravidelných plateb</b>. 269 Kč za Netflix, 240 Kč za mobil, 199 Kč za HBO, 89 Kč za doménu, 4 990 Kč ročně za pojistku auta… celkem snadno 2 000 + Kč měsíčně.</p>' +
+                        '<p>Tenhle modul ti všechno opakované zobrazí na jednom místě, sečte měsíční a roční náklad, varuje před zdražováním a hledá <b>kandidáty na zrušení</b> přes AI audit.</p>'
+                },
+                {
+                    kind: 'steps',
+                    heading: '📝 Jak na to',
+                    body:
+                        '<ol>' +
+                            '<li>Klikni <b>+ Přidat předplatné</b> (vpravo nahoře).</li>' +
+                            '<li><b>Název</b> — co to je (Netflix, Lidl Plus, Vodafone…).</li>' +
+                            '<li><b>Poskytovatel</b> — kdo to fakturuje (volitelné, hodí se při sporu).</li>' +
+                            '<li><b>Cena & Měna</b> — kolik platíš jednu platbu (ne ročně, ne měsíčně, jen <i>kolik vidíš na výpisu</i>).</li>' +
+                            '<li><b>Cyklus</b> — týdně / měsíčně / čtvrtletně / ročně. Tohle určuje, jak se cena přepočítává na měsíční sumu v KPI.</li>' +
+                            '<li><b>Kategorie</b> — Streaming / Mobil / Pojistka / atd. Datalist pamatuje předchozí.</li>' +
+                            '<li><b>Příští platba</b> — kdy bude další stržení. Modul podle toho upozorňuje (žlutě „za 7 dní", červeně „dnes").</li>' +
+                            '<li><b>Konec smlouvy</b> (volitelné) — kdy můžeš bez sankce vypovědět. Hodí se pro orientaci.</li>' +
+                            '<li><b>Platba</b> + <b>Poznámka</b> — který způsob (Karta XXXX-1234) + co dělat při zrušení.</li>' +
+                            '<li><b>Aktivní</b> checkbox — když pak něco zrušíš, jen odškrtni (záznam zůstane v archivu).</li>' +
+                        '</ol>'
+                },
+                {
+                    kind: 'features',
+                    heading: '✨ Vychytávky',
+                    body:
+                        '<ul>' +
+                            '<li><b>KPI Měsíčně celkem</b> — součet všech aktivních předplatných normalizovaný na měsíc (roční vydělené 12, týdenní × 4.345). To je tvůj reálný měsíční „abonentní" náklad.</li>' +
+                            '<li><b>KPI Příští platba</b> — nejbližší stržení (název + za kolik dní + v jaké částce). Žlutý pruh = ≤7 dní, červený = dnes / opožděné.</li>' +
+                            '<li><b>Pohled: Jen aktivní / Vše / Jen neaktivní</b> — filtr pro audit historie.</li>' +
+                            '<li><b>Filtr kategorie</b> — vidíš jen Streaming, nebo jen Pojistky, atd.</li>' +
+                            '<li><b>AI Audit předplatných</b> (panel dole) — AI projde tvá data, najde <b>duplicity</b> (Netflix + HBO + Disney+ pro jednu osobu = kanibalizace), <b>drahé položky vs. trh</b>, <b>kandidáty na zrušení</b> podle frekvence. Dává konkrétní odhad úspory v Kč/rok.</li>' +
+                            '<li><b>Export / Import</b> — JSON záloha celého seznamu.</li>' +
+                        '</ul>'
+                },
+                {
+                    kind: 'tips',
+                    heading: '💡 Tipy & triky',
+                    body:
+                        '<ul>' +
+                            '<li><b>Roční pojistky</b> — zadej cenu, cyklus „ročně", příští platbu na výročí. V KPI uvidíš správný měsíční podíl.</li>' +
+                            '<li><b>Rodinný plán</b> — pokud platíš za víc lidí, dej do poznámky kdo a kolik. Při auditu pak víš, koho oslovit s návrhem rozpočítat.</li>' +
+                            '<li><b>Konec smlouvy</b> vyplň i u smluv na dobu neurčitou, kde víš o výpovědní lhůtě (např. 3 měsíce). Den + 3 měsíce = kdy nejpozději musíš stihnout výpověď, aby ti to nedoběhlo o další rok.</li>' +
+                            '<li><b>Test „k čemu mi to slouží"</b> — když si nevybavíš za týden, co jsi naposledy z té služby použil(a), je to kandidát na zrušení.</li>' +
+                            '<li>AI audit funguje líp s <b>kategoriemi</b> — bez nich nemá srovnání s trhem.</li>' +
+                        '</ul>'
+                },
+                {
+                    kind: 'linked',
+                    heading: '🔗 Provázanost s ostatními moduly',
+                    body:
+                        '<p>Když v <b>Příjmy & Výdaje</b> přidáš transakci s typem <code>Předplatné</code>, automaticky se sem propíše položka (název = popis transakce, cena = absolutní hodnota, cyklus měsíční jako default). Stačí pak doplnit reálný cyklus a datum příští platby.</p>' +
+                        '<div class="example"><b>Reálný workflow:</b> V Příjmech zapíšeš měsíční platbu Netflix typu Předplatné. Zde se ti objeví. Při dalším měsíci tu jen <b>posuneš příští platbu</b> — nemusíš dělat nový záznam.</div>' +
+                        '<p style="margin-top:0.6rem">V opačném směru: smazání předplatného tady <b>neodstraní</b> historické transakce v Příjmech (záměr — chceš znát historii útrat). Jen propojení se přeruší.</p>'
+                }
+            ]
+        });
+    }
 
     // ─── Init ───
     (function init(){
