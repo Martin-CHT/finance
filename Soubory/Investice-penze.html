@@ -171,13 +171,21 @@
         .ai-prose li { margin-bottom: .25rem; }
         .ai-prose p { margin-bottom: .5rem; line-height: 1.5; }
 
-        /* ── Modal backdrop ── */
+        /* ── Modal backdrop ──
+           POZN.: výchozí stav je SKRYTÝ (display:none) — modal se objeví až tehdy,
+           když JS odebere třídu `hidden`. Selektor :not(.hidden) má vyšší specificitu
+           než Tailwindovo .hidden, takže se zobrazí spolehlivě bez ohledu na cascade
+           pořadí Tailwindu (CDN někdy mění pořadí pravidel mezi v3/v4). */
         .modal-backdrop {
             position: fixed; inset: 0; z-index: 100;
             background: rgba(2,6,23,.8);
             backdrop-filter: blur(4px);
-            display: flex; align-items: center; justify-content: center;
+            display: none;
+            align-items: center; justify-content: center;
             padding: 1rem;
+        }
+        .modal-backdrop:not(.hidden) {
+            display: flex;
         }
         .modal-box {
             background: #0f172a;

@@ -141,6 +141,14 @@
         /* Modal backdrop */
         .modal-backdrop { background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(4px); }
 
+        /* ── Modal overlay (api/groq/gemini popupy) ──
+           Markup používá `class="... hidden flex ..."`. Tailwindovo .hidden vs .flex
+           se v CDN v3/v4 řadí různě v cascade — někdy .flex vyhraje a modal je
+           vidět ihned po načtení. Tato pravidla s vyšší specificitou (:not(.hidden)
+           a .hidden + !important) zaručí spolehlivé skrytí/zobrazení. */
+        .modal-overlay:not(.hidden) { display: flex !important; }
+        .modal-overlay.hidden { display: none !important; }
+
         /* ─── LIGHT THEME ─── */
         html.light body { background-color: #f1f5f9 !important; color: #0f172a; }
         html.light aside { background-color: #ffffff !important; border-right-color: #e2e8f0 !important; }
@@ -492,7 +500,7 @@
     </main>
 
     <!-- MODAL: GOOGLE SHEETS API -->
-    <div id="api-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="api-modal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 modal-backdrop cursor-pointer" onclick="closeApiHelpModal()"></div>
         <div class="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-lg shadow-2xl" style="background:#0f172a;border:1px solid #334155;">
             <div class="px-5 py-3.5 flex justify-between items-center" style="border-bottom:1px solid #1e293b;background:#1e293b;">
@@ -679,7 +687,7 @@ function doPost(e) {
     </div>
 
     <!-- MODAL: GROQ API -->
-    <div id="groq-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="groq-modal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 modal-backdrop cursor-pointer" onclick="closeGroqHelpModal()"></div>
         <div class="relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-lg shadow-2xl" style="background:#0f172a;border:1px solid #334155;">
             <div class="px-5 py-3.5 flex justify-between items-center" style="border-bottom:1px solid #1e293b;background:#1e293b;">
@@ -710,7 +718,7 @@ function doPost(e) {
     </div>
 
     <!-- MODAL: GEMINI API -->
-    <div id="gemini-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="gemini-modal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 modal-backdrop cursor-pointer" onclick="closeGeminiHelpModal()"></div>
         <div class="relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-lg shadow-2xl" style="background:#0f172a;border:1px solid #334155;">
             <div class="px-5 py-3.5 flex justify-between items-center" style="border-bottom:1px solid #1e293b;background:#1e293b;">

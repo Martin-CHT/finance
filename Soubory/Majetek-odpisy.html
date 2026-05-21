@@ -183,13 +183,20 @@
         .badge-gray   { background: rgba(100,116,139,.15); color: #94a3b8; border: 1px solid rgba(100,116,139,.25); }
         .badge-sky    { background: rgba(14,165,233,.15);  color: #38bdf8; border: 1px solid rgba(14,165,233,.25); }
 
-        /* ── Modal ── */
+        /* ── Modal ──
+           Výchozí stav je SKRYTÝ (display:none); :not(.hidden) má vyšší specificitu
+           než Tailwindovo .hidden, takže se modal spolehlivě zobrazí i skryje
+           bez ohledu na cascade pořadí Tailwindu (CDN v3 vs v4). */
         .modal-backdrop {
             position: fixed; inset: 0; z-index: 100;
             background: rgba(2,6,23,.8);
             backdrop-filter: blur(4px);
-            display: flex; align-items: center; justify-content: center;
+            display: none;
+            align-items: center; justify-content: center;
             padding: 1rem;
+        }
+        .modal-backdrop:not(.hidden) {
+            display: flex;
         }
         .modal-box {
             background: #0f172a;

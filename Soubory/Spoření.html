@@ -373,6 +373,14 @@
         html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
         html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
         html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ── Modal overlay (api/groq/gemini popupy) ──
+           Markup používá `class="... hidden flex ..."`. Tailwindovo .hidden vs .flex
+           se v CDN v3/v4 řadí různě v cascade — někdy .flex vyhraje a modal je
+           vidět ihned po načtení. Tato pravidla s vyšší specificitou zaručí
+           spolehlivé skrytí/zobrazení. */
+        .modal-overlay:not(.hidden) { display: flex !important; }
+        .modal-overlay.hidden { display: none !important; }
     </style>
     <!-- finance-common.js: sjednocené nastavení mezi Nastavení.html a moduly -->
     <!-- auto-sync modulu Spoření do user's Google Sheetu (mod_sporeni) -->
@@ -610,7 +618,7 @@
     </div>
 
     <!-- MODAL: Google Sheets API -->
-    <div id="api-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="api-modal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6">
         <div class="modal-overlay absolute inset-0 cursor-pointer" onclick="closeApiHelpModal()"></div>
         <div class="modal-content relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="modal-header px-5 py-3.5 flex justify-between items-center">
@@ -814,7 +822,7 @@ function doPost(e) {
     </div>
 
     <!-- MODAL: Groq API -->
-    <div id="groq-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="groq-modal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6">
         <div class="modal-overlay absolute inset-0 cursor-pointer" onclick="closeGroqHelpModal()"></div>
         <div class="modal-content relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="modal-header px-5 py-3.5 flex justify-between items-center">
@@ -844,7 +852,7 @@ function doPost(e) {
     </div>
 
     <!-- MODAL: Gemini API -->
-    <div id="gemini-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="gemini-modal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6">
         <div class="modal-overlay absolute inset-0 cursor-pointer" onclick="closeGeminiHelpModal()"></div>
         <div class="modal-content relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="modal-header px-5 py-3.5 flex justify-between items-center">

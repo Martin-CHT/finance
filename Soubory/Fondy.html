@@ -163,6 +163,14 @@
             margin-bottom: 0.5rem;
             line-height: 1.5;
         }
+
+        /* ── Modal overlay (addModal, aiModal) ──
+           Markup používá `class="... hidden flex ..."`. Tailwindovo .hidden vs .flex
+           se v CDN v3/v4 řadí různě v cascade — někdy .flex vyhraje a modal je
+           vidět ihned po načtení. Pravidla s vyšší specificitou zaručí spolehlivé
+           skrytí/zobrazení. */
+        .modal-overlay:not(.hidden) { display: flex !important; }
+        .modal-overlay.hidden { display: none !important; }
     </style>
     <!-- finance-common.js: sjednocené nastavení mezi Nastavení.html a moduly -->
     <script src="finance-common.js" defer></script>
@@ -330,7 +338,7 @@
 
     <!-- Modal: Přidat/Upravit -->
     <div id="addModal"
-        class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300"
+        class="modal-overlay fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4 opacity-0 transition-opacity duration-300"
         onclick="if(event.target === this) closeModal('addModal')">
         <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300"
             id="addModalContent">
@@ -394,7 +402,7 @@
 
     <!-- Modal: AI Analytik -->
     <div id="aiModal"
-        class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300"
+        class="modal-overlay fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4 opacity-0 transition-opacity duration-300"
         onclick="if(event.target === this) closeModal('aiModal')">
         <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]"
             id="aiModalContent">

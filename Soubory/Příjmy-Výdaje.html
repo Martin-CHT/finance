@@ -70,6 +70,24 @@
             accent-color: #0ea5e9;
         }
 
+        /* ── ROZLOŽENÍ ČÁSTKA + MĚNA ── */
+        /* Grid s pevnou šířkou pro select, aby width:100% z .pro-input nepřebíjelo flex-1 a w-24/w-20. */
+        .amount-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 6rem;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .amount-row.amount-row-sm {
+            grid-template-columns: minmax(0, 1fr) 5rem;
+        }
+        .amount-row > .pro-input,
+        .amount-row > input,
+        .amount-row > select {
+            width: 100%;
+            min-width: 0;
+        }
+
         /* ── BUTTONS ── */
         .btn-primary {
             background: #0284c7;
@@ -440,6 +458,14 @@
         html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
         html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
         html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ── Modal overlay (groq/gemini popupy) ──
+           Markup používá `class="... hidden flex ..."`. Tailwindovo .hidden vs .flex
+           se v CDN v3/v4 řadí různě v cascade — někdy .flex vyhraje a modal je
+           vidět ihned po načtení. Tato pravidla s vyšší specificitou
+           (:not(.hidden) a .hidden + !important) zaručí spolehlivé skrytí/zobrazení. */
+        .modal-overlay:not(.hidden) { display: flex !important; }
+        .modal-overlay.hidden { display: none !important; }
     </style>
     <!-- finance-common.js: sjednocené nastavení + auto-sync modulových dat -->
     <meta name="fc-module" content="prijmy">
@@ -588,13 +614,13 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                         <div class="sm:col-span-2">
                             <label class="section-label block mb-1.5">Částka &amp; Měna</label>
-                            <div class="flex items-center gap-2">
+                            <div class="amount-row">
                                 <input id="in-suma" type="text" inputmode="decimal" placeholder="0,00 (nebo -700 / +700)" required
                                     pattern="[+\-]?[0-9]+([.,][0-9]+)?"
                                     title="Použij minus (-700) pro výdaj nebo plus (+700) pro příjem — přepíše automatickou detekci podle typu."
                                     oninput="app.updatePreviewAdd()"
-                                    class="pro-input font-mono text-base flex-1">
-                                <select id="in-mena" onchange="app.updatePreviewAdd()" class="pro-input w-24 text-center font-mono">
+                                    class="pro-input font-mono text-base">
+                                <select id="in-mena" onchange="app.updatePreviewAdd()" class="pro-input text-center font-mono">
                                     <option value="CZK">CZK</option>
                                     <option value="EUR">EUR</option>
                                     <option value="USD">USD</option>
@@ -868,13 +894,13 @@
                 </div>
                 <div>
                     <label class="section-label block mb-1">Cena a Měna</label>
-                    <div class="flex items-center gap-2">
+                    <div class="amount-row amount-row-sm">
                         <input id="ed-suma" type="text" inputmode="decimal"
                             pattern="[+\-]?[0-9]+([.,][0-9]+)?"
                             title="Použij minus (-700) pro výdaj, plus (+700) pro příjem"
                             required oninput="app.updatePreviewEdit()"
-                            class="pro-input font-mono text-lg font-bold flex-1">
-                        <select id="ed-mena" onchange="app.updatePreviewEdit()" class="pro-input w-20 text-center font-mono">
+                            class="pro-input font-mono text-lg font-bold">
+                        <select id="ed-mena" onchange="app.updatePreviewEdit()" class="pro-input text-center font-mono">
                             <option value="CZK">CZK</option>
                             <option value="EUR">EUR</option>
                             <option value="USD">USD</option>
@@ -902,7 +928,7 @@
     <datalist id="list-ucty"></datalist>
 
     <!-- ───────────────── GROQ HELP MODAL ───────────────── -->
-    <div id="groq-modal" class="fixed inset-0 z-[400] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="groq-modal" class="modal-overlay fixed inset-0 z-[400] hidden items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer" onclick="closeGroqHelpModal()"></div>
         <div class="relative panel w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
@@ -932,7 +958,7 @@
     </div>
 
     <!-- ───────────────── GEMINI HELP MODAL ───────────────── -->
-    <div id="gemini-modal" class="fixed inset-0 z-[400] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="gemini-modal" class="modal-overlay fixed inset-0 z-[400] hidden items-center justify-center p-4 sm:p-6">
         <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer" onclick="closeGeminiHelpModal()"></div>
         <div class="relative panel w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
