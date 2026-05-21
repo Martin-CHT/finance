@@ -250,8 +250,9 @@
         #breadcrumb .current { color: #94a3b8; }
 
         /* ── Tab content ── */
-        .tab-pane { display: none; }
-        .tab-pane.active { display: block; }
+        /* !important kvůli kolizi s Tailwind .flex / .grid třídami na <section>. */
+        .tab-pane { display: none !important; }
+        .tab-pane.active { display: flex !important; }
 
         /* ── Filter row ── */
         .filter-row {
@@ -447,24 +448,6 @@
                     Záruky končící v následujících 60 dnech
                 </div>
                 <div id="warranty-alert-body" class="p-4 text-xs text-slate-400"></div>
-            </div>
-
-            <!-- Top 5 nejdražších -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div class="panel chart-panel">
-                    <div class="panel-title">
-                        <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-400"></i>
-                        Top 5 nejdražších zařízení
-                    </div>
-                    <div class="chart-canvas-wrap"><canvas id="chart-top-nakup"></canvas></div>
-                </div>
-                <div class="panel chart-panel">
-                    <div class="panel-title">
-                        <i data-lucide="flame" class="w-3.5 h-3.5 text-rose-400"></i>
-                        Top 5 zařízení s největším ročním odpisem
-                    </div>
-                    <div class="chart-canvas-wrap"><canvas id="chart-top-odpis"></canvas></div>
-                </div>
             </div>
 
             <!-- Tip / Add CTA -->
@@ -724,6 +707,24 @@
                             <input type="number" id="item-zaruka" min="0" max="120" step="1" value="24" placeholder="24">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <label for="item-odkaz">Odkaz do obchodu / účtenka (URL)</label>
+                        <input type="url" id="item-odkaz" placeholder="https://...">
+                    </div>
+                    <div class="form-row">
+                        <label for="item-poznamka">Poznámka</label>
+                        <textarea id="item-poznamka" rows="2" placeholder="Sériové číslo, příslušenství, místo uložení…" style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <label for="item-soubor">Soubor (foto / účtenka / faktura)</label>
+                        <input type="file" id="item-soubor" accept="image/*,application/pdf">
+                        <div id="item-soubor-info" class="text-[11px] text-slate-500 mt-1 hidden flex items-center gap-2">
+                            <i data-lucide="paperclip" class="w-3 h-3"></i>
+                            <span id="item-soubor-name">—</span>
+                            <button type="button" onclick="app.clearAttachment()" class="text-rose-400 hover:text-rose-300 text-[10px] underline">odstranit</button>
+                        </div>
+                        <div class="text-[10px] text-slate-600 mt-1">Soubor se ukládá lokálně v prohlížeči (max ~2 MB doporučeno).</div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -882,42 +883,47 @@
                     if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
                     window.FinanceCommon.help.show({
                         title: 'Majetek & Odpisy',
-                        subtitle: 'Evidence elektroniky a vybavení — lineární odpisy, hlídání záruční doby, statistiky portfolia.',
+                        subtitle: 'Evidence drahého vybavení — lineární odpisy, hlídání záruční doby, doklady a poznámky na jednom místě.',
                         sections: [
                             { kind:'intro', heading:'🎯 K čemu modul slouží',
-                              body:'<p>Vede přehled o <b>hodnotných předmětech</b>, které vlastníš (notebooky, telefony, kola, foto, nářadí…). Pro každý počítá <b>lineární odpis</b> = jak rychle klesá tržní cena v čase.</p>'+
-                                   '<p>Hlídá taky <b>záruční dobu</b> — upozorní, kdy se blíží konec.</p>' },
-                            { kind:'steps', heading:'📝 Postup',
+                              body:'<p>Vede přehled o <b>hodnotných věcech</b>, které vlastníš — notebooky, telefony, kola, foto, nářadí, spotřebiče. Pro každou položku spočítá <b>lineární odpis</b> (jak rychle klesá hodnota v čase) a <b>zbývající záruku</b>.</p>'+
+                                   '<p>K věci si můžeš uložit <b>odkaz do obchodu</b>, <b>poznámku</b> (sériové číslo, místo uložení) i <b>přílohu</b> (foto / účtenka / faktura) — vše v prohlížeči, žádný server.</p>'+
+                                   '<p>Modul má 3 záložky v top liště:</p>'+
+                                   '<ul>'+
+                                        '<li><b>Přehled</b> — KPI karty, varování záruky, hlavní grafy a CTA pro přidání.</li>'+
+                                        '<li><b>Tabulka</b> — kompletní výpis se filtry, řazením a hromadnou editací.</li>'+
+                                        '<li><b>Statistiky</b> — koláče podle kategorie, vývoj pořízení v čase, prognóza zůstatkové hodnoty.</li>'+
+                                   '</ul>' },
+                            { kind:'steps', heading:'📝 Jak přidat zařízení',
                               body:'<ol>'+
-                                    '<li>Klikni <b>+ Položka</b>.</li>'+
-                                    '<li>Vyplň:'+
-                                        '<ul>'+
-                                            '<li><b>Název</b> + <b>Kategorie</b> (Elektronika / Kolo / Nářadí…).</li>'+
-                                            '<li><b>Pořizovací cena</b> + <b>Datum pořízení</b>.</li>'+
-                                            '<li><b>Životnost</b> v letech — kolik let plánuješ používat. Default pro elektroniku ~3 roky, pro nábytek ~10.</li>'+
-                                            '<li><b>Záruka</b> v měsících — kdy vyprší.</li>'+
-                                        '</ul>'+
-                                    '</li>'+
-                                    '<li>Modul automaticky počítá <b>aktuální hodnotu</b> (lineární odpis k dnešku) a <b>zbývající záruční dobu</b>.</li>'+
+                                    '<li>Klikni <b>+ Přidat zařízení</b> (vpravo nahoře nebo z karty „Přehled").</li>'+
+                                    '<li>Vyplň <b>Název</b> a <b>Kategorii</b> (volný text — našeptávač ti nabízí už použité, takže si je můžeš zafixovat).</li>'+
+                                    '<li><b>Nákupní cena</b> + <b>Datum nákupu</b>.</li>'+
+                                    '<li><b>Životnost</b> v letech (jak dlouho předpokládáš, že předmět vydrží) a <b>Záruka</b> v měsících.</li>'+
+                                    '<li>Volitelně: <b>Odkaz</b> do e-shopu / online účtenky, <b>Poznámku</b> (sériové číslo, drobnosti) a <b>Soubor</b> (foto účtenky / faktura / fotka věci).</li>'+
+                                    '<li>Ulož. Aktuální hodnota a zbývající záruka se přepočítají automaticky.</li>'+
                                   '</ol>' },
-                            { kind:'features', heading:'✨ Vychytávky',
+                            { kind:'features', heading:'✨ Co modul umí',
                               body:'<ul>'+
-                                    '<li><b>Lineární odpis</b> — `aktuální hodnota = pořizovací × (1 − stáří / životnost)`. Po uplynutí životnosti hodnota = 0.</li>'+
-                                    '<li><b>Varování záruky</b> — barevné zvýraznění položek, kterým končí záruka do 60 dní (žlutě) / 30 dní (oranžově) / vypršela (červeně).</li>'+
-                                    '<li><b>Statistiky portfolia</b> — celková aktuální hodnota, celkový odpis, počet aktivních položek.</li>'+
-                                    '<li><b>Grafy</b> — koláč podle kategorie, časová osa pořízení, věk vs. zbývající hodnota.</li>'+
-                                    '<li><b>Tabulka & filtrování</b> — třídění podle ceny, věku, kategorie. Filtr „jen v záruce" / „jen mimo".</li>'+
-                                    '<li><b>Export / Import CSV</b> — kompatibilní s Excelem.</li>'+
+                                    '<li><b>Lineární odpis</b> — <code>aktuální hodnota = pořizovací × (1 − stáří / životnost)</code>. Po uplynutí životnosti hodnota = 0.</li>'+
+                                    '<li><b>Varování záruky</b> — barevný badge u položek, kde se blíží konec záruky (60 / 30 dní) nebo už vypršela.</li>'+
+                                    '<li><b>Odkaz na obchod</b> + <b>poznámka</b> + <b>příloha</b> u každé položky. V tabulce se objeví malé ikony (🔗 / 📝 / 📎) — klik otevře odkaz nebo přílohu.</li>'+
+                                    '<li><b>Záložky Přehled / Tabulka / Statistiky</b> v top liště — každá zobrazuje samostatnou stránku obsahu.</li>'+
+                                    '<li><b>Grafy</b> — koláče <i>nákupní cena podle kategorie</i> a <i>zůstatková hodnota podle kategorie</i>, vývoj nákupu v čase (cena + počet), kumulativní odpisy a prognóza zůstatkové hodnoty na 12 měsíců.</li>'+
+                                    '<li><b>Filtry & řazení</b> v tabulce — hledání textu, filtr roku nákupu, filtr kategorie, „jen v záruce", „skrýt plně odepsané". Klik na hlavičku sloupce řadí.</li>'+
+                                    '<li><b>Export / Import CSV</b> — kompletní záloha včetně odkazů a poznámek (přílohy se exportují jen ve full JSON exportu).</li>'+
                                   '</ul>' },
                             { kind:'tips', heading:'💡 Tipy & triky',
                               body:'<ul>'+
-                                    '<li><b>Při ztrátě / krádeži</b> — modul slouží jako důkaz pojišťovně. Můžeš si k položce přidat sériové číslo do poznámky.</li>'+
-                                    '<li><b>Realistická životnost</b>: telefon 3 roky, notebook 5, kolo 8, prachovka 20. Ovlivňuje rychlost odpisu, ale neopisuj z účetní vyhlášky — ber tržní realitu.</li>'+
-                                    '<li><b>Před koncem záruky</b> — zkontroluj věci, vrať/oprav cokoli, co kazí, dokud je zdarma.</li>'+
-                                    '<li><b>Rozhodnutí kupovat dál</b>: nový vs. opravit. Modul ti dá aktuální hodnotu — pokud oprava stojí víc než 50% hodnoty, raději kup nový.</li>'+
+                                    '<li><b>Při ztrátě / krádeži / pojistné události</b> — modul slouží jako důkaz pro pojišťovnu. Nahraj fakturu / účtenku jako přílohu a sériové číslo do poznámky.</li>'+
+                                    '<li><b>Realistická životnost</b>: telefon ~3 roky, notebook ~5, kolo ~8, kuchyňský spotřebič ~10–15. Ovlivňuje rychlost odpisu — ber tržní realitu, ne účetní vyhlášku.</li>'+
+                                    '<li><b>Před koncem záruky</b> — projdi věc, reklamuj cokoli, co kazí, dokud je oprava zdarma.</li>'+
+                                    '<li><b>Opravit vs. koupit nový</b>: pokud oprava stojí víc než ~50 % aktuální hodnoty z modulu, často se vyplatí koupit nové.</li>'+
+                                    '<li><b>Přílohy</b> se ukládají do localStorage prohlížeče (Base64). Doporučuji do 2 MB / soubor, jinak se localStorage rychle zaplní. Pro velké archivy raději odkazuj na cloud (URL pole).</li>'+
                                   '</ul>' },
-                            { kind:'linked', heading:'🔗 Provázanost',
-                              body:'<p>Modul je <b>standalone</b>. Pre-FI/RE může v budoucnu počítat aktuální hodnotu majetku do tvého celkového jmění (zatím ne — typicky se elektronika do FIRE čísla nepočítá, protože je likvidní jen omezeně).</p>' }
+                            { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                              body:'<p>Modul je <b>standalone</b> — data zůstávají v něm. Hodí se ale jako evidence souběžně s modulem <b>Příjmy & Výdaje</b>: tam zapíšeš platbu, tady k ní vedeš detailní kartu předmětu.</p>'+
+                                   '<p>Do <b>Pre-FI/RE</b> se hodnota elektroniky obvykle nepočítá (rychle se odepisuje a je špatně likvidní), ale modul ti aspoň ukáže realistickou zbytkovou hodnotu, kdybys ji do FIRE čísla zařadit chtěl(a).</p>' }
                         ]
                     });
                 };
@@ -984,6 +990,7 @@
                 const modal = document.getElementById('item-modal');
                 const titleEl = document.getElementById('item-modal-title');
                 this.populateKategorieDatalist();
+                this._pendingAttachment = null;
                 if (id) {
                     const it = this.items.find(x => x.id === id);
                     if (!it) return;
@@ -995,6 +1002,11 @@
                     document.getElementById('item-datum').value = it.datumNakupu || todayISO();
                     document.getElementById('item-zivotnost').value = it.zivotnost || 5;
                     document.getElementById('item-zaruka').value = it.zarukaMesicu || DEFAULT_WARRANTY_MONTHS;
+                    document.getElementById('item-odkaz').value = it.odkaz || '';
+                    document.getElementById('item-poznamka').value = it.poznamka || '';
+                    document.getElementById('item-soubor').value = '';
+                    this._existingAttachment = it.soubor || null;
+                    this._renderAttachmentInfo(it.soubor);
                 } else {
                     titleEl.textContent = 'Přidat zařízení';
                     document.getElementById('item-form').reset();
@@ -1002,10 +1014,30 @@
                     document.getElementById('item-datum').value = todayISO();
                     document.getElementById('item-zivotnost').value = 5;
                     document.getElementById('item-zaruka').value = DEFAULT_WARRANTY_MONTHS;
+                    this._existingAttachment = null;
+                    this._renderAttachmentInfo(null);
                 }
                 modal.classList.remove('hidden');
                 lucide.createIcons();
                 setTimeout(() => document.getElementById('item-nazev').focus(), 50);
+            },
+            _renderAttachmentInfo(att) {
+                const info = document.getElementById('item-soubor-info');
+                const name = document.getElementById('item-soubor-name');
+                if (att && att.name) {
+                    info.classList.remove('hidden');
+                    info.classList.add('flex');
+                    name.textContent = att.name + ' · ' + Math.round((att.dataUrl || '').length / 1024) + ' kB';
+                } else {
+                    info.classList.add('hidden');
+                    info.classList.remove('flex');
+                }
+            },
+            clearAttachment() {
+                this._existingAttachment = null;
+                this._pendingAttachment = null;
+                document.getElementById('item-soubor').value = '';
+                this._renderAttachmentInfo(null);
             },
             closeItemModal() {
                 document.getElementById('item-modal').classList.add('hidden');
@@ -1020,18 +1052,40 @@
                     datumNakupu:  document.getElementById('item-datum').value,
                     zivotnost:    Math.min(20, Math.max(1, +document.getElementById('item-zivotnost').value || 5)),
                     zarukaMesicu: Math.min(120, Math.max(0, +document.getElementById('item-zaruka').value || DEFAULT_WARRANTY_MONTHS)),
+                    odkaz:        document.getElementById('item-odkaz').value.trim(),
+                    poznamka:     document.getElementById('item-poznamka').value.trim(),
                 };
                 if (!data.nazev || !data.datumNakupu || data.nakupniCena <= 0) return;
 
-                if (id) {
-                    const idx = this.items.findIndex(x => x.id === id);
-                    if (idx >= 0) this.items[idx] = { ...this.items[idx], ...data };
-                } else {
-                    this.items.push({ id: newId(), ...data });
+                const fileInput = document.getElementById('item-soubor');
+                const fileEntry = fileInput && fileInput.files && fileInput.files[0];
+
+                const finalize = (attachment) => {
+                    if (attachment !== undefined) data.soubor = attachment; // null = remove, object = set
+                    if (id) {
+                        const idx = this.items.findIndex(x => x.id === id);
+                        if (idx >= 0) this.items[idx] = { ...this.items[idx], ...data };
+                    } else {
+                        this.items.push({ id: newId(), ...data });
+                    }
+                    this.save();
+                    this.closeItemModal();
+                    this.refreshAll();
+                };
+
+                if (fileEntry) {
+                    if (fileEntry.size > 4 * 1024 * 1024) {
+                        alert('Soubor je větší než 4 MB. Použij menší obrázek/PDF.');
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => finalize({ name: fileEntry.name, type: fileEntry.type, dataUrl: reader.result });
+                    reader.onerror = () => { alert('Soubor se nepodařilo načíst.'); };
+                    reader.readAsDataURL(fileEntry);
+                    return;
                 }
-                this.save();
-                this.closeItemModal();
-                this.refreshAll();
+                // No new file picked → keep existing (or cleared) attachment
+                finalize(this._existingAttachment === null ? null : undefined);
             },
             askDelete(id) {
                 const it = this.items.find(x => x.id === id);
@@ -1151,7 +1205,12 @@
                             <tr>
                                 <td>${wb.html}</td>
                                 <td>
-                                    <div class="font-medium text-slate-100">${escapeHtml(it.nazev)}</div>
+                                    <div class="font-medium text-slate-100 flex items-center gap-1.5 flex-wrap">
+                                        <span>${escapeHtml(it.nazev)}</span>
+                                        ${it.odkaz ? `<a href="${escapeHtml(it.odkaz)}" target="_blank" rel="noopener" title="Odkaz do obchodu / účtenka" class="text-sky-400 hover:text-sky-300"><i data-lucide="external-link" class="w-3 h-3"></i></a>` : ''}
+                                        ${it.poznamka ? `<span title="${escapeHtml(it.poznamka)}" class="text-amber-400"><i data-lucide="sticky-note" class="w-3 h-3"></i></span>` : ''}
+                                        ${it.soubor ? `<a href="${escapeHtml(it.soubor.dataUrl||'')}" target="_blank" rel="noopener" title="${escapeHtml(it.soubor.name||'Příloha')}" class="text-emerald-400 hover:text-emerald-300"><i data-lucide="paperclip" class="w-3 h-3"></i></a>` : ''}
+                                    </div>
                                     ${it.kategorie ? `<div class="text-[10px] text-slate-500 font-mono">${escapeHtml(it.kategorie)}</div>` : ''}
                                 </td>
                                 <td class="text-right font-mono ${aktClass}">${fmtCZK(c.aktualniCena)}</td>
@@ -1354,8 +1413,6 @@
                 this.chartCatZustatek(c);
                 this.chartCumulative(c);
                 this.chartForecast(c);
-                this.chartTopNakup(c);
-                this.chartTopOdpis(c);
             },
             chartByYear(c) {
                 const el = document.getElementById('chart-by-year-amount');
@@ -1483,32 +1540,9 @@
                     options: chartOpts(c, { tooltipFmt: fmtCZK })
                 });
             },
-            chartTopNakup(c) {
-                const el = document.getElementById('chart-top-nakup');
-                if (!el) return;
-                this.destroyChart('topNakup');
-                const top = this.items.slice().sort((a, b) => (b.nakupniCena || 0) - (a.nakupniCena || 0)).slice(0, 5);
-                this.charts.topNakup = new Chart(el, {
-                    type: 'bar',
-                    data: { labels: top.map(t => t.nazev), datasets: [{ label: 'Nákupní cena (Kč)', data: top.map(t => t.nakupniCena || 0), backgroundColor: c.amber, borderRadius: 4 }] },
-                    options: { ...chartOpts(c, { tooltipFmt: fmtCZK }), indexAxis: 'y' }
-                });
-            },
-            chartTopOdpis(c) {
-                const el = document.getElementById('chart-top-odpis');
-                if (!el) return;
-                this.destroyChart('topOdpis');
-                const top = this.items.slice().sort((a, b) => computeRow(b).rocniOdpis - computeRow(a).rocniOdpis).slice(0, 5);
-                this.charts.topOdpis = new Chart(el, {
-                    type: 'bar',
-                    data: { labels: top.map(t => t.nazev), datasets: [{ label: 'Roční odpis (Kč)', data: top.map(t => computeRow(t).rocniOdpis), backgroundColor: c.rose, borderRadius: 4 }] },
-                    options: { ...chartOpts(c, { tooltipFmt: fmtCZK }), indexAxis: 'y' }
-                });
-            },
-
             /* ── Export / Import CSV ── */
             exportCsv() {
-                const header = ['id', 'nazev', 'kategorie', 'nakupniCena', 'datumNakupu', 'zivotnost', 'zarukaMesicu'];
+                const header = ['id', 'nazev', 'kategorie', 'nakupniCena', 'datumNakupu', 'zivotnost', 'zarukaMesicu', 'odkaz', 'poznamka'];
                 const rows = this.items.map(it => header.map(h => csvEscape(it[h] != null ? it[h] : '')).join(','));
                 const csv = '﻿' + header.join(',') + '\n' + rows.join('\n');
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -1543,6 +1577,8 @@
                                 datumNakupu: obj.datumNakupu,
                                 zivotnost: Math.min(20, Math.max(1, +obj.zivotnost || 5)),
                                 zarukaMesicu: +obj.zarukaMesicu || DEFAULT_WARRANTY_MONTHS,
+                                odkaz: obj.odkaz || '',
+                                poznamka: obj.poznamka || '',
                             });
                         }
                         if (newOnes.length && confirm(`Importovat ${newOnes.length} zařízení? Stávající data budou nahrazena.`)) {

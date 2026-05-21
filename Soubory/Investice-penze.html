@@ -550,7 +550,7 @@
     </main>
 
     <!-- ═══════════════ MODAL: Google Sheets Návod ═══════════════ -->
-    <div id="api-modal" class="modal-backdrop hidden">
+    <div id="api-modal" class="modal-backdrop hidden" onclick="if(event.target === this) closeApiHelpModal()">
         <div class="modal-box max-w-3xl max-h-[90vh] flex flex-col">
             <div class="modal-header">
                 <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
@@ -829,6 +829,15 @@ function doPost(e) {
         function closeApiHelpModal() {
             document.getElementById('api-modal').classList.add('hidden');
         }
+
+        // ESC zavře otevřený api-modal nebo ai-settings-modal
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            var api = document.getElementById('api-modal');
+            var ais = document.getElementById('ai-settings-modal');
+            if (api && !api.classList.contains('hidden')) { api.classList.add('hidden'); return; }
+            if (ais && !ais.classList.contains('hidden')) { ais.classList.add('hidden'); }
+        });
 
         function copyApiScript() {
             const code = document.getElementById('api-script-code').innerText;
