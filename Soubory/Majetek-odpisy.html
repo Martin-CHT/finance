@@ -92,6 +92,9 @@
         input[type="text"],
         input[type="date"],
         input[type="search"],
+        input[type="url"],
+        input[type="email"],
+        input[type="tel"],
         select,
         textarea {
             background: #1e293b;
@@ -340,27 +343,16 @@
 
     <!-- ═══════════════════════ TOP NAV ═══════════════════════ -->
     <nav id="topNav">
-        <div class="max-w-7xl mx-auto px-4 h-12 flex items-center justify-between gap-2">
+        <div class="px-4 h-12 flex items-center justify-between gap-2">
 
             <!-- Levá část: logo + název -->
-            <div class="flex items-center gap-3 min-w-0">
-                <a href="../Index.html" class="flex items-center justify-center w-7 h-7 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-sky-400 hover:border-sky-500 transition-colors flex-shrink-0" title="Zpět na přehled">
-                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
-                </a>
-                <div class="w-px h-5 bg-slate-700 flex-shrink-0"></div>
-                <div class="flex items-center gap-2 min-w-0">
-                    <div class="bg-sky-500/10 border border-sky-500/20 p-1.5 rounded flex-shrink-0">
-                        <i data-lucide="laptop" class="w-4 h-4 text-sky-400"></i>
-                    </div>
-                    <div class="min-w-0">
-                        <h1 class="text-sm font-bold text-slate-100 leading-tight truncate">Majetek &amp; Odpisy</h1>
-                        <p class="text-[10px] text-slate-500 leading-tight hidden sm:block">Finance Terminal · v2026</p>
-                    </div>
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="bg-sky-500/10 border border-sky-500/20 p-1.5 rounded flex-shrink-0">
+                    <i data-lucide="laptop" class="w-4 h-4 text-sky-400"></i>
                 </div>
-                <div id="breadcrumb" class="hidden md:flex items-center gap-1.5 ml-3">
-                    <span>Finance</span>
-                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
-                    <span class="current" id="breadcrumbCurrent">Přehled</span>
+                <div class="min-w-0">
+                    <h1 class="text-sm font-bold text-slate-100 leading-tight truncate">Majetek &amp; Odpisy</h1>
+                    <p class="text-[10px] text-slate-500 leading-tight hidden sm:block">Finance Terminal · v2026</p>
                 </div>
             </div>
 
@@ -715,16 +707,6 @@
                         <label for="item-poznamka">Poznámka</label>
                         <textarea id="item-poznamka" rows="2" placeholder="Sériové číslo, příslušenství, místo uložení…" style="resize:vertical;"></textarea>
                     </div>
-                    <div class="form-row">
-                        <label for="item-soubor">Soubor (foto / účtenka / faktura)</label>
-                        <input type="file" id="item-soubor" accept="image/*,application/pdf">
-                        <div id="item-soubor-info" class="text-[11px] text-slate-500 mt-1 hidden flex items-center gap-2">
-                            <i data-lucide="paperclip" class="w-3 h-3"></i>
-                            <span id="item-soubor-name">—</span>
-                            <button type="button" onclick="app.clearAttachment()" class="text-rose-400 hover:text-rose-300 text-[10px] underline">odstranit</button>
-                        </div>
-                        <div class="text-[10px] text-slate-600 mt-1">Soubor se ukládá lokálně v prohlížeči (max ~2 MB doporučeno).</div>
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -887,7 +869,7 @@
                         sections: [
                             { kind:'intro', heading:'🎯 K čemu modul slouží',
                               body:'<p>Vede přehled o <b>hodnotných věcech</b>, které vlastníš — notebooky, telefony, kola, foto, nářadí, spotřebiče. Pro každou položku spočítá <b>lineární odpis</b> (jak rychle klesá hodnota v čase) a <b>zbývající záruku</b>.</p>'+
-                                   '<p>K věci si můžeš uložit <b>odkaz do obchodu</b>, <b>poznámku</b> (sériové číslo, místo uložení) i <b>přílohu</b> (foto / účtenka / faktura) — vše v prohlížeči, žádný server.</p>'+
+                                   '<p>K věci si můžeš uložit <b>odkaz do obchodu</b> (e-shop, online účtenka) a <b>poznámku</b> (sériové číslo, místo uložení) — vše v prohlížeči, žádný server.</p>'+
                                    '<p>Modul má 3 záložky v top liště:</p>'+
                                    '<ul>'+
                                         '<li><b>Přehled</b> — KPI karty, varování záruky, hlavní grafy a CTA pro přidání.</li>'+
@@ -900,26 +882,26 @@
                                     '<li>Vyplň <b>Název</b> a <b>Kategorii</b> (volný text — našeptávač ti nabízí už použité, takže si je můžeš zafixovat).</li>'+
                                     '<li><b>Nákupní cena</b> + <b>Datum nákupu</b>.</li>'+
                                     '<li><b>Životnost</b> v letech (jak dlouho předpokládáš, že předmět vydrží) a <b>Záruka</b> v měsících.</li>'+
-                                    '<li>Volitelně: <b>Odkaz</b> do e-shopu / online účtenky, <b>Poznámku</b> (sériové číslo, drobnosti) a <b>Soubor</b> (foto účtenky / faktura / fotka věci).</li>'+
+                                    '<li>Volitelně: <b>Odkaz</b> do e-shopu / online účtenky a <b>Poznámku</b> (sériové číslo, drobnosti).</li>'+
                                     '<li>Ulož. Aktuální hodnota a zbývající záruka se přepočítají automaticky.</li>'+
                                   '</ol>' },
                             { kind:'features', heading:'✨ Co modul umí',
                               body:'<ul>'+
                                     '<li><b>Lineární odpis</b> — <code>aktuální hodnota = pořizovací × (1 − stáří / životnost)</code>. Po uplynutí životnosti hodnota = 0.</li>'+
                                     '<li><b>Varování záruky</b> — barevný badge u položek, kde se blíží konec záruky (60 / 30 dní) nebo už vypršela.</li>'+
-                                    '<li><b>Odkaz na obchod</b> + <b>poznámka</b> + <b>příloha</b> u každé položky. V tabulce se objeví malé ikony (🔗 / 📝 / 📎) — klik otevře odkaz nebo přílohu.</li>'+
+                                    '<li><b>Odkaz na obchod</b> + <b>poznámka</b> u každé položky. Název v tabulce funguje jako odkaz, vedle se objeví ikona poznámky (📝).</li>'+
                                     '<li><b>Záložky Přehled / Tabulka / Statistiky</b> v top liště — každá zobrazuje samostatnou stránku obsahu.</li>'+
                                     '<li><b>Grafy</b> — koláče <i>nákupní cena podle kategorie</i> a <i>zůstatková hodnota podle kategorie</i>, vývoj nákupu v čase (cena + počet), kumulativní odpisy a prognóza zůstatkové hodnoty na 12 měsíců.</li>'+
                                     '<li><b>Filtry & řazení</b> v tabulce — hledání textu, filtr roku nákupu, filtr kategorie, „jen v záruce", „skrýt plně odepsané". Klik na hlavičku sloupce řadí.</li>'+
-                                    '<li><b>Export / Import CSV</b> — kompletní záloha včetně odkazů a poznámek (přílohy se exportují jen ve full JSON exportu).</li>'+
+                                    '<li><b>Export / Import CSV</b> — kompletní záloha včetně odkazů a poznámek.</li>'+
                                   '</ul>' },
                             { kind:'tips', heading:'💡 Tipy & triky',
                               body:'<ul>'+
-                                    '<li><b>Při ztrátě / krádeži / pojistné události</b> — modul slouží jako důkaz pro pojišťovnu. Nahraj fakturu / účtenku jako přílohu a sériové číslo do poznámky.</li>'+
+                                    '<li><b>Při ztrátě / krádeži / pojistné události</b> — modul slouží jako důkaz pro pojišťovnu. Sériové číslo si zapiš do poznámky, k faktuře/účtence nech URL na e-shop nebo cloud (Drive/OneDrive).</li>'+
                                     '<li><b>Realistická životnost</b>: telefon ~3 roky, notebook ~5, kolo ~8, kuchyňský spotřebič ~10–15. Ovlivňuje rychlost odpisu — ber tržní realitu, ne účetní vyhlášku.</li>'+
                                     '<li><b>Před koncem záruky</b> — projdi věc, reklamuj cokoli, co kazí, dokud je oprava zdarma.</li>'+
                                     '<li><b>Opravit vs. koupit nový</b>: pokud oprava stojí víc než ~50 % aktuální hodnoty z modulu, často se vyplatí koupit nové.</li>'+
-                                    '<li><b>Přílohy</b> se ukládají do localStorage prohlížeče (Base64). Doporučuji do 2 MB / soubor, jinak se localStorage rychle zaplní. Pro velké archivy raději odkazuj na cloud (URL pole).</li>'+
+                                    '<li><b>Velké soubory</b> (faktury, fota) si nech v cloudu (Drive / OneDrive / Dropbox) a do položky vlož <b>URL</b> v poli „Odkaz" — neztratí se a nezatíží localStorage.</li>'+
                                   '</ul>' },
                             { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
                               body:'<p>Modul je <b>standalone</b> — data zůstávají v něm. Hodí se ale jako evidence souběžně s modulem <b>Příjmy & Výdaje</b>: tam zapíšeš platbu, tady k ní vedeš detailní kartu předmětu.</p>'+
@@ -977,8 +959,11 @@
                 const pane = document.getElementById('pane-' + name);
                 if (btn) btn.classList.add('active');
                 if (pane) pane.classList.add('active');
-                const labels = { prehled: 'Přehled', tabulka: 'Tabulka', statistiky: 'Statistiky' };
-                document.getElementById('breadcrumbCurrent').textContent = labels[name] || '';
+                const bc = document.getElementById('breadcrumbCurrent');
+                if (bc) {
+                    const labels = { prehled: 'Přehled', tabulka: 'Tabulka', statistiky: 'Statistiky' };
+                    bc.textContent = labels[name] || '';
+                }
                 // Statistiky tab vyžaduje překreslení grafů (canvas musí být viditelný)
                 if (name === 'statistiky' || name === 'prehled') {
                     setTimeout(() => this.renderCharts(), 50);
@@ -990,7 +975,6 @@
                 const modal = document.getElementById('item-modal');
                 const titleEl = document.getElementById('item-modal-title');
                 this.populateKategorieDatalist();
-                this._pendingAttachment = null;
                 if (id) {
                     const it = this.items.find(x => x.id === id);
                     if (!it) return;
@@ -1004,9 +988,6 @@
                     document.getElementById('item-zaruka').value = it.zarukaMesicu || DEFAULT_WARRANTY_MONTHS;
                     document.getElementById('item-odkaz').value = it.odkaz || '';
                     document.getElementById('item-poznamka').value = it.poznamka || '';
-                    document.getElementById('item-soubor').value = '';
-                    this._existingAttachment = it.soubor || null;
-                    this._renderAttachmentInfo(it.soubor);
                 } else {
                     titleEl.textContent = 'Přidat zařízení';
                     document.getElementById('item-form').reset();
@@ -1014,30 +995,10 @@
                     document.getElementById('item-datum').value = todayISO();
                     document.getElementById('item-zivotnost').value = 5;
                     document.getElementById('item-zaruka').value = DEFAULT_WARRANTY_MONTHS;
-                    this._existingAttachment = null;
-                    this._renderAttachmentInfo(null);
                 }
                 modal.classList.remove('hidden');
                 lucide.createIcons();
                 setTimeout(() => document.getElementById('item-nazev').focus(), 50);
-            },
-            _renderAttachmentInfo(att) {
-                const info = document.getElementById('item-soubor-info');
-                const name = document.getElementById('item-soubor-name');
-                if (att && att.name) {
-                    info.classList.remove('hidden');
-                    info.classList.add('flex');
-                    name.textContent = att.name + ' · ' + Math.round((att.dataUrl || '').length / 1024) + ' kB';
-                } else {
-                    info.classList.add('hidden');
-                    info.classList.remove('flex');
-                }
-            },
-            clearAttachment() {
-                this._existingAttachment = null;
-                this._pendingAttachment = null;
-                document.getElementById('item-soubor').value = '';
-                this._renderAttachmentInfo(null);
             },
             closeItemModal() {
                 document.getElementById('item-modal').classList.add('hidden');
@@ -1057,35 +1018,15 @@
                 };
                 if (!data.nazev || !data.datumNakupu || data.nakupniCena <= 0) return;
 
-                const fileInput = document.getElementById('item-soubor');
-                const fileEntry = fileInput && fileInput.files && fileInput.files[0];
-
-                const finalize = (attachment) => {
-                    if (attachment !== undefined) data.soubor = attachment; // null = remove, object = set
-                    if (id) {
-                        const idx = this.items.findIndex(x => x.id === id);
-                        if (idx >= 0) this.items[idx] = { ...this.items[idx], ...data };
-                    } else {
-                        this.items.push({ id: newId(), ...data });
-                    }
-                    this.save();
-                    this.closeItemModal();
-                    this.refreshAll();
-                };
-
-                if (fileEntry) {
-                    if (fileEntry.size > 4 * 1024 * 1024) {
-                        alert('Soubor je větší než 4 MB. Použij menší obrázek/PDF.');
-                        return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = () => finalize({ name: fileEntry.name, type: fileEntry.type, dataUrl: reader.result });
-                    reader.onerror = () => { alert('Soubor se nepodařilo načíst.'); };
-                    reader.readAsDataURL(fileEntry);
-                    return;
+                if (id) {
+                    const idx = this.items.findIndex(x => x.id === id);
+                    if (idx >= 0) this.items[idx] = { ...this.items[idx], ...data };
+                } else {
+                    this.items.push({ id: newId(), ...data });
                 }
-                // No new file picked → keep existing (or cleared) attachment
-                finalize(this._existingAttachment === null ? null : undefined);
+                this.save();
+                this.closeItemModal();
+                this.refreshAll();
             },
             askDelete(id) {
                 const it = this.items.find(x => x.id === id);
@@ -1206,10 +1147,10 @@
                                 <td>${wb.html}</td>
                                 <td>
                                     <div class="font-medium text-slate-100 flex items-center gap-1.5 flex-wrap">
-                                        <span>${escapeHtml(it.nazev)}</span>
-                                        ${it.odkaz ? `<a href="${escapeHtml(it.odkaz)}" target="_blank" rel="noopener" title="Odkaz do obchodu / účtenka" class="text-sky-400 hover:text-sky-300"><i data-lucide="external-link" class="w-3 h-3"></i></a>` : ''}
+                                        ${it.odkaz
+                                            ? `<a href="${escapeHtml(it.odkaz)}" target="_blank" rel="noopener" title="Odkaz do obchodu / účtenka — ${escapeHtml(it.odkaz)}" class="text-slate-100 hover:text-sky-400 underline-offset-2 hover:underline">${escapeHtml(it.nazev)}</a>`
+                                            : `<span>${escapeHtml(it.nazev)}</span>`}
                                         ${it.poznamka ? `<span title="${escapeHtml(it.poznamka)}" class="text-amber-400"><i data-lucide="sticky-note" class="w-3 h-3"></i></span>` : ''}
-                                        ${it.soubor ? `<a href="${escapeHtml(it.soubor.dataUrl||'')}" target="_blank" rel="noopener" title="${escapeHtml(it.soubor.name||'Příloha')}" class="text-emerald-400 hover:text-emerald-300"><i data-lucide="paperclip" class="w-3 h-3"></i></a>` : ''}
                                     </div>
                                     ${it.kategorie ? `<div class="text-[10px] text-slate-500 font-mono">${escapeHtml(it.kategorie)}</div>` : ''}
                                 </td>

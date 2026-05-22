@@ -70,16 +70,16 @@
             accent-color: #0ea5e9;
         }
 
-        /* ── ROZLOŽENÍ ČÁSTKA + MĚNA ── */
-        /* Grid s pevnou šířkou pro select, aby width:100% z .pro-input nepřebíjelo flex-1 a w-24/w-20. */
+        /* ── ROZLOŽENÍ ČÁSTKA + MĚNA ──
+           Částka dostává většinu prostoru, měna jen tolik, kolik potřebuje pro 3-pismenný kód. */
         .amount-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 6rem;
+            grid-template-columns: minmax(0, 1fr) 4.5rem;
             align-items: center;
             gap: 0.5rem;
         }
         .amount-row.amount-row-sm {
-            grid-template-columns: minmax(0, 1fr) 5rem;
+            grid-template-columns: minmax(0, 1fr) 4rem;
         }
         .amount-row > .pro-input,
         .amount-row > input,
@@ -591,9 +591,6 @@
                         <i data-lucide="plus-circle" class="w-4 h-4 text-sky-400"></i>
                         <span class="text-xs font-semibold text-slate-300 uppercase tracking-widest">Nový záznam</span>
                     </div>
-                    <button type="button" onclick="app.toggleAiForm()" class="btn-ai">
-                        <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> AI Rychlovklad
-                    </button>
                 </div>
 
                 <form id="tx-form" onsubmit="app.addTransaction(event)" class="space-y-4">
@@ -611,28 +608,26 @@
                             <input id="in-info" placeholder="Název platby" required class="pro-input">
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                        <div class="sm:col-span-2">
-                            <label class="section-label block mb-1.5">Částka &amp; Měna</label>
-                            <div class="amount-row">
-                                <input id="in-suma" type="text" inputmode="decimal" placeholder="0,00 (nebo -700 / +700)" required
-                                    pattern="[+\-]?[0-9]+([.,][0-9]+)?"
-                                    title="Použij minus (-700) pro výdaj nebo plus (+700) pro příjem — přepíše automatickou detekci podle typu."
-                                    oninput="app.updatePreviewAdd()"
-                                    class="pro-input font-mono text-base">
-                                <select id="in-mena" onchange="app.updatePreviewAdd()" class="pro-input text-center font-mono">
-                                    <option value="CZK">CZK</option>
-                                    <option value="EUR">EUR</option>
-                                    <option value="USD">USD</option>
-                                </select>
-                            </div>
-                            <div id="preview-add" class="text-[0.6875rem] font-mono text-sky-400 mt-1 hidden">≈ 0 Kč</div>
+                    <div>
+                        <label class="section-label block mb-1.5">Částka &amp; Měna</label>
+                        <div class="amount-row">
+                            <input id="in-suma" type="text" inputmode="decimal" placeholder="0,00 (nebo -700 / +700)" required
+                                pattern="[+\-]?[0-9]+([.,][0-9]+)?"
+                                title="Použij minus (-700) pro výdaj nebo plus (+700) pro příjem — přepíše automatickou detekci podle typu."
+                                oninput="app.updatePreviewAdd()"
+                                class="pro-input font-mono text-base">
+                            <select id="in-mena" onchange="app.updatePreviewAdd()" class="pro-input text-center font-mono">
+                                <option value="CZK">CZK</option>
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                            </select>
                         </div>
-                        <div>
-                            <button type="submit" class="btn-primary w-full justify-center py-2.5">
-                                <i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit platbu
-                            </button>
-                        </div>
+                        <div id="preview-add" class="text-[0.6875rem] font-mono text-sky-400 mt-1 hidden">≈ 0 Kč</div>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn-primary w-full justify-center py-2.5">
+                            <i data-lucide="save" class="w-3.5 h-3.5"></i> Uložit platbu
+                        </button>
                     </div>
                     <div class="flex items-center gap-2.5 mt-2 pt-3 border-t border-slate-800 w-fit cursor-pointer"
                         onclick="document.getElementById('in-saving').click()">
@@ -640,24 +635,6 @@
                         <label class="section-label cursor-pointer m-0 text-slate-500">Položka představuje SPOŘENÍ</label>
                     </div>
                 </form>
-
-                <!-- AI Quick Add -->
-                <div id="ai-quick-add" class="hidden mt-4 pt-4 border-t border-slate-800 animate-fade-in">
-                    <div class="ai-panel p-4 flex flex-col sm:flex-row gap-3 items-center">
-                        <div class="flex-1 w-full">
-                            <div class="flex items-center gap-2 mb-2">
-                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i>
-                                <span class="text-xs font-semibold text-purple-300 uppercase tracking-wider">AI zpracování textu</span>
-                            </div>
-                            <textarea id="ai-input" rows="2"
-                                placeholder="'včera 400 za naftu z běžnýho'..."
-                                class="pro-input resize-none text-sm" style="background:#0c1526;"></textarea>
-                        </div>
-                        <button type="button" onclick="app.aiQuickAdd()" id="ai-btn" class="btn-ai whitespace-nowrap self-end sm:self-center px-5 py-3">
-                            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Zpracovat
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <!-- Account Filters -->
@@ -1418,15 +1395,6 @@
                 return /\b(?:příjem|prijem|mzda|plat|odměna|dividenda|úrok|bonus)\b/i.test(String(pohyb || ''));
             },
 
-            /* Otočí znaménko sumy (přírůstek ↔ úbytek). */
-            flipSign(id) {
-                const t = this.data.find(x => x.id === id);
-                if (!t) return;
-                t.suma = -t.suma;
-                if (typeof t.origSuma === 'number') t.origSuma = -t.origSuma;
-                this.save(); this.render();
-            },
-
             /* ════════════════════════════════════════════════════════════
                Provázanost s ostatními moduly:
                - pohyb=Předplatné       → upsert do predplatna_v1.items
@@ -1642,16 +1610,6 @@
                 else this.cloudReady = true;
             },
 
-            toggleAiForm() {
-                const el = document.getElementById('ai-quick-add');
-                if (el) {
-                    el.classList.toggle('hidden');
-                    if (!el.classList.contains('hidden')) {
-                        setTimeout(() => { const aiInput = document.getElementById('ai-input'); if (aiInput) aiInput.focus(); }, 150);
-                    }
-                }
-            },
-
             render() {
                 this.renderAccountFilters();
                 this.renderTable();
@@ -1773,10 +1731,6 @@
                             <td class="text-right font-mono font-bold text-sm ${t.suma > 0 ? 'text-emerald-400' : 'text-rose-400'}">${this.fmt(t.suma)}</td>
                             <td>
                                 <div class="flex items-center justify-center gap-1">
-                                    <button onclick="app.flipSign(${t.id})" title="Otočit znaménko (přírůstek ↔ úbytek)"
-                                        class="${pdg} text-slate-600 hover:bg-slate-700 rounded hover:text-amber-400 transition font-mono text-xs font-bold">
-                                        ${t.suma > 0 ? '−' : '+'}
-                                    </button>
                                     <button onclick="app.toggleExclude(${t.id})" title="Vyloučit z výpočtu"
                                         class="${pdg} ${t.isExcluded ? 'text-sky-400 bg-sky-400/10 rounded' : 'text-slate-600 hover:bg-slate-700 rounded hover:text-slate-400'} transition">
                                         <i data-lucide="${t.isExcluded ? 'eye' : 'eye-off'}" class="${icn}"></i>
@@ -1881,21 +1835,6 @@
                 } finally {
                     this.isSyncingFromCloud = false;
                 }
-            },
-
-            // --- AI ---
-            async aiQuickAdd() {
-                const input = document.getElementById('ai-input').value; if (!input) return;
-                const btn = document.getElementById('ai-btn'); btn.disabled = true; btn.innerHTML = "Zpracovávám...";
-                try {
-                    const res = await this.callAI(input, `Převeď text na JSON: {"pohyb":"...","info":"...","suma":123,"ucet":"...","saving":"ANO/NE"}. Saving=ANO jen u spoření. Suma vždy kladná v JSON.`);
-                    const tx = JSON.parse(res.replace(/```json|```/g, '').trim());
-                    let s = Math.abs(tx.suma); if (!this.isIncomeType(tx.pohyb)) s = -s;
-                    this.data.unshift({ id: Date.now(), ...tx, suma: s, ucet: tx.ucet || 'Běžný', date: new Date().toISOString(), isExcluded: false });
-                    this.save(); this.render(); document.getElementById('ai-input').value = "";
-                } catch (e) { alert("AI data nerozpoznala. Zkuste prosím větu přeformulovat."); }
-                btn.disabled = false; btn.innerHTML = 'Zpracovat text AI';
-                lucide.createIcons();
             },
 
             async getAiAdvice() {

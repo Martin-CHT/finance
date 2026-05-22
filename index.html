@@ -39,6 +39,14 @@
             overflow: hidden;
         }
 
+        /* ── Layout wrapper: sidebar + main content ── */
+        #appBody {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            overflow: hidden;
+        }
+
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
         /* ── Scrollbar ── */
@@ -57,36 +65,60 @@
             z-index: 50;
         }
 
-        /* ── Tab bar ── */
+        /* ── Vertical sidebar tab bar ── */
         #tabBar {
             background: #0f172a;
-            border-bottom: 1px solid #1e293b;
+            border-right: 1px solid #1e293b;
             flex-shrink: 0;
-            overflow-x: auto;
-            white-space: nowrap;
+            width: 220px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: width 0.18s ease;
+            padding: 0.5rem 0.4rem;
+            gap: 0.15rem;
         }
+        #tabBar.collapsed { width: 52px; padding: 0.5rem 0.25rem; }
+
+        #tabBarToggle {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.3rem;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            padding: 0.4rem 0.5rem;
+            border-radius: 0.35rem;
+            margin-bottom: 0.3rem;
+            transition: color 0.15s, background 0.15s;
+        }
+        #tabBarToggle:hover { color: #e2e8f0; background: rgba(30,41,59,0.6); }
 
         .tab-btn {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 0.4rem;
-            padding: 0.6rem 1.1rem;
-            font-size: 0.75rem;
+            gap: 0.6rem;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.78rem;
             font-weight: 500;
             color: #94a3b8;
-            border-bottom: 2px solid transparent;
+            border-radius: 0.4rem;
             cursor: pointer;
-            transition: color 0.15s, border-color 0.15s, background 0.15s;
+            transition: color 0.15s, background 0.15s, border-color 0.15s;
             user-select: none;
             white-space: nowrap;
             background: transparent;
-            border-left: none;
-            border-right: none;
-            border-top: none;
+            border: 1px solid transparent;
+            text-align: left;
+            position: relative;
         }
         .tab-btn:hover { color: #e2e8f0; background: rgba(30,41,59,0.5); }
-        .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
-        .tab-btn .tab-icon { width: 14px; height: 14px; flex-shrink: 0; }
+        .tab-btn.active { color: #38bdf8; background: rgba(14,165,233,0.1); border-color: rgba(14,165,233,0.25); }
+        .tab-btn .tab-icon { width: 16px; height: 16px; flex-shrink: 0; }
+        .tab-btn .tab-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
         .tab-badge {
             font-family: 'JetBrains Mono', monospace;
             font-size: 9px;
@@ -94,8 +126,21 @@
             border-radius: 3px;
             background: #1e293b;
             color: #64748b;
+            flex-shrink: 0;
         }
         .tab-btn.active .tab-badge { background: rgba(14,165,233,0.15); color: #38bdf8; }
+        .tab-group-sep {
+            height: 1px;
+            background: #1e293b;
+            margin: 0.4rem 0.4rem;
+            display: block;
+        }
+        #tabBar.collapsed .tab-btn { justify-content: center; padding: 0.55rem 0; }
+        #tabBar.collapsed .tab-label,
+        #tabBar.collapsed .tab-badge,
+        #tabBar.collapsed .tabBarToggleLabel { display: none; }
+        #tabBar.collapsed .tab-group-sep { margin: 0.4rem 0.6rem; }
+        #tabBar.collapsed #tabBarToggle { justify-content: center; }
 
         /* ── Dashboard tile ── */
         .dash-tile {
@@ -246,12 +291,15 @@
         /* ─── LIGHT THEME ─── */
         html.light body { background-color: #f1f5f9; color: #0f172a; }
         html.light #topNav { background: rgba(255,255,255,0.92) !important; border-bottom-color: #e2e8f0 !important; }
-        html.light #tabBar { background-color: #ffffff !important; border-bottom-color: #e2e8f0 !important; }
+        html.light #tabBar { background-color: #ffffff !important; border-right-color: #e2e8f0 !important; }
         html.light .tab-btn { color: #64748b; }
         html.light .tab-btn:hover { background-color: #f1f5f9; color: #0f172a; }
-        html.light .tab-btn.active { color: #0284c7; border-bottom-color: #0284c7; }
+        html.light .tab-btn.active { color: #0284c7; background: rgba(2,132,199,0.08); border-color: rgba(2,132,199,0.25); }
         html.light .tab-badge { background: #f1f5f9; color: #94a3b8; }
         html.light .tab-btn.active .tab-badge { background: rgba(2,132,199,0.1); color: #0284c7; }
+        html.light #tabBarToggle { color: #94a3b8; }
+        html.light #tabBarToggle:hover { color: #0f172a; background: #f1f5f9; }
+        html.light .tab-group-sep { background: #e2e8f0; }
         html.light .dash-tile { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
         html.light .dash-tile:hover { border-color: #cbd5e1 !important; }
         html.light .dash-tile h3 { color: #0f172a; }
@@ -364,11 +412,14 @@
         </div>
     </nav>
 
-    <!-- ══════════════ TAB BAR (dynamicky generovaný) ══════════════ -->
-    <div id="tabBar"></div>
+    <!-- ══════════════ HLAVNÍ ROZVRH: sidebar + obsah ══════════════ -->
+    <div id="appBody">
 
-    <!-- ══════════════ IFRAME / DASHBOARD AREA ══════════════ -->
-    <div id="iframeContainer">
+        <!-- TAB BAR (vertikální sidebar, dynamicky generovaný) -->
+        <aside id="tabBar"></aside>
+
+        <!-- IFRAME / DASHBOARD AREA -->
+        <div id="iframeContainer">
 
         <!-- Dashboard -->
         <div id="dashboard" class="active">
@@ -409,6 +460,7 @@
 
         <!-- iframes se generují dynamicky podle pořadí v JS -->
 
+        </div>
     </div>
 
     <script>
@@ -633,30 +685,58 @@
             return [...known, ...rest].map(g => ({ group: g, keys: groups.get(g) }));
         }
 
-        /* ── Render tab bar (jen viditelné moduly, oddělené tenkou čárou mezi skupinami) ── */
+        /* ── Render tab bar (vertikální sidebar; viditelné moduly s oddělovači mezi skupinami) ── */
         function renderTabBar(order) {
             const bar = document.getElementById('tabBar');
-            const dashBtn = `<button class="tab-btn active" data-tab="dashboard" id="tab-dashboard">
+            const collapsed = loadSidebarCollapsed();
+            bar.classList.toggle('collapsed', collapsed);
+
+            const toggleBtn = `<button id="tabBarToggle" type="button" onclick="toggleSidebar()" title="Sbalit / rozbalit panel">
+                <i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" class="w-4 h-4"></i>
+                <span class="tabBarToggleLabel text-[11px]">${collapsed ? '' : 'Sbalit'}</span>
+            </button>`;
+
+            const dashBtn = `<button class="tab-btn active" data-tab="dashboard" id="tab-dashboard" title="Dashboard">
                 <i data-lucide="layout-grid" class="tab-icon"></i>
-                Dashboard
+                <span class="tab-label">Dashboard</span>
             </button>`;
             const grouped = groupTilesOrder(order);
             const mods = grouped.map((bucket, idx) => {
-                const sep = idx > 0 ? '<span class="inline-block w-px h-4 bg-slate-800 align-middle mx-1"></span>' : '';
+                const sep = idx > 0 ? '<div class="tab-group-sep" role="separator"></div>' : '';
                 const items = bucket.keys.map(key => {
                     const m = MODULES[key];
-                    return `<button class="tab-btn" data-tab="${key}" id="tab-${key}" title="Skupina: ${escapeHtml(bucket.group)}">
+                    return `<button class="tab-btn" data-tab="${key}" id="tab-${key}" title="${escapeHtml(m.label)} · ${escapeHtml(bucket.group)}">
                         <i data-lucide="${m.icon}" class="tab-icon"></i>
-                        ${escapeHtml(m.label)}
+                        <span class="tab-label">${escapeHtml(m.label)}</span>
                         <span class="tab-badge">${m.shortBadge}</span>
                     </button>`;
                 }).join('');
                 return sep + items;
             }).join('');
-            bar.innerHTML = dashBtn + mods;
+            bar.innerHTML = toggleBtn + dashBtn + mods;
             bar.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.addEventListener('click', () => switchTab(btn.dataset.tab));
             });
+        }
+
+        /* ── Sidebar collapsed state (persist) ── */
+        function loadSidebarCollapsed() {
+            try { return localStorage.getItem('fc_sidebar_collapsed') === '1'; }
+            catch (e) { return false; }
+        }
+        function saveSidebarCollapsed(val) {
+            try { localStorage.setItem('fc_sidebar_collapsed', val ? '1' : '0'); } catch (e) {}
+        }
+        function toggleSidebar() {
+            const bar = document.getElementById('tabBar');
+            const next = !bar.classList.contains('collapsed');
+            bar.classList.toggle('collapsed', next);
+            saveSidebarCollapsed(next);
+            const icon = document.querySelector('#tabBarToggle i');
+            const lbl  = document.querySelector('#tabBarToggle .tabBarToggleLabel');
+            if (icon) icon.setAttribute('data-lucide', next ? 'panel-left-open' : 'panel-left-close');
+            if (lbl)  lbl.textContent = next ? '' : 'Sbalit';
+            lucide.createIcons();
         }
 
         /* ── Render tile grid: seskupené podle kategorií ── */

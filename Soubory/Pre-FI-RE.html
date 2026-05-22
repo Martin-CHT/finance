@@ -62,8 +62,12 @@
                 <p class="text-[10px] text-slate-500 leading-tight font-mono">Finance Terminal · finanční nezávislost</p>
             </div>
         </a>
-        <div class="hidden sm:flex items-center gap-2 text-[10px] text-slate-500 font-mono">
-            <span>FIRE = Financial Independence, Retire Early</span>
+        <div class="flex items-center gap-2">
+            <span class="hidden sm:inline text-[10px] text-slate-500 font-mono mr-2">FIRE = Financial Independence, Retire Early</span>
+            <button onclick="openModuleHelp()" class="btn btn-secondary" title="Nápověda — jak modul funguje">
+                <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Nápověda</span>
+            </button>
         </div>
     </div>
 </nav>
