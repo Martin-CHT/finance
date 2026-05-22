@@ -10,7 +10,7 @@
      • Google Fonts → cache-first (mění se zřídka).
    ════════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'fc-v2';
+const VERSION = 'fc-v3';
 const APP_CACHE = 'fc-app-' + VERSION;
 const CDN_CACHE = 'fc-cdn-' + VERSION;
 

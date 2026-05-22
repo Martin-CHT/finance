@@ -285,6 +285,54 @@
         notifyChange();
     }
 
+    /* ── Změna hesla ──
+       Backend musí podporovat action 'changePassword' s payloadem
+       { username, token, oldClientHash, newClientHash }. Při úspěchu
+       vrátí { ok:true, token } (token se obvykle obnoví). */
+    async function changePassword(oldPw, newPw) {
+        var s = getSession();
+        if (!s.user || !s.token) throw new Error('Nejsi přihlášen.');
+        if (!oldPw || !newPw) throw new Error('Vyplň staré i nové heslo.');
+        if (newPw.length < 6) throw new Error('Nové heslo musí mít alespoň 6 znaků.');
+        var oldHash = await pbkdf2Hex(oldPw, s.user);
+        var newHash = await pbkdf2Hex(newPw, s.user);
+        var res = await apiCall('changePassword', {
+            username: s.user, token: s.token,
+            oldClientHash: oldHash, newClientHash: newHash
+        });
+        if (!res || !res.ok) throw new Error(res && res.error ? res.error : 'change_password_failed');
+        // Backend nám vrátí čerstvý token; pokud ne, ponecháme stávající.
+        setSession(s.user, res.token || s.token, newHash);
+        notifyChange();
+        return true;
+    }
+
+    /* ── Přejmenování účtu ──
+       Backend musí podporovat action 'renameUser' s payloadem
+       { username, token, clientHash (potvrzení heslem), newUsername, newClientHash }.
+       newClientHash je PBKDF2 starého hesla, ale solený NOVÝM jménem
+       (sůl je username v lowercase). Backend přejmenuje záznam v Auth listu
+       i mod_<user>_* listy. Vrací { ok:true, token }. */
+    async function renameUser(newUsername, password) {
+        var s = getSession();
+        if (!s.user || !s.token) throw new Error('Nejsi přihlášen.');
+        var u = String(newUsername || '').trim().toLowerCase();
+        if (!/^[a-z0-9._-]{3,32}$/.test(u)) throw new Error('Jméno: 3–32 znaků, jen a-z 0-9 . _ -');
+        if (u === s.user) throw new Error('Nové jméno je stejné jako staré.');
+        if (!password) throw new Error('Pro potvrzení zadej heslo.');
+        var oldHash = await pbkdf2Hex(password, s.user);
+        var newHash = await pbkdf2Hex(password, u);
+        var res = await apiCall('renameUser', {
+            username: s.user, token: s.token,
+            clientHash: oldHash,
+            newUsername: u, newClientHash: newHash
+        });
+        if (!res || !res.ok) throw new Error(res && res.error ? res.error : 'rename_failed');
+        setSession(u, res.token || s.token, newHash);
+        notifyChange();
+        return true;
+    }
+
     /* ── Pull / push configu ──
        KLÍČOVÉ: na úspěšný pull NEVYVOLÁVÁME `fc-session-change`.
        Důvod: ten event v index.html spouští renderAll() → recreate iframes →

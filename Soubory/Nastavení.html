@@ -291,8 +291,7 @@
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <button class="btn btn-secondary" onclick="doPull()" title="Stáhnout nejnovější konfiguraci ze serveru"><i data-lucide="cloud-download" class="w-3.5 h-3.5"></i> Načíst</button>
-                        <button class="btn btn-secondary" onclick="doPush()" title="Nahrát aktuální lokální konfiguraci na server"><i data-lucide="cloud-upload" class="w-3.5 h-3.5"></i> Odeslat</button>
+                        <button class="btn btn-secondary" onclick="openChangePwModal()" title="Změnit heslo"><i data-lucide="key-round" class="w-3.5 h-3.5"></i> Změnit heslo</button>
                         <button class="btn btn-danger" onclick="doLogout()"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> Odhlásit</button>
                     </div>
                 </div>
@@ -1134,19 +1133,6 @@ function _json(o) {
             if (!confirm('Odhlásit se? AI klíče zůstanou v tomto prohlížeči, ale přestane se synchronizovat na další zařízení.')) return;
             window.FinanceCommon.auth.logout();
             toast('Odhlášeno', 'info');
-        }
-        async function doPull() {
-            toast('Stahuji konfiguraci…', 'info');
-            try {
-                const cfg = await window.FinanceCommon.cloud.pull();
-                if (cfg) toast('Konfigurace načtena z cloudu', 'success');
-                else toast('Nepodařilo se načíst — možná vypršela session, přihlaste se znovu', 'error');
-            } catch (e) { toast('Chyba: ' + e.message, 'error'); }
-        }
-        async function doPush() {
-            toast('Nahrávám konfiguraci…', 'info');
-            const ok = await window.FinanceCommon.cloud.push();
-            toast(ok ? 'Konfigurace odeslána do cloudu' : 'Odeslání selhalo', ok ? 'success' : 'error');
         }
         function translateAuthError(msg) {
             const m = String(msg || '');

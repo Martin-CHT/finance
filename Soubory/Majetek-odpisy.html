@@ -150,14 +150,15 @@
         }
 
         /* ── Table ── */
+        .data-table { table-layout: auto; }
         .data-table thead th {
             background: #1e293b;
             color: #94a3b8;
             font-size: 10px;
             font-weight: 600;
-            letter-spacing: .08em;
+            letter-spacing: .06em;
             text-transform: uppercase;
-            padding: .65rem .75rem;
+            padding: .55rem .5rem;
             border-bottom: 1px solid #334155;
             white-space: nowrap;
             cursor: pointer;
@@ -166,7 +167,9 @@
         .data-table thead th:hover { color: #e2e8f0; }
         .data-table tbody tr { border-bottom: 1px solid #1e293b; }
         .data-table tbody tr:hover { background: rgba(30,41,59,.5); }
-        .data-table tbody td { padding: .65rem .75rem; }
+        .data-table tbody td { padding: .55rem .5rem; vertical-align: middle; }
+        .data-table tbody td.num,
+        .data-table tbody td.text-right { white-space: nowrap; }
         .sort-arrow { display: inline-block; margin-left: 0.2rem; opacity: 0.5; font-size: 10px; }
         .sort-arrow.active { opacity: 1; color: #38bdf8; }
 
@@ -358,9 +361,6 @@
 
             <!-- Pravá část: akce -->
             <div class="flex items-center gap-1 flex-shrink-0">
-                <span class="status-dot"></span>
-                <span class="text-[10px] text-slate-500 font-mono hidden sm:inline mr-1">localStorage · online</span>
-                <div class="w-px h-4 bg-slate-700 mx-1"></div>
                 <button onclick="openModuleHelp()" class="btn btn-ghost" title="Nápověda">
                     <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
                     <span class="hidden sm:inline">Nápověda</span>
@@ -495,7 +495,7 @@
 
                 <!-- Tabulka -->
                 <div class="overflow-x-auto">
-                    <table class="w-full data-table text-left text-xs min-w-[1100px]">
+                    <table class="w-full data-table text-left text-xs">
                         <thead>
                             <tr>
                                 <th data-sort="zaruka" onclick="app.sortBy('zaruka')">Záruka <span class="sort-arrow" data-arrow="zaruka">↕</span></th>
