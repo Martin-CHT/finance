@@ -828,8 +828,9 @@
 
         /* ── Tab switching ── */
         let currentTab = 'dashboard';
-        function switchTab(name) {
+        function switchTab(name, opts) {
             if (name !== 'dashboard' && !MODULES[name]) return;
+            opts = opts || {};
 
             // Deactivate all
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -852,9 +853,54 @@
             }
 
             currentTab = name;
-            /* Záměrně neukládáme do sessionStorage — výchozí stránka při
-               otevření Index.html je vždy Dashboard. */
+
+            // ── URL routing ──
+            // Aktualizujeme adresní řádek tak, aby reflektoval otevřený modul.
+            // F5 (reload) pak otevře přímo standalone modul (na GitHub Pages je
+            // soubor reálně dostupný na dané cestě). Standalone modul má vlastní
+            // FAB Nastavení a funguje samostatně. Při návratu na Dashboard
+            // URL vyresetuje na index.html.
+            if (!opts.skipHistory) {
+                try {
+                    const url = computeUrlForTab(name);
+                    if (url && location.pathname + location.search + location.hash !== url) {
+                        history.pushState({ tab: name }, '', url);
+                    }
+                } catch (e) {}
+            }
         }
+
+        /* Vrací cestu (path) odpovídající modulu. Bázová cesta je root index.html
+           (typicky `/finance/`). Modul s relativní cestou `Soubory/Foo.html` se
+           projeví jako `/finance/Soubory/Foo.html`. Dashboard = root. */
+        function computeUrlForTab(name) {
+            const baseDir = location.pathname.replace(/[^/]*$/, ''); // odstraní `index.html` z konce
+            if (name === 'dashboard') return baseDir;
+            const m = MODULES[name];
+            if (!m) return null;
+            return baseDir + m.file;
+        }
+
+        /* Z URL pathname odvodí klíč modulu (nebo 'dashboard'). */
+        function tabFromUrl() {
+            const path = location.pathname;
+            // Vyzkoušíme, jestli některý modul končí stejnou cestou jako URL
+            for (const key of Object.keys(MODULES)) {
+                const m = MODULES[key];
+                if (!m || !m.file) continue;
+                // Striktní endsWith jména souboru — slouží jako fallback i pro
+                // libovolnou hostovací cestu (lokálně i na GitHub Pages).
+                const fileName = m.file.split('/').pop();
+                if (path.endsWith(m.file) || path.endsWith('/' + fileName)) return key;
+            }
+            return 'dashboard';
+        }
+
+        /* Back/forward — synchronizuj currentTab s URL */
+        window.addEventListener('popstate', () => {
+            const t = tabFromUrl();
+            if (t !== currentTab) switchTab(t, { skipHistory: true });
+        });
         function onTileClick(key) {
             if (document.body.classList.contains('reorder-mode')) return; // v reorder módu klik neotvírá
             switchTab(key);
@@ -948,8 +994,11 @@
 
             renderAll();
 
-            // Výchozí stránka po otevření Index.html = vždy Dashboard.
-            switchTab('dashboard');
+            // Otevři tab podle URL — F5 / přímý link na /Soubory/Foo.html
+            // otevře daný modul rovnou (s plnou sidebar UI v index.html).
+            // Pokud URL je root (/finance/ nebo /index.html), použij Dashboard.
+            const initialTab = tabFromUrl();
+            switchTab(initialTab, { skipHistory: true });
 
             // Current date
             const d = new Date();

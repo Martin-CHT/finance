@@ -2057,11 +2057,12 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                 }
             },
 
-            /* ── KALKULÁTOR VÝRAZŮ ──
-               Bezpečně vyhodnotí jednoduché aritmetické výrazy v inputu částky.
-               Povolené znaky: číslice, +-*/(), tečka/čárka jako desetinný oddělovač,
-               mezery. Žádné JS identifikátory, žádné `new Function`. Vstup se
-               sanitizuje a parsuje rekurzivně descent parserem. */
+            // ── KALKULÁTOR VÝRAZŮ ──
+            // Bezpečně vyhodnotí jednoduché aritmetické výrazy v inputu částky.
+            // Povolené znaky: číslice, plus, mínus, hvězdička, lomítko, závorky,
+            // tečka/čárka jako desetinný oddělovač, mezery.
+            // Žádné JS identifikátory, žádné new Function. Vstup se sanitizuje
+            // a parsuje rekurzivním descent parserem.
             evalAmountExpression(raw) {
                 if (raw == null) return NaN;
                 let s = String(raw).trim();

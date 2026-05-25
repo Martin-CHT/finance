@@ -286,7 +286,7 @@
     async function register(username, password) {
         var u = String(username || '').trim().toLowerCase();
         if (!/^[a-z0-9._-]{3,32}$/.test(u)) throw new Error('Jméno: 3–32 znaků, jen a-z 0-9 . _ -');
-        if (!password || password.length < 6) throw new Error('Heslo musí mít alespoň 6 znaků.');
+        if (!password) throw new Error('Vyplň heslo.');
         var hash = await pbkdf2Hex(password, u);
         var reg = await apiCall('register', { username: u, clientHash: hash });
         if (!reg || !reg.ok) throw new Error(reg && reg.error ? reg.error : 'register_failed');
@@ -313,7 +313,6 @@
         var s = getSession();
         if (!s.user || !s.token) throw new Error('Nejsi přihlášen.');
         if (!oldPw || !newPw) throw new Error('Vyplň staré i nové heslo.');
-        if (newPw.length < 6) throw new Error('Nové heslo musí mít alespoň 6 znaků.');
         var oldHash = await pbkdf2Hex(oldPw, s.user);
         var newHash = await pbkdf2Hex(newPw, s.user);
         var res = await apiCall('changePassword', {

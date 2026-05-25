@@ -128,7 +128,8 @@
             opacity: 0;
             transform: translateY(10px);
             transition: opacity 0.2s, transform 0.2s;
-            z-index: 100;
+            /* Nad modaly (99999) — toast musí být čitelný i když je modal otevřený */
+            z-index: 2147483647;
             max-width: 24rem;
         }
         .toast.show { opacity: 1; transform: translateY(0); }
@@ -265,10 +266,10 @@
                         <input id="authUser" type="text" class="input" placeholder="jméno" autocomplete="username" autocapitalize="none" spellcheck="false">
                     </div>
                     <div>
-                        <label class="fld">Heslo <span class="text-[9px] text-slate-600">(min. 6 znaků)</span></label>
+                        <label class="fld">Heslo</label>
                         <div class="flex gap-2">
                             <input id="authPw" type="password" class="input secret" placeholder="heslo" autocomplete="current-password">
-                            <button class="btn btn-ghost" onclick="togglePw('authPw', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                            <button type="button" tabindex="-1" class="btn btn-ghost" onclick="togglePw('authPw', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                         </div>
                     </div>
                 </div>
@@ -312,7 +313,7 @@
                     <label class="fld">Groq API klíč <span class="text-[9px] text-slate-600">(gsk_...)</span></label>
                     <div class="flex gap-2">
                         <input id="inpGroq" type="password" class="input secret" placeholder="gsk_..." autocomplete="off">
-                        <button class="btn btn-ghost" onclick="togglePw('inpGroq', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                        <button type="button" tabindex="-1" class="btn btn-ghost" onclick="togglePw('inpGroq', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                     </div>
                     <a href="https://console.groq.com/keys" target="_blank" class="text-[10px] text-sky-400 hover:underline mt-1 inline-block">Získat Groq klíč →</a>
                 </div>
@@ -320,7 +321,7 @@
                     <label class="fld">Gemini API klíč <span class="text-[9px] text-slate-600">(AIza...)</span></label>
                     <div class="flex gap-2">
                         <input id="inpGemini" type="password" class="input secret" placeholder="AIza..." autocomplete="off">
-                        <button class="btn btn-ghost" onclick="togglePw('inpGemini', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                        <button type="button" tabindex="-1" class="btn btn-ghost" onclick="togglePw('inpGemini', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                     </div>
                     <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-[10px] text-sky-400 hover:underline mt-1 inline-block">Získat Gemini klíč →</a>
                 </div>
@@ -328,7 +329,7 @@
                     <label class="fld">ChatGPT (OpenAI) API klíč <span class="text-[9px] text-slate-600">(sk-...)</span></label>
                     <div class="flex gap-2">
                         <input id="inpChatgpt" type="password" class="input secret" placeholder="sk-..." autocomplete="off">
-                        <button class="btn btn-ghost" onclick="togglePw('inpChatgpt', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                        <button type="button" tabindex="-1" class="btn btn-ghost" onclick="togglePw('inpChatgpt', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                     </div>
                     <a href="https://platform.openai.com/api-keys" target="_blank" class="text-[10px] text-sky-400 hover:underline mt-1 inline-block">Získat OpenAI klíč →</a>
                 </div>
@@ -433,8 +434,7 @@ function doPost(e) {
   if (body.action === 'getConfig')  return _json({ok:true, config: readConfig()});
   if (body.action === 'getData')    return _json({ok:true, data: readModule(body.module)});
 
-  // Legacy POSTy bez 'action' (starý syncToCloud z dřívější verze) — ignorujeme,
-  // ať neplníme list 'mod_unknown'. Nový sync používá action:'saveData'.
+  // Legacy POSTy bez 'action' (starý syncToCloud z dřívější verze) — ignorujeme.
   return _json({ok:true, ignored:true, hint:'use action:saveData with module:name'});
 }
 
@@ -443,7 +443,7 @@ function checkToken(e) { return !TOKEN || e.parameter.token === TOKEN; }
 function readConfig() {
   const sh = _getSheet(SHEET_CONFIG);
   const rows = sh.getDataRange().getValues();
-  const cfg = {}; rows.forEach(r => { if (r[0]) cfg[r[0]] = r[1]; });
+  const cfg = {}; rows.forEach(r =&gt; { if (r[0]) cfg[r[0]] = r[1]; });
   return cfg;
 }
 function writeConfig(cfg) {
@@ -470,6 +470,52 @@ function _json(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
 }</pre>
+
+                    <p class="text-slate-400 mt-4">
+                        <b class="text-slate-200">Pro centrální auth backend</b> (URL <code>FC_AUTH_URL</code> v <code>finance-common.js</code>): pokud chceš, aby fungovala <b>změna hesla</b> a <b>změna jména</b>, musíš do svého <b>auth Apps Scriptu</b> (samostatný projekt, který spravuje účty) přidat tyto dvě akce. Níže je referenční implementace — vlož ji do svého auth scriptu a redeployni pod stejnou URL.
+                    </p>
+                    <pre class="code">/** Auth backend — rozšíření pro changePassword + renameUser. */
+
+// V doPost přidej tyto dvě větve PŘED výchozí 'unknown action':
+//
+//   if (body.action === 'changePassword') return _json(changePassword(body));
+//   if (body.action === 'renameUser')     return _json(renameUser(body));
+
+function changePassword(body) {
+  // payload: {username, token, oldClientHash, newClientHash}
+  const user = body.username, tok = body.token;
+  const u = _findUser(user);
+  if (!u) return {ok:false, error:'no_user'};
+  if (u.token !== tok) return {ok:false, error:'bad_token'};
+  if (u.clientHash !== body.oldClientHash) return {ok:false, error:'bad_credentials'};
+  // Zapiš nový hash, vystav nový token
+  u.clientHash = body.newClientHash;
+  u.token = Utilities.getUuid();
+  _saveUser(u);
+  return {ok:true, token: u.token};
+}
+
+function renameUser(body) {
+  // payload: {username, token, clientHash, newUsername, newClientHash}
+  const u = _findUser(body.username);
+  if (!u) return {ok:false, error:'no_user'};
+  if (u.token !== body.token) return {ok:false, error:'bad_token'};
+  if (u.clientHash !== body.clientHash) return {ok:false, error:'bad_credentials'};
+  if (_findUser(body.newUsername)) return {ok:false, error:'user_exists'};
+  // Přejmenuj záznam v Auth listu i mod_&lt;user&gt;_* listy
+  _renameUserRow(u.username, body.newUsername);
+  _renameUserSheets(u.username, body.newUsername);
+  u.username = body.newUsername;
+  u.clientHash = body.newClientHash;
+  u.token = Utilities.getUuid();
+  _saveUser(u);
+  return {ok:true, token: u.token};
+}
+
+// Pomocné — implementace závisí na struktuře tvého Auth listu.
+// _findUser / _saveUser / _renameUserRow / _renameUserSheets musíš
+// přizpůsobit svému stávajícímu schématu (typicky list 'Auth' s řádky
+// username | clientHash | token | config_json).</pre>
                 </div>
             </details>
 
@@ -563,14 +609,14 @@ function _json(o) {
                     <label class="fld">Staré heslo</label>
                     <div class="flex gap-2">
                         <input id="pwOld" type="password" class="input secret" placeholder="staré heslo" autocomplete="current-password">
-                        <button class="btn btn-ghost" onclick="togglePw('pwOld', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                        <button type="button" tabindex="-1" class="btn btn-ghost" onclick="togglePw('pwOld', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                     </div>
                 </div>
                 <div>
-                    <label class="fld">Nové heslo <span class="text-[9px] text-slate-600">(min. 6 znaků)</span></label>
+                    <label class="fld">Nové heslo</label>
                     <div class="flex gap-2">
                         <input id="pwNew" type="password" class="input secret" placeholder="nové heslo" autocomplete="new-password">
-                        <button class="btn btn-ghost" onclick="togglePw('pwNew', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                        <button type="button" tabindex="-1" class="btn btn-ghost" onclick="togglePw('pwNew', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                     </div>
                 </div>
                 <div>
@@ -599,7 +645,7 @@ function _json(o) {
                     <label class="fld">Heslo (potvrzení)</label>
                     <div class="flex gap-2">
                         <input id="renPw" type="password" class="input secret" placeholder="aktuální heslo" autocomplete="current-password">
-                        <button class="btn btn-ghost" onclick="togglePw('renPw', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                        <button type="button" tabindex="-1" class="btn btn-ghost" onclick="togglePw('renPw', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
                     </div>
                 </div>
             </div>
@@ -1240,7 +1286,11 @@ function _json(o) {
             if (m === 'invalid_hash')     return 'chyba při hashování hesla v prohlížeči';
             if (m === 'locked')           return 'účet je dočasně zablokován po opakovaných chybách';
             if (m === 'no_user')          return 'účet neexistuje';
-            if (m === 'unsupported_action') return 'tato funkce není dostupná — Apps Script backend ji ještě nepodporuje. Aktualizuj kód Apps Scriptu podle návodu výše a redeployni novou verzi.';
+            // "unknown action: X" / "unsupported_action" — auth backend (FC_AUTH_URL) ještě nepodporuje
+            // danou operaci. Centralizovaný backend je potřeba aktualizovat (viz Apps Script kód v sekci níže).
+            if (/unknown\s*action|unsupported_action/i.test(m)) {
+                return 'tato funkce není v cloud-backendu zatím dostupná. Aktualizuj svůj auth Apps Script (přidej akce changePassword + renameUser podle návodu) a redeployni novou verzi pod stejnou URL.';
+            }
             return m;
         }
 
@@ -1261,7 +1311,6 @@ function _json(o) {
             const newPw = document.getElementById('pwNew').value;
             const newPw2 = document.getElementById('pwNew2').value;
             if (!oldPw || !newPw) { toast('Vyplň staré i nové heslo', 'error'); return; }
-            if (newPw.length < 6) { toast('Nové heslo musí mít alespoň 6 znaků', 'error'); return; }
             if (newPw !== newPw2) { toast('Nová hesla se neshodují', 'error'); return; }
             if (newPw === oldPw) { toast('Nové heslo je stejné jako staré', 'error'); return; }
             try {
