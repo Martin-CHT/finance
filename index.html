@@ -268,6 +268,12 @@
             box-shadow: 0 0 6px #38bdf8;
             animation: pulse-dot 0.6s ease-in-out infinite;
         }
+        /* Error stav — červený, neblikající */
+        .status-dot.sync-error {
+            background: #f43f5e;
+            box-shadow: 0 0 6px #f43f5e;
+            animation: none;
+        }
 
         /* ── KPI strip ── */
         .kpi-strip {
@@ -783,16 +789,28 @@
 
         /* ── Render iframes ──
            Vytvoříme iframe pro každý známý modul (i pro ty skryté z dashboardu,
-           např. Nastavení), aby přechod přes top-nav tlačítko fungoval. */
+           např. Nastavení), aby přechod přes top-nav tlačítko fungoval.
+           IDEMPOTENTNÍ: Nikdy nesmí destruktivně mazat existující iframe
+           (zničili bychom v něm rozdělanou práci — typicky drag&drop modulů
+           v Nastavení sám změní pořadí, vyvolá storage event a tím by se
+           jeho vlastní iframe zničil uprostřed gesta). Místo toho pouze
+           doplníme chybějící a odebereme jen ty, jejichž modul zmizel. */
         function renderFrames(order) {
             const container = document.getElementById('iframeContainer');
-            container.querySelectorAll('.app-frame').forEach(f => f.remove());
             const allKeys = Array.from(new Set([...order, ...Object.keys(MODULES)]));
+            const wantedIds = new Set(allKeys.filter(k => MODULES[k]).map(k => 'frame-' + k));
+            // Odstraň iframe, který už neodpovídá žádnému modulu.
+            container.querySelectorAll('.app-frame').forEach(f => {
+                if (!wantedIds.has(f.id)) f.remove();
+            });
+            // Doplň chybějící iframe. Stávající nech být — zachová DOM, src i scroll.
             allKeys.forEach(key => {
                 const m = MODULES[key];
                 if (!m) return;
+                const id = 'frame-' + key;
+                if (document.getElementById(id)) return;
                 const f = document.createElement('iframe');
-                f.id = 'frame-' + key;
+                f.id = id;
                 f.className = 'app-frame';
                 f.dataset.src = m.file;
                 f.title = m.label;
@@ -971,42 +989,85 @@
             // Sync indikátor: zachycujeme jak vlastní eventy z parent okna
             // (FinanceCommon.ui.setSyncBusy), tak postMessage z iframů.
             var _syncBusyTimeout = null;
-            function setStatusDotSyncing(busy) {
+            var _syncErrorTimeout = null;
+            function setStatusDotSyncing(busy, errored) {
                 var dot = document.querySelector('.status-dot');
                 if (!dot) return;
                 if (busy) {
                     dot.classList.add('syncing');
+                    dot.classList.remove('sync-error');
                     clearTimeout(_syncBusyTimeout);
                     // Bezpečnostní timeout — kdyby setSyncBusy(false) z nějakého důvodu nepřišel
                     _syncBusyTimeout = setTimeout(function () { dot.classList.remove('syncing'); }, 10000);
                 } else {
                     dot.classList.remove('syncing');
                     clearTimeout(_syncBusyTimeout);
+                    if (errored) {
+                        dot.classList.add('sync-error');
+                        dot.title = 'Poslední synchronizace selhala (i po opakovaných pokusech). Data zůstávají v prohlížeči. Zkontroluj Sheets URL v Nastavení.';
+                        clearTimeout(_syncErrorTimeout);
+                        // Po 30 s vrátíme zpět zelený zdravý stav, ať to není permanentně červené.
+                        _syncErrorTimeout = setTimeout(function () { dot.classList.remove('sync-error'); dot.title = 'Spojení s lokálním úložištěm (cookies + localStorage). Zelená = data se ukládají v prohlížeči.'; }, 30000);
+                    }
                 }
             }
             window.addEventListener('fc-sync-state', function (e) {
-                if (e && e.detail) setStatusDotSyncing(!!e.detail.busy);
+                if (e && e.detail) setStatusDotSyncing(!!e.detail.busy, !!e.detail.errored);
             });
             window.addEventListener('message', function (e) {
                 if (e.data && e.data.type === 'fc-sync-state') {
-                    setStatusDotSyncing(!!e.data.busy);
+                    setStatusDotSyncing(!!e.data.busy, !!e.data.errored);
                 }
             });
 
             // Když se uživatel přihlásí (postMessage z iframe Nastavení),
-            // reloadneme všechny iframe moduly, aby si stáhly data ze Sheetu pod novou sessionou.
+            // stáhneme data všech modulů z cloudu naráz a teprve potom reloadneme
+            // iframe moduly, aby uvnitř už viděly aktuální data v localStorage.
             window.addEventListener('message', function (e) {
                 if (!e.data || e.data.type !== 'fc-session-change') return;
                 updateLoginChip();
-                document.querySelectorAll('.app-frame').forEach(function (f) {
-                    if (f.src) {
-                        // Reset src tak, aby se iframe znovu načetla
-                        var src = f.dataset.src || f.src;
-                        f.src = 'about:blank';
-                        setTimeout(function () { f.src = src; }, 30);
+                // sessionStorage flags z minulého uživatele vyresetuj — jinak by
+                // pullAllData přeskočilo moduly, které už byly v této session pulled.
+                try {
+                    Object.keys(sessionStorage).forEach(function (k) {
+                        if (k.indexOf('fc_pulled_') === 0) sessionStorage.removeItem(k);
+                    });
+                } catch (err) {}
+                // Stáhni data všech modulů — preferRemote, protože uživatel právě
+                // přepnul cloud účet a chce vidět svá cloudová data.
+                var didPull = Promise.resolve();
+                try {
+                    if (window.FinanceCommon && window.FinanceCommon.cloud && window.FinanceCommon.cloud.pullAllData) {
+                        didPull = window.FinanceCommon.cloud.pullAllData({ preferRemote: true }).catch(function () { return null; });
                     }
+                } catch (err) {}
+                didPull.finally(function () {
+                    document.querySelectorAll('.app-frame').forEach(function (f) {
+                        if (f.src) {
+                            var src = f.dataset.src || f.src;
+                            f.src = 'about:blank';
+                            setTimeout(function () { f.src = src; }, 30);
+                        }
+                    });
                 });
             });
+
+            // Při prvním načtení index.html (uživatel už byl přihlášen z minula) —
+            // stáhneme data všech modulů z cloudu, ať jsou připravená dříve, než si
+            // jednotlivé moduly vyžádají vlastní pull.
+            (function initialGlobalPull() {
+                try {
+                    var user  = localStorage.getItem('fc_session_user')  || '';
+                    var token = localStorage.getItem('fc_session_token') || '';
+                    if (!user || !token) return;
+                    if (!window.FinanceCommon || !window.FinanceCommon.cloud || !window.FinanceCommon.cloud.pullAllData) return;
+                    if (!window.FinanceCommon.cloud.hasSheetsUrl()) return;
+                    // Drobné zpoždění, ať finance-common.js stihne udělat svůj auto-pull configu.
+                    setTimeout(function () {
+                        window.FinanceCommon.cloud.pullAllData({ preferRemote: false }).catch(function () {});
+                    }, 600);
+                } catch (e) {}
+            })();
 
             // Auto-sync pořadí modulů do cloudu po drag&drop nebo resetu.
             const _origSaveOrder = saveOrder;

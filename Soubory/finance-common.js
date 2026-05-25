@@ -37,6 +37,26 @@
         'fc_module_groups'
     ];
 
+    /* Registry modulů a jejich storage klíčů — single source of truth.
+       Používá se pro:
+         a) globální Export/Import (všechna modulová data v jednom souboru),
+         b) globální cloud pull/push (po loginu stáhnout VŠECHNY moduly,
+            nikoliv jen ten, který je otevřený v iframe).
+       moduleKey = identifikátor pro `mod_<key>` v user's Sheetu;
+       storageKey = klíč v localStorage v daném modulu. */
+    var MODULE_DATA_REGISTRY = {
+        prijmy:       'FinanceAI_data',
+        predplatna:   'predplatna_v1',
+        sporeni:      'sporici_data_ai_tree',
+        pujcky:       'pujcky_data_v1',
+        investice:    'pension_settings',
+        broker:       'broker_v1',
+        btc:          'btc-invest:v1',
+        majetek:      'majetek_odpisy_items',
+        energie:      'energie_v1',
+        'pre-fi-re':  'pre_fi_re_v1'
+    };
+
     /* PBKDF2 parametry — musí přesně odpovídat tomu, co očekává Apps Script. */
     var PBKDF2_ITERS = 200000;
 
@@ -340,12 +360,19 @@
        (téma, pořadí, viditelnost, AI klíče) jdou v applyConfig přes
        writeUnified → setItem → `storage` event (jen pro reálně změněné klíče),
        takže parent reaguje selektivně. */
+    /* Generická apiCall s retry — používá se pro getConfig/saveConfig.
+       Pro auth akce (login/register/changePassword/renameUser) NE — tam musí
+       chyby projít hned, aby se uživateli zobrazila správná hláška. */
+    async function _apiCallRetry(action, payload) {
+        return await _withRetry(function () { return apiCall(action, payload); });
+    }
+
     async function pull() {
         var s = getSession();
         if (!s.user || !s.token) return null;
         var res;
         try {
-            res = await apiCall('getConfig', { username: s.user, token: s.token });
+            res = await _apiCallRetry('getConfig', { username: s.user, token: s.token });
         } catch (e) { return null; }
         if (!res || !res.ok) {
             // token mohl expirovat – pokus o automatický relogin přes uložený hash
@@ -378,9 +405,14 @@
         var cfg = collectConfig();
         try {
             setSyncBusy && setSyncBusy(true);
-            var res = await apiCall('saveConfig', { username: s.user, token: s.token, config: cfg });
-            return !!(res && res.ok);
-        } catch (e) { return false; }
+            var res = await _apiCallRetry('saveConfig', { username: s.user, token: s.token, config: cfg });
+            var ok = !!(res && res.ok);
+            if (!ok) setSyncBusy && setSyncBusy(false, true);
+            return ok;
+        } catch (e) {
+            setSyncBusy && setSyncBusy(false, true);
+            return false;
+        }
         finally { setSyncBusy && setSyncBusy(false); }
     }
 
@@ -484,7 +516,20 @@
         return u;
     }
 
-    /* Pošle libovolný JSON objekt jako data modulu. */
+    /* Retry helper — exponential backoff (300ms, 900ms, 2700ms). */
+    function _sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+    async function _withRetry(fn, attempts) {
+        var max = attempts || 3;
+        var lastErr;
+        for (var i = 0; i < max; i++) {
+            try { return await fn(); }
+            catch (e) { lastErr = e; }
+            if (i < max - 1) await _sleep(300 * Math.pow(3, i));
+        }
+        throw lastErr || new Error('all retries failed');
+    }
+
+    /* Pošle libovolný JSON objekt jako data modulu. S retry + verifikací úspěchu. */
     async function pushModuleData(moduleName, data) {
         var base = _userSheetUrl();
         if (!base) return false; // user nemá Sheet nastavený — nic neděláme
@@ -493,30 +538,127 @@
         if (t) body.token = t;
         setSyncBusy(true);
         try {
-            var r = await fetch(base, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(body),
-                redirect: 'follow'
+            return await _withRetry(async function () {
+                var r = await fetch(base, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(body),
+                    redirect: 'follow'
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                var j = await r.json().catch(function () { return null; });
+                if (!j || !j.ok) throw new Error((j && j.error) || 'push_failed');
+                return true;
             });
-            if (!r.ok) return false;
-            var j = await r.json().catch(function () { return null; });
-            return !!(j && j.ok);
-        } catch (e) { return false; }
+        } catch (e) {
+            // Po vyčerpání retry — log a vrátí false, ale data zůstávají v localStorage,
+            // takže příští úspěšný push je dotáhne nahoru.
+            try { console.warn('[FinanceCommon] pushModuleData failed for', moduleName, e && e.message); } catch (_) {}
+            return false;
+        }
         finally { setSyncBusy(false); }
     }
 
-    /* Stáhne `mod_<moduleName>`. Vrací parsovaný JSON nebo null. */
+    /* Stáhne `mod_<moduleName>`. Vrací parsovaný JSON nebo null. S retry. */
     async function pullModuleData(moduleName) {
         var url = _sheetUrlWithToken('action=getData&module=' + encodeURIComponent(moduleName));
         if (!url) return null;
         try {
-            var r = await fetch(url);
-            if (!r.ok) return null;
-            var j = await r.json().catch(function () { return null; });
-            if (!j || !j.ok) return null;
-            return (j.data == null) ? null : j.data;
-        } catch (e) { return null; }
+            return await _withRetry(async function () {
+                var r = await fetch(url);
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                var j = await r.json().catch(function () { return null; });
+                if (!j || !j.ok) throw new Error((j && j.error) || 'pull_failed');
+                return (j.data == null) ? null : j.data;
+            });
+        } catch (e) {
+            try { console.warn('[FinanceCommon] pullModuleData failed for', moduleName, e && e.message); } catch (_) {}
+            return null;
+        }
+    }
+
+    /* ═══ Globální Export / Import / Cloud sync všech modulů najednou ═══ */
+
+    /* Sebere modulová data ze všech známých modulů (z localStorage).
+       Vrací { moduleKey: parsedData }. Modulové klíče bez dat se nezahrnou. */
+    function collectAllModuleData() {
+        var out = {};
+        Object.keys(MODULE_DATA_REGISTRY).forEach(function (modKey) {
+            var sKey = MODULE_DATA_REGISTRY[modKey];
+            var raw = lsGet(sKey);
+            if (!raw) return;
+            try { out[modKey] = JSON.parse(raw); }
+            catch (e) { out[modKey] = raw; } // raw fallback
+        });
+        return out;
+    }
+
+    /* Aplikuje modulová data lokálně (zapíše do localStorage a vyvolá
+       fc-module-data-updated, aby se v ostatních iframech zobrazila). */
+    function applyAllModuleData(map) {
+        if (!map || typeof map !== 'object') return;
+        Object.keys(map).forEach(function (modKey) {
+            var sKey = MODULE_DATA_REGISTRY[modKey];
+            if (!sKey) return;
+            var data = map[modKey];
+            var payload = (typeof data === 'string') ? data : JSON.stringify(data);
+            try { lsSet(sKey, payload); } catch (e) {}
+            try {
+                window.dispatchEvent(new CustomEvent('fc-module-data-updated', {
+                    detail: { module: modKey, data: data, storageKey: sKey, source: 'global-import' }
+                }));
+            } catch (e) {}
+        });
+    }
+
+    /* Push všech modulů do user's Sheetu (sekvenčně, šetří kvótu). */
+    async function pushAllModuleData() {
+        if (!_userSheetUrl()) return false;
+        var all = collectAllModuleData();
+        var keys = Object.keys(all);
+        for (var i = 0; i < keys.length; i++) {
+            try { await pushModuleData(keys[i], all[keys[i]]); }
+            catch (e) { /* pokračuj — jeden nefungující modul nesmí zastavit ostatní */ }
+        }
+        return true;
+    }
+
+    /* Pull všech modulů z user's Sheetu po loginu / refreshi.
+       Aplikuje pouze tam, kde lokál je prázdný nebo se data liší.
+       Vrací { moduleKey: data } — co se podařilo stáhnout. */
+    async function pullAllModuleData(options) {
+        if (!_userSheetUrl()) return null;
+        var opts = options || {};
+        var preferRemote = !!opts.preferRemote; // pokud true → cloud přepíše lokál bez ptaní
+        var keys = Object.keys(MODULE_DATA_REGISTRY);
+        var loaded = {};
+        for (var i = 0; i < keys.length; i++) {
+            var modKey = keys[i];
+            var sKey = MODULE_DATA_REGISTRY[modKey];
+            var remote;
+            try { remote = await pullModuleData(modKey); }
+            catch (e) { remote = null; }
+            if (remote == null) continue;
+            loaded[modKey] = remote;
+            var localRaw = lsGet(sKey);
+            var local = null;
+            try { local = localRaw ? JSON.parse(localRaw) : null; } catch (e) { local = null; }
+            if (preferRemote || _isEmpty(local)) {
+                try { lsSet(sKey, JSON.stringify(remote)); } catch (e) {}
+                try {
+                    window.dispatchEvent(new CustomEvent('fc-module-data-updated', {
+                        detail: { module: modKey, data: remote, storageKey: sKey, source: 'global-pull' }
+                    }));
+                } catch (e) {}
+                // Označ že už jsme to v rámci session pulled — autoSyncModuleViaMeta initialPull pak nebude duplikovat
+                try { sessionStorage.setItem('fc_pulled_' + modKey, '1'); } catch (e) {}
+            } else {
+                // Lokál neprázdný a remote se liší → necháme rozhodnutí na auto-sync uvnitř modulu
+                // (initialPull v autoSyncModuleViaMeta ukáže konflikt dialog jen pokud
+                // se data reálně liší; my jsme jen "ohřáli" cache toho, co je v cloudu).
+            }
+        }
+        return loaded;
     }
 
     /* Debounced push pro daný modul. */
@@ -549,20 +691,49 @@
         if (d && typeof d === 'object') return Object.keys(d).length;
         return 0;
     }
+    /* Fuzzy fingerprint pro položky bez ID — používáme stabilní podmnožinu polí
+       (nikoliv timestamp, který se může nepatrně lišit). Pokud položka má ID,
+       toto se nezavolá. */
+    function _fingerprint(item) {
+        if (!item || typeof item !== 'object') return JSON.stringify(item);
+        // Vyber stabilní pole, která bývají u všech modulů použita.
+        var picks = [
+            item.info, item.pohyb, item.ucet, item.suma, item.origMena,    // PV transakce
+            item.name, item.amount, item.currency, item.cycle,             // Předplatná
+            item.target, item.initial, item.monthly, item.type,            // Spoření cíle
+            item.principal, item.rate, item.termMonths,                    // Půjčky
+            item.linkedTxId
+        ].filter(function (v) { return v !== undefined; });
+        if (picks.length === 0) {
+            // Fallback — celý objekt
+            try { return JSON.stringify(item); } catch (e) { return String(item); }
+        }
+        return picks.map(function (v) { return String(v).toLowerCase().trim(); }).join('|');
+    }
+
     function _mergeArraysById(local, remote) {
         // Union podle id; v případě konfliktu lokální verze vyhrává.
+        // Položky bez ID se deduplikují podle fingerprint (nejčastěji bývá
+        // duplikace způsobena tím, že modul po importu/restoru přidělil novou
+        // sadu ID — fingerprint to zachytí).
         var byId = {};
-        var withoutIdLocal = [], withoutIdRemote = [];
+        var localById = {}, remoteById = {};
+        var fpLocal = {}, fpRemote = {};
         (Array.isArray(remote) ? remote : []).forEach(function (it) {
-            if (it && it.id != null) byId[it.id] = { remote: it };
-            else withoutIdRemote.push(it);
+            if (it && it.id != null) {
+                byId[it.id] = { remote: it };
+                remoteById[it.id] = true;
+            } else {
+                fpRemote[_fingerprint(it)] = it;
+            }
         });
         (Array.isArray(local) ? local : []).forEach(function (it) {
             if (it && it.id != null) {
                 if (byId[it.id]) byId[it.id].local = it; // local wins
                 else byId[it.id] = { local: it };
+                localById[it.id] = true;
             } else {
-                withoutIdLocal.push(it);
+                fpLocal[_fingerprint(it)] = it;
             }
         });
         var out = [];
@@ -570,10 +741,15 @@
             var pair = byId[k];
             out.push(pair.local || pair.remote);
         });
-        // Položky bez ID nemůžeme deduplikovat — bereme jen lokální (předpokládáme,
-        // že cloudové bez ID jsou starší). Pokud uživatel preferuje merge i bez ID,
-        // lze v budoucnu udělat fuzzy match podle obsahu.
-        return out.concat(withoutIdLocal);
+        // Sloučení položek bez ID podle fingerprint — duplicity zmizí.
+        var seenFp = {};
+        Object.keys(fpLocal).forEach(function (fp) {
+            if (!seenFp[fp]) { out.push(fpLocal[fp]); seenFp[fp] = true; }
+        });
+        Object.keys(fpRemote).forEach(function (fp) {
+            if (!seenFp[fp]) { out.push(fpRemote[fp]); seenFp[fp] = true; }
+        });
+        return out;
     }
     function _mergeData(local, remote) {
         if (Array.isArray(local) && Array.isArray(remote)) {
@@ -806,13 +982,14 @@
         }, durationMs || 3000);
     }
 
-    /* Sync indikátor — vysílá event do parent / index.html. */
-    function setSyncBusy(busy) {
+    /* Sync indikátor — vysílá event do parent / index.html.
+       Volitelný 2. argument `errored=true` označuje stav, kdy poslední pokus
+       o sync selhal i po retry — parent může změnit barvu dotu na červenou. */
+    function setSyncBusy(busy, errored) {
         try {
-            window.dispatchEvent(new CustomEvent('fc-sync-state', { detail: { busy: !!busy } }));
-            // I do parent okna pro iframe→parent komunikaci
+            window.dispatchEvent(new CustomEvent('fc-sync-state', { detail: { busy: !!busy, errored: !!errored } }));
             if (window.parent && window.parent !== window) {
-                window.parent.postMessage({ type: 'fc-sync-state', busy: !!busy }, '*');
+                window.parent.postMessage({ type: 'fc-sync-state', busy: !!busy, errored: !!errored }, '*');
             }
         } catch (e) {}
     }
@@ -918,12 +1095,14 @@
 
         /* cloud auth */
         auth: {
-            login:       login,
-            register:    register,
-            logout:      logout,
-            isLoggedIn:  isLoggedIn,
-            getSession:  getSession,
-            backendUrl:  FC_AUTH_URL
+            login:          login,
+            register:       register,
+            logout:         logout,
+            isLoggedIn:     isLoggedIn,
+            getSession:     getSession,
+            changePassword: changePassword,
+            renameUser:     renameUser,
+            backendUrl:     FC_AUTH_URL
         },
 
         /* cloud sync */
@@ -934,11 +1113,17 @@
             collectConfig:      collectConfig,
             applyConfig:        applyConfig,
             keys:               CLOUD_KEYS,
-            /* NEW: module-data sync proti uživatelovu Sheetu */
+            /* module-data sync proti uživatelovu Sheetu */
             pushModule:         pushModuleData,
             pullModule:         pullModuleData,
             scheduleModulePush: scheduleModulePush,
-            hasSheetsUrl:       function () { return !!_userSheetUrl(); }
+            hasSheetsUrl:       function () { return !!_userSheetUrl(); },
+            /* globální Export/Import/Sync (všechny moduly najednou) */
+            moduleRegistry:     MODULE_DATA_REGISTRY,
+            collectAllData:     collectAllModuleData,
+            applyAllData:       applyAllModuleData,
+            pushAllData:        pushAllModuleData,
+            pullAllData:        pullAllModuleData
         },
 
         /* bi-directional cross-module linking */

@@ -290,7 +290,8 @@
                             <div class="text-[10px] font-mono text-slate-500">přihlášen · automatická synchronizace zapnuta</div>
                         </div>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="btn btn-secondary" onclick="openRenameUserModal()" title="Změnit přihlašovací jméno"><i data-lucide="user-cog" class="w-3.5 h-3.5"></i> Změnit jméno</button>
                         <button class="btn btn-secondary" onclick="openChangePwModal()" title="Změnit heslo"><i data-lucide="key-round" class="w-3.5 h-3.5"></i> Změnit heslo</button>
                         <button class="btn btn-danger" onclick="doLogout()"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> Odhlásit</button>
                     </div>
@@ -523,10 +524,13 @@ function _json(o) {
 
         <!-- ═══ Export / Import konfigurace ═══ -->
         <section class="panel">
-            <h2><i data-lucide="file-json" class="w-4 h-4 text-teal-400"></i> Export / import konfigurace</h2>
+            <h2><i data-lucide="file-json" class="w-4 h-4 text-teal-400"></i> Export / import (vše)</h2>
             <p class="panel-desc">
-                Stáhne nebo nahraje soubor se všemi nastaveními (AI klíče, Sheets URL, pořadí, viditelnost, skupiny, téma). Vhodné pro přenos mezi prohlížeči bez Google Sheets.
-                Pokud zaškrtnete <b class="text-slate-300">Chránit heslem</b>, soubor se zašifruje (AES-GCM 256, klíč z hesla přes PBKDF2 200 000 iterací) — bez správného hesla ho nikdo nepřečte.
+                Stáhne nebo nahraje <b class="text-slate-300">úplnou zálohu</b> — konfiguraci (AI klíče, Sheets URL, pořadí, viditelnost, skupiny, téma) i <b class="text-slate-300">data všech modulů</b> (transakce, předplatná, cíle, půjčky, investice, BTC, broker, energie, majetek). Soubor lze obnovit v jiném prohlížeči bez Google Sheets.
+                <br><br>
+                Pokud zaškrtnete <b class="text-slate-300">Chránit heslem</b>, soubor se zašifruje (AES-GCM 256, klíč z hesla přes PBKDF2 200 000 iterací) — bez správného hesla ho nikdo nepřečte. Doporučeno pro citlivá data.
+                <br><br>
+                <b class="text-slate-300">Zpětná kompatibilita:</b> import přijme i starší soubory bez modulových dat (jen konfigurace).
             </p>
             <label class="inline-flex items-center gap-2 text-[12px] text-slate-300 cursor-pointer mb-3 select-none">
                 <input id="inpExportEnc" type="checkbox" class="cursor-pointer">
@@ -548,6 +552,63 @@ function _json(o) {
     </main>
 
     <div id="toast" class="toast"></div>
+
+    <!-- ══════════════ MODAL: Změna hesla ══════════════ -->
+    <div id="changePwModal" style="display:none; position:fixed; inset:0; background:rgba(2,6,23,0.85); backdrop-filter:blur(6px); z-index:99999; align-items:center; justify-content:center; padding:1rem;">
+        <div class="panel" style="max-width:26rem; width:100%;">
+            <h2 style="margin:0 0 .25rem;"><i data-lucide="key-round" class="w-4 h-4 text-sky-400"></i> Změnit heslo</h2>
+            <p class="panel-desc">Nové heslo se použije pro tvůj cloud účet. Hashuje se klientsky (PBKDF2 200 000) — server nikdy nevidí čistý text.</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="fld">Staré heslo</label>
+                    <div class="flex gap-2">
+                        <input id="pwOld" type="password" class="input secret" placeholder="staré heslo" autocomplete="current-password">
+                        <button class="btn btn-ghost" onclick="togglePw('pwOld', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="fld">Nové heslo <span class="text-[9px] text-slate-600">(min. 6 znaků)</span></label>
+                    <div class="flex gap-2">
+                        <input id="pwNew" type="password" class="input secret" placeholder="nové heslo" autocomplete="new-password">
+                        <button class="btn btn-ghost" onclick="togglePw('pwNew', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="fld">Nové heslo znovu</label>
+                    <input id="pwNew2" type="password" class="input secret" placeholder="potvrzení" autocomplete="new-password">
+                </div>
+            </div>
+            <div class="mt-4 flex gap-2 justify-end">
+                <button class="btn btn-ghost" onclick="closeChangePwModal()">Zrušit</button>
+                <button class="btn btn-primary" onclick="doChangePassword()"><i data-lucide="check" class="w-3.5 h-3.5"></i> Změnit heslo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ MODAL: Změna uživatelského jména ══════════════ -->
+    <div id="renameUserModal" style="display:none; position:fixed; inset:0; background:rgba(2,6,23,0.85); backdrop-filter:blur(6px); z-index:99999; align-items:center; justify-content:center; padding:1rem;">
+        <div class="panel" style="max-width:26rem; width:100%;">
+            <h2 style="margin:0 0 .25rem;"><i data-lucide="user-cog" class="w-4 h-4 text-sky-400"></i> Změnit uživatelské jméno</h2>
+            <p class="panel-desc">Změna přesune tvá data v cloudu pod nové jméno. Pro potvrzení zadej své heslo.</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="fld">Nové uživatelské jméno <span class="text-[9px] text-slate-600">(3–32 znaků, a-z 0-9 . _ -)</span></label>
+                    <input id="renNew" type="text" class="input" placeholder="nove-jmeno" autocapitalize="none" spellcheck="false">
+                </div>
+                <div>
+                    <label class="fld">Heslo (potvrzení)</label>
+                    <div class="flex gap-2">
+                        <input id="renPw" type="password" class="input secret" placeholder="aktuální heslo" autocomplete="current-password">
+                        <button class="btn btn-ghost" onclick="togglePw('renPw', this)" title="Zobrazit / skrýt"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 flex gap-2 justify-end">
+                <button class="btn btn-ghost" onclick="closeRenameUserModal()">Zrušit</button>
+                <button class="btn btn-primary" onclick="doRenameUser()"><i data-lucide="check" class="w-3.5 h-3.5"></i> Změnit jméno</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         lucide.createIcons();
@@ -909,7 +970,8 @@ function _json(o) {
 
         /* ── Export / import ── */
         function collectAllSettings() {
-            return {
+            // Sjednocená konfigurace (AI, Sheets, téma, pořadí, viditelnost, skupiny).
+            const cfg = {
                 groq_api_key:        getUnified(KEYS.groq),
                 gemini_api_key:      getUnified(KEYS.gemini),
                 chatgpt_api_key:     getUnified(KEYS.chatgpt),
@@ -922,26 +984,64 @@ function _json(o) {
                 fc_module_visibility: getUnified(VIS_KEY),
                 fc_module_groups:    getUnified(GRP_KEY)
             };
+            // Modulová data ze všech registrovaných modulů (FinanceCommon.cloud.collectAllData
+            // čte z localStorage podle MODULE_DATA_REGISTRY ve finance-common.js).
+            let moduleData = {};
+            try {
+                if (window.FinanceCommon && window.FinanceCommon.cloud && window.FinanceCommon.cloud.collectAllData) {
+                    moduleData = window.FinanceCommon.cloud.collectAllData() || {};
+                }
+            } catch (e) {}
+            return {
+                _format: 'finance-terminal-export',
+                _version: 2,
+                _exportedAt: new Date().toISOString(),
+                config: cfg,
+                modules: moduleData
+            };
         }
         function exportConfig() {
             const data = collectAllSettings();
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'finance-terminal-config.json';
+            a.download = 'finance-terminal-export-' + new Date().toISOString().slice(0, 10) + '.json';
             document.body.appendChild(a); a.click(); a.remove();
-            toast('Konfigurace stažena', 'success');
+            const modCount = Object.keys(data.modules || {}).length;
+            toast('Export stažen — konfigurace + ' + modCount + ' modulů', 'success');
+        }
+        /* Aplikuje import — funguje pro nový (v2) i starý (v1, plochý) formát. */
+        function applyImportedPayload(parsed) {
+            if (!parsed || typeof parsed !== 'object') throw new Error('Neplatný formát');
+            let cfg, modules;
+            if (parsed._format === 'finance-terminal-export' && parsed.config) {
+                cfg = parsed.config || {};
+                modules = parsed.modules || {};
+            } else {
+                // Legacy v1 — plochý objekt s konfiguračními klíči
+                cfg = parsed;
+                modules = {};
+            }
+            // 1) Konfigurace
+            Object.entries(cfg).forEach(([k, v]) => setUnified(k, v));
+            // 2) Modulová data — přes FinanceCommon.cloud.applyAllData (single source of truth)
+            try {
+                if (Object.keys(modules).length && window.FinanceCommon && window.FinanceCommon.cloud && window.FinanceCommon.cloud.applyAllData) {
+                    window.FinanceCommon.cloud.applyAllData(modules);
+                }
+            } catch (e) {}
+            loadAiKeys(); loadSheets(); renderModules();
+            applyTheme(cfg.finance_theme || 'dark');
+            return { configKeys: Object.keys(cfg).length, modules: Object.keys(modules).length };
         }
         function importConfig(evt) {
             const f = evt.target.files && evt.target.files[0]; if (!f) return;
             const r = new FileReader();
             r.onload = () => {
                 try {
-                    const cfg = JSON.parse(r.result);
-                    Object.entries(cfg).forEach(([k, v]) => setUnified(k, v));
-                    loadAiKeys(); loadSheets(); renderModules();
-                    applyTheme(cfg.finance_theme || 'dark');
-                    toast('Konfigurace importována', 'success');
+                    const parsed = JSON.parse(r.result);
+                    const res = applyImportedPayload(parsed);
+                    toast('Import úspěšný — ' + res.configKeys + ' klíčů konfigurace, ' + res.modules + ' modulů', 'success');
                 } catch (e) { toast('Chybný JSON: ' + e.message, 'error'); }
             };
             r.readAsText(f);
@@ -1038,18 +1138,16 @@ function _json(o) {
             r.onload = async () => {
                 try {
                     const parsed = JSON.parse(r.result);
-                    let cfg;
+                    let payload;
                     if (parsed && parsed._format === 'finance-terminal-efc') {
                         const pw = prompt('Vlož heslo pro tento zašifrovaný export:');
                         if (pw == null) return;
-                        cfg = await importConfigEncrypted(parsed, pw);
+                        payload = await importConfigEncrypted(parsed, pw);
                     } else {
-                        cfg = parsed;
+                        payload = parsed;
                     }
-                    Object.entries(cfg).forEach(([k, v]) => setUnified(k, v));
-                    loadAiKeys(); loadSheets(); renderModules();
-                    applyTheme(cfg.finance_theme || 'dark');
-                    toast('Konfigurace importována', 'success');
+                    const res = applyImportedPayload(payload);
+                    toast('Import úspěšný — ' + res.configKeys + ' klíčů konfigurace, ' + res.modules + ' modulů', 'success');
                 } catch (e) { toast(e.message || ('Chybný soubor: ' + e), 'error'); }
             };
             r.readAsText(f);
@@ -1142,8 +1240,74 @@ function _json(o) {
             if (m === 'invalid_hash')     return 'chyba při hashování hesla v prohlížeči';
             if (m === 'locked')           return 'účet je dočasně zablokován po opakovaných chybách';
             if (m === 'no_user')          return 'účet neexistuje';
+            if (m === 'unsupported_action') return 'tato funkce není dostupná — Apps Script backend ji ještě nepodporuje. Aktualizuj kód Apps Scriptu podle návodu výše a redeployni novou verzi.';
             return m;
         }
+
+        /* ── Změna hesla ── */
+        function openChangePwModal() {
+            document.getElementById('pwOld').value = '';
+            document.getElementById('pwNew').value = '';
+            document.getElementById('pwNew2').value = '';
+            document.getElementById('changePwModal').style.display = 'flex';
+            lucide.createIcons();
+            setTimeout(() => { try { document.getElementById('pwOld').focus(); } catch(e) {} }, 50);
+        }
+        function closeChangePwModal() {
+            document.getElementById('changePwModal').style.display = 'none';
+        }
+        async function doChangePassword() {
+            const oldPw = document.getElementById('pwOld').value;
+            const newPw = document.getElementById('pwNew').value;
+            const newPw2 = document.getElementById('pwNew2').value;
+            if (!oldPw || !newPw) { toast('Vyplň staré i nové heslo', 'error'); return; }
+            if (newPw.length < 6) { toast('Nové heslo musí mít alespoň 6 znaků', 'error'); return; }
+            if (newPw !== newPw2) { toast('Nová hesla se neshodují', 'error'); return; }
+            if (newPw === oldPw) { toast('Nové heslo je stejné jako staré', 'error'); return; }
+            try {
+                toast('Měním heslo…', 'info');
+                await window.FinanceCommon.auth.changePassword(oldPw, newPw);
+                closeChangePwModal();
+                toast('Heslo úspěšně změněno', 'success');
+            } catch (e) {
+                toast('Změna hesla selhala: ' + translateAuthError(e.message), 'error');
+            }
+        }
+
+        /* ── Změna uživatelského jména ── */
+        function openRenameUserModal() {
+            document.getElementById('renNew').value = '';
+            document.getElementById('renPw').value = '';
+            document.getElementById('renameUserModal').style.display = 'flex';
+            lucide.createIcons();
+            setTimeout(() => { try { document.getElementById('renNew').focus(); } catch(e) {} }, 50);
+        }
+        function closeRenameUserModal() {
+            document.getElementById('renameUserModal').style.display = 'none';
+        }
+        async function doRenameUser() {
+            const newName = document.getElementById('renNew').value.trim();
+            const pw = document.getElementById('renPw').value;
+            if (!newName || !pw) { toast('Vyplň nové jméno i heslo', 'error'); return; }
+            if (!/^[a-z0-9._-]{3,32}$/.test(newName)) { toast('Jméno: 3–32 znaků, jen a-z 0-9 . _ -', 'error'); return; }
+            if (!confirm('Přejmenovat účet na "' + newName + '"?\nTvá cloud data se přesunou pod nové jméno.')) return;
+            try {
+                toast('Měním jméno…', 'info');
+                await window.FinanceCommon.auth.renameUser(newName, pw);
+                closeRenameUserModal();
+                toast('Jméno úspěšně změněno', 'success');
+                authRefresh();
+            } catch (e) {
+                toast('Změna jména selhala: ' + translateAuthError(e.message), 'error');
+            }
+        }
+
+        /* ESC zavře oba modaly */
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if (document.getElementById('changePwModal').style.display === 'flex') closeChangePwModal();
+            if (document.getElementById('renameUserModal').style.display === 'flex') closeRenameUserModal();
+        });
 
         /* Po každé změně sjednoceného nastavení (AI klíče, Sheets, pořadí,
            téma) naplánujeme auto-sync do cloudu, pokud je uživatel přihlášen. */
