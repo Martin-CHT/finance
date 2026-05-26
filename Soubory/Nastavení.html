@@ -384,6 +384,17 @@
                 <button class="btn btn-secondary" onclick="pullConfigFromSheets()" title="Stáhne dříve zálohované AI klíče a další konfiguraci z Google Sheets a nastaví je zde"><i data-lucide="cloud-download" class="w-3.5 h-3.5"></i> Načíst klíče ze Sheets</button>
             </div>
 
+            <div class="mt-4 p-3 rounded-lg" style="background:rgba(244,63,94,0.06); border:1px solid rgba(244,63,94,0.25);">
+                <p class="text-[11px] text-rose-200 leading-relaxed flex items-start gap-2 mb-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-300"></i>
+                    <span><b>Nouzové akce</b> — když cloud sync „zlobí" (drží stará/smazaná data, ukazuje konflikt s víc položkami než lokálně máš):</span>
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-danger" onclick="forcePushAllModules()" title="Přepiš VŠECHNA cloudová modulová data svým lokálním stavem. Co máš v prohlížeči se stane jediným zdrojem pravdy. Smazaná data budou odstraněna i z cloudu."><i data-lucide="cloud-upload" class="w-3.5 h-3.5"></i> Force push (lokál → cloud)</button>
+                    <button class="btn btn-danger" onclick="forcePullAllModules()" title="Přepiš VŠECHNA lokální data tím, co je v cloudu. Lokální (případně nezálohované) změny budou ztracené."><i data-lucide="cloud-download" class="w-3.5 h-3.5"></i> Force pull (cloud → lokál)</button>
+                </div>
+            </div>
+
             <details class="mt-5 panel" style="background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.2);">
                 <summary class="text-[13px] text-emerald-300 hover:text-emerald-200 inline-flex items-center gap-1.5 font-semibold cursor-pointer">
                     <i data-lucide="chevron-right" class="w-3.5 h-3.5 chev"></i>
@@ -406,62 +417,176 @@
                     <p class="text-slate-400">
                         <b class="text-slate-200">Token (nepovinné, ochrana):</b> pokud chceš, aby URL bez tvého „hesla" odmítla volání, nastav <span class="font-mono">TOKEN</span> v kódu na libovolný řetězec a stejný vlož níže v <i>Pokročilé</i>.
                     </p>
-                    <pre class="code">/** Finance Terminal — sjednocený Apps Script endpoint.
- *  Ukládá:
- *    - Konfiguraci (AI klíče, téma, pořadí) do listu 'Config'.
- *    - Data každého modulu do listu 'mod_&lt;název&gt;' (např. mod_prijmy, mod_btc).
+                    <div class="p-3 mb-3 rounded-lg" style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.3);">
+                        <p class="text-[12px] text-sky-200 leading-relaxed flex items-start gap-2">
+                            <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                            <span>
+                                Níže je <b>jediný kompletní skript</b>, který stačí vložit do svého Apps Scriptu (jak je popsáno v krocích 1–6 výše) — obsahuje <b>data backend</b> (saveConfig / saveData / getData) <b>i auth backend</b> (login / register / changePassword / renameUser). URL nasaď do <b>obou polí</b> v aplikaci: do <code>Web App URL</code> nahoře (data sync) a do <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code> (auth).
+                            </span>
+                        </p>
+                    </div>
+                    <pre class="code">/** Finance Terminal — KOMPLETNÍ Apps Script endpoint.
+ *  Obsahuje VŠE potřebné — stačí nasadit jednou.
+ *
+ *  Listy v Sheetu, které se vytvoří automaticky:
+ *    - 'Config'    — sjednocená konfigurace (AI klíče, téma, pořadí…).
+ *    - 'Auth'      — uživatelské účty: username | clientHash | token | configJson.
+ *    - 'mod_*'     — data každého modulu (mod_prijmy, mod_predplatna, mod_btc…).
+ *
+ *  URL tohoto nasazení vlož do:
+ *    a) pole "Web App URL" v Nastavení (data sync).
+ *    b) konstantu FC_AUTH_URL v souboru Soubory/finance-common.js (auth).
  */
 const SHEET_CONFIG = 'Config';
-const TOKEN = ''; // nech prázdné nebo nastav vlastní heslo
+const SHEET_AUTH   = 'Auth';
+const TOKEN = ''; // volitelně: nastav heslo pro ochranu URL; klient ho pak musí poslat v ?token=...
 
 function doGet(e) {
-  if (!checkToken(e)) return _json({ok:false, error:'bad token'});
-  const action = e.parameter.action || 'getConfig';
-  if (action === 'getConfig') return _json({ok:true, config: readConfig()});
-  if (action === 'getData')   return _json({ok:true, data: readModule(e.parameter.module)});
+  if (!_checkToken(e)) return _json({ok:false, error:'bad token'});
+  const action = (e.parameter.action || 'getConfig');
+  if (action === 'getConfig') return _json({ok:true, config: _readConfig()});
+  if (action === 'getData')   return _json({ok:true, data: _readModule(e.parameter.module)});
   return _json({ok:false, error:'unknown action'});
 }
 
 function doPost(e) {
-  if (!checkToken(e)) return _json({ok:false, error:'bad token'});
+  if (!_checkToken(e)) return _json({ok:false, error:'bad token'});
   const body = JSON.parse(e.postData.contents || '{}');
-  if (body.action === 'saveConfig') { writeConfig(body.data || body.config || {}); return _json({ok:true}); }
+  // ─── Data API ───
+  if (body.action === 'saveConfig') { _writeConfig(body.data || body.config || {}); return _json({ok:true}); }
   if (body.action === 'saveData')   {
     if (!body.module) return _json({ok:false, error:'missing module'});
-    writeModule(body.module, body.data);
+    _writeModule(body.module, body.data);
     return _json({ok:true});
   }
-  if (body.action === 'getConfig')  return _json({ok:true, config: readConfig()});
-  if (body.action === 'getData')    return _json({ok:true, data: readModule(body.module)});
+  if (body.action === 'getConfig') {
+    if (body.username &amp;&amp; body.token) {
+      // per-user config (uložený v Auth listu pod tímto userem)
+      const u = _findUser(body.username);
+      if (!u || u.token !== body.token) return _json({ok:false, error:'bad_token'});
+      let cfg = {}; try { cfg = JSON.parse(u.configJson || '{}'); } catch (e) {}
+      return _json({ok:true, config: cfg});
+    }
+    return _json({ok:true, config: _readConfig()});
+  }
+  if (body.action === 'getData') return _json({ok:true, data: _readModule(body.module)});
 
-  // Legacy POSTy bez 'action' (starý syncToCloud z dřívější verze) — ignorujeme.
-  return _json({ok:true, ignored:true, hint:'use action:saveData with module:name'});
+  // ─── Auth API ───
+  if (body.action === 'register') {
+    const u = String(body.username || '').toLowerCase();
+    if (!/^[a-z0-9._-]{3,32}$/.test(u)) return _json({ok:false, error:'invalid_username'});
+    if (!body.clientHash) return _json({ok:false, error:'invalid_hash'});
+    if (_findUser(u)) return _json({ok:false, error:'user_exists'});
+    const token = Utilities.getUuid();
+    _writeUser({username: u, clientHash: body.clientHash, token: token, configJson: '{}'});
+    return _json({ok:true, token: token});
+  }
+  if (body.action === 'login') {
+    const u = String(body.username || '').toLowerCase();
+    const found = _findUser(u);
+    if (!found) return _json({ok:false, error:'no_user'});
+    if (found.clientHash !== body.clientHash) return _json({ok:false, error:'bad_credentials'});
+    const token = Utilities.getUuid();
+    found.token = token;
+    _writeUser(found);
+    let cfg = {}; try { cfg = JSON.parse(found.configJson || '{}'); } catch (e) {}
+    return _json({ok:true, token: token, config: cfg});
+  }
+  if (body.action === 'saveConfig' &amp;&amp; body.username) {
+    // per-user saveConfig (auth-protected)
+    const u = _findUser(body.username);
+    if (!u || u.token !== body.token) return _json({ok:false, error:'bad_token'});
+    u.configJson = JSON.stringify(body.config || {});
+    _writeUser(u);
+    return _json({ok:true});
+  }
+  if (body.action === 'changePassword') {
+    const u = _findUser(body.username);
+    if (!u) return _json({ok:false, error:'no_user'});
+    if (u.token !== body.token) return _json({ok:false, error:'bad_token'});
+    if (u.clientHash !== body.oldClientHash) return _json({ok:false, error:'bad_credentials'});
+    u.clientHash = body.newClientHash;
+    u.token = Utilities.getUuid();
+    _writeUser(u);
+    return _json({ok:true, token: u.token});
+  }
+  if (body.action === 'renameUser') {
+    const u = _findUser(body.username);
+    if (!u) return _json({ok:false, error:'no_user'});
+    if (u.token !== body.token) return _json({ok:false, error:'bad_token'});
+    if (u.clientHash !== body.clientHash) return _json({ok:false, error:'bad_credentials'});
+    const newU = String(body.newUsername || '').toLowerCase();
+    if (!/^[a-z0-9._-]{3,32}$/.test(newU)) return _json({ok:false, error:'invalid_username'});
+    if (_findUser(newU)) return _json({ok:false, error:'user_exists'});
+    _deleteUser(u.username);
+    u.username = newU;
+    u.clientHash = body.newClientHash;
+    u.token = Utilities.getUuid();
+    _writeUser(u);
+    return _json({ok:true, token: u.token});
+  }
+  // Legacy POSTy bez 'action' — ignorujeme.
+  return _json({ok:true, ignored:true, hint:'use action:...'});
 }
 
-function checkToken(e) { return !TOKEN || e.parameter.token === TOKEN; }
+function _checkToken(e) { return !TOKEN || e.parameter.token === TOKEN; }
 
-function readConfig() {
+// ─── Config (global / per-user) ───
+function _readConfig() {
   const sh = _getSheet(SHEET_CONFIG);
   const rows = sh.getDataRange().getValues();
   const cfg = {}; rows.forEach(r =&gt; { if (r[0]) cfg[r[0]] = r[1]; });
   return cfg;
 }
-function writeConfig(cfg) {
+function _writeConfig(cfg) {
   const sh = _getSheet(SHEET_CONFIG); sh.clear();
   const rows = Object.entries(cfg);
   if (rows.length) sh.getRange(1,1,rows.length,2).setValues(rows);
 }
-function readModule(name) {
+
+// ─── Module data ───
+function _readModule(name) {
   if (!name) return null;
   const sh = _getSheet('mod_' + name);
   const raw = sh.getRange(1,1).getValue();
   if (raw === '' || raw == null) return null;
   try { return JSON.parse(raw); } catch (_) { return raw; }
 }
-function writeModule(name, data) {
+function _writeModule(name, data) {
   const sh = _getSheet('mod_' + name); sh.clear();
   sh.getRange(1,1).setValue(JSON.stringify(data));
 }
+
+// ─── Auth: list 'Auth' s hlavičkou [username | clientHash | token | configJson] ───
+function _authSheet() {
+  const sh = _getSheet(SHEET_AUTH);
+  if (sh.getLastRow() === 0) sh.getRange(1,1,1,4).setValues([['username','clientHash','token','configJson']]);
+  return sh;
+}
+function _findUser(username) {
+  if (!username) return null;
+  const sh = _authSheet();
+  const rows = sh.getDataRange().getValues();
+  for (let i = 1; i &lt; rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === String(username).toLowerCase()) {
+      return { _row: i+1, username: rows[i][0], clientHash: rows[i][1], token: rows[i][2], configJson: rows[i][3] || '{}' };
+    }
+  }
+  return null;
+}
+function _writeUser(u) {
+  const sh = _authSheet();
+  const existing = _findUser(u.username);
+  const values = [[u.username, u.clientHash, u.token, u.configJson || '{}']];
+  if (existing) sh.getRange(existing._row, 1, 1, 4).setValues(values);
+  else sh.getRange(sh.getLastRow()+1, 1, 1, 4).setValues(values);
+}
+function _deleteUser(username) {
+  const found = _findUser(username);
+  if (found) _authSheet().deleteRow(found._row);
+}
+
+// ─── Helpers ───
 function _getSheet(name) {
   const ss = SpreadsheetApp.getActive();
   return ss.getSheetByName(name) || ss.insertSheet(name);
@@ -471,51 +596,9 @@ function _json(o) {
     .setMimeType(ContentService.MimeType.JSON);
 }</pre>
 
-                    <p class="text-slate-400 mt-4">
-                        <b class="text-slate-200">Pro centrální auth backend</b> (URL <code>FC_AUTH_URL</code> v <code>finance-common.js</code>): pokud chceš, aby fungovala <b>změna hesla</b> a <b>změna jména</b>, musíš do svého <b>auth Apps Scriptu</b> (samostatný projekt, který spravuje účty) přidat tyto dvě akce. Níže je referenční implementace — vlož ji do svého auth scriptu a redeployni pod stejnou URL.
+                    <p class="text-slate-400 mt-3">
+                        <b class="text-slate-200">Migrace ze stávajícího auth backendu:</b> pokud už máš starý centrální <code>FC_AUTH_URL</code>, který funguje (login/register), můžeš zde použít stejnou URL jako pro data sync — tento skript je <b>kompatibilní</b> se stávajícím protokolem a navíc přidává <code>changePassword</code> a <code>renameUser</code>. Hesla pak budou v tvém vlastním Sheetu (PBKDF2 hash; backend nevidí čistý text). Změň hodnotu <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code> na URL svého Apps Script a uložené účty z původního backendu si registruj znovu (stačí raz).
                     </p>
-                    <pre class="code">/** Auth backend — rozšíření pro changePassword + renameUser. */
-
-// V doPost přidej tyto dvě větve PŘED výchozí 'unknown action':
-//
-//   if (body.action === 'changePassword') return _json(changePassword(body));
-//   if (body.action === 'renameUser')     return _json(renameUser(body));
-
-function changePassword(body) {
-  // payload: {username, token, oldClientHash, newClientHash}
-  const user = body.username, tok = body.token;
-  const u = _findUser(user);
-  if (!u) return {ok:false, error:'no_user'};
-  if (u.token !== tok) return {ok:false, error:'bad_token'};
-  if (u.clientHash !== body.oldClientHash) return {ok:false, error:'bad_credentials'};
-  // Zapiš nový hash, vystav nový token
-  u.clientHash = body.newClientHash;
-  u.token = Utilities.getUuid();
-  _saveUser(u);
-  return {ok:true, token: u.token};
-}
-
-function renameUser(body) {
-  // payload: {username, token, clientHash, newUsername, newClientHash}
-  const u = _findUser(body.username);
-  if (!u) return {ok:false, error:'no_user'};
-  if (u.token !== body.token) return {ok:false, error:'bad_token'};
-  if (u.clientHash !== body.clientHash) return {ok:false, error:'bad_credentials'};
-  if (_findUser(body.newUsername)) return {ok:false, error:'user_exists'};
-  // Přejmenuj záznam v Auth listu i mod_&lt;user&gt;_* listy
-  _renameUserRow(u.username, body.newUsername);
-  _renameUserSheets(u.username, body.newUsername);
-  u.username = body.newUsername;
-  u.clientHash = body.newClientHash;
-  u.token = Utilities.getUuid();
-  _saveUser(u);
-  return {ok:true, token: u.token};
-}
-
-// Pomocné — implementace závisí na struktuře tvého Auth listu.
-// _findUser / _saveUser / _renameUserRow / _renameUserSheets musíš
-// přizpůsobit svému stávajícímu schématu (typicky list 'Auth' s řádky
-// username | clientHash | token | config_json).</pre>
                 </div>
             </details>
 
@@ -1294,6 +1377,51 @@ function renameUser(body) {
             return m;
         }
 
+        /* ── Force push/pull všech modulů ── */
+        async function forcePushAllModules() {
+            const FC = window.FinanceCommon;
+            if (!FC || !FC.cloud || !FC.cloud.hasSheetsUrl || !FC.cloud.hasSheetsUrl()) {
+                toast('Nejdřív nastav Google Sheets URL nahoře', 'error'); return;
+            }
+            const all = FC.cloud.collectAllData ? FC.cloud.collectAllData() : {};
+            const count = Object.keys(all).length;
+            if (!confirm('Force push: tvá LOKÁLNÍ data ze všech ' + count + ' modulů přepíšou aktuální obsah v cloudu. Smazané položky se z cloudu definitivně odstraní.\n\nPokračovat?')) return;
+            toast('Pushuji všechny moduly do cloudu…', 'info');
+            try {
+                const ok = await FC.cloud.pushAllData();
+                // Vyčisti všechny tombstony — cloud je teď aktuální stav
+                if (FC.cloud.moduleRegistry && FC.cloud.clearTombstones) {
+                    Object.keys(FC.cloud.moduleRegistry).forEach(k => FC.cloud.clearTombstones(k));
+                }
+                toast(ok ? 'Force push hotov — cloud nyní odpovídá lokálu' : 'Push selhal — viz konzole prohlížeče', ok ? 'success' : 'error');
+            } catch (e) {
+                toast('Chyba: ' + (e.message || e), 'error');
+            }
+        }
+        async function forcePullAllModules() {
+            const FC = window.FinanceCommon;
+            if (!FC || !FC.cloud || !FC.cloud.hasSheetsUrl || !FC.cloud.hasSheetsUrl()) {
+                toast('Nejdřív nastav Google Sheets URL nahoře', 'error'); return;
+            }
+            if (!confirm('Force pull: data v cloudu PŘEPÍŠOU tvůj současný lokální stav VŠECH modulů. Lokální nezálohované změny se ztratí.\n\nPokračovat?')) return;
+            toast('Stahuji všechny moduly z cloudu…', 'info');
+            try {
+                // sessionStorage flag vyresetuj — jinak by autoSyncModuleViaMeta přeskočil další pull
+                try {
+                    Object.keys(sessionStorage).forEach(k => { if (k.indexOf('fc_pulled_') === 0) sessionStorage.removeItem(k); });
+                } catch (e) {}
+                // Vyčisti tombstony — uživatel chce čistý cloud stav
+                if (FC.cloud.moduleRegistry && FC.cloud.clearTombstones) {
+                    Object.keys(FC.cloud.moduleRegistry).forEach(k => FC.cloud.clearTombstones(k));
+                }
+                const loaded = await FC.cloud.pullAllData({ preferRemote: true });
+                const count = loaded ? Object.keys(loaded).length : 0;
+                toast('Force pull hotov — staženo ' + count + ' modulů. Obnov stránku, ať se zobrazí.', 'success');
+            } catch (e) {
+                toast('Chyba: ' + (e.message || e), 'error');
+            }
+        }
+
         /* ── Změna hesla ── */
         function openChangePwModal() {
             document.getElementById('pwOld').value = '';
@@ -1374,7 +1502,25 @@ function renameUser(body) {
 
         /* Drag&drop pořadí — wrap saveOrder pro auto-sync */
         const _origSaveOrder = saveOrder;
-        saveOrder = function (order) { _origSaveOrder(order); scheduleSync(); };
+        saveOrder = function (order) { _origSaveOrder(order); scheduleSync(); notifyParentLayoutChange(); };
+
+        /* Wrap visibility/groups setters, ať parent okno ihned ví, že má překreslit. */
+        const _origSetVisibility = setModuleVisible;
+        setModuleVisible = function (k, on) { _origSetVisibility(k, on); notifyParentLayoutChange(); };
+        const _origSetGroup = setModuleGroup;
+        setModuleGroup = function (k, g) { _origSetGroup(k, g); notifyParentLayoutChange(); };
+
+        /* Pošle parent oknu (index.html) zprávu, aby překreslil sidebar/dlaždice.
+           Storage event sám nestačí — některé prohlížeče ho v iframe → parent
+           cestě doručují s prodlevou nebo vůbec, pokud iframe je v jiném
+           document layer. */
+        function notifyParentLayoutChange() {
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'fc-layout-change' }, '*');
+                }
+            } catch (e) {}
+        }
 
         /* Naslouchání na změny session (login/logout/auto-pull) */
         window.addEventListener('fc-session-change', authRefresh);

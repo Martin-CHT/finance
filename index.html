@@ -870,26 +870,61 @@
             }
         }
 
-        /* Vrací cestu (path) odpovídající modulu. Bázová cesta je root index.html
-           (typicky `/finance/`). Modul s relativní cestou `Soubory/Foo.html` se
-           projeví jako `/finance/Soubory/Foo.html`. Dashboard = root. */
+        /* ── ROOT BASE DIR (stabilní) ──
+           Bázová cesta k aplikaci — odvodí se JEDNOU při startu z polohy
+           skriptu `Soubory/finance-common.js`, jehož src je vždy relativní
+           k index.html. Tím se URL nezakládá na aktuální `location.pathname`
+           a navigace mezi moduly NEPŘIDÁVÁ opakovaně `/Soubory/`. */
+        const ROOT_BASE = (function () {
+            try {
+                const scripts = document.getElementsByTagName('script');
+                for (let i = 0; i < scripts.length; i++) {
+                    const src = scripts[i].getAttribute('src') || '';
+                    if (/(^|\/)Soubory\/finance-common\.js$/.test(src)) {
+                        const abs = new URL(scripts[i].src, location.href).pathname;
+                        return abs.replace(/Soubory\/finance-common\.js$/, '');
+                    }
+                }
+            } catch (e) {}
+            // Fallback — pokud aktuálně jsme přímo v root (bez modulu v cestě),
+            // použij directory pathu; pokud jsme v modulu (např. /Soubory/Foo.html),
+            // ořež `/Soubory/<filename>` zpět na root.
+            let p = location.pathname;
+            // Ořež /Soubory/<anything> nebo /BTC/<anything>
+            p = p.replace(/\/Soubory\/[^/]*$/, '/').replace(/\/BTC\/[^/]*$/, '/');
+            if (!p.endsWith('/')) p = p.replace(/[^/]*$/, '');
+            return p;
+        })();
+
+        /* Vrací cestu (path) odpovídající modulu. VŽDY používá ROOT_BASE,
+           nikdy `location.pathname` — tím se vyhneme akumulaci segmentů. */
         function computeUrlForTab(name) {
-            const baseDir = location.pathname.replace(/[^/]*$/, ''); // odstraní `index.html` z konce
-            if (name === 'dashboard') return baseDir;
+            if (name === 'dashboard') return ROOT_BASE;
             const m = MODULES[name];
             if (!m) return null;
-            return baseDir + m.file;
+            return ROOT_BASE + m.file;
         }
 
-        /* Z URL pathname odvodí klíč modulu (nebo 'dashboard'). */
+        /* Z URL pathname (nebo ?from= query) odvodí klíč modulu (nebo 'dashboard'). */
         function tabFromUrl() {
+            // 1) ?from=Soubory/Fondy.html — když standalone modul redirectoval sem
+            //    přes finance-common.js (autoRedirectStandalone).
+            try {
+                const params = new URLSearchParams(location.search);
+                const from = params.get('from');
+                if (from) {
+                    for (const key of Object.keys(MODULES)) {
+                        const m = MODULES[key];
+                        if (!m || !m.file) continue;
+                        if (from === m.file || from.endsWith('/' + m.file) || from.endsWith(m.file)) return key;
+                    }
+                }
+            } catch (e) {}
+            // 2) Klasická detekce z pathname (po replaceState v switchTab).
             const path = location.pathname;
-            // Vyzkoušíme, jestli některý modul končí stejnou cestou jako URL
             for (const key of Object.keys(MODULES)) {
                 const m = MODULES[key];
                 if (!m || !m.file) continue;
-                // Striktní endsWith jména souboru — slouží jako fallback i pro
-                // libovolnou hostovací cestu (lokálně i na GitHub Pages).
                 const fileName = m.file.split('/').pop();
                 if (path.endsWith(m.file) || path.endsWith('/' + fileName)) return key;
             }
@@ -999,6 +1034,14 @@
             // Pokud URL je root (/finance/ nebo /index.html), použij Dashboard.
             const initialTab = tabFromUrl();
             switchTab(initialTab, { skipHistory: true });
+            // Pokud byl URL původně /finance/?from=Soubory/Fondy.html (redirect ze standalone),
+            // přepiš URL na krásnou /finance/Soubory/Fondy.html (bez ?from=) přes replaceState.
+            try {
+                if (initialTab !== 'dashboard' && new URLSearchParams(location.search).has('from')) {
+                    const niceUrl = computeUrlForTab(initialTab);
+                    if (niceUrl) history.replaceState({ tab: initialTab }, '', niceUrl);
+                }
+            } catch (e) {}
 
             // Current date
             const d = new Date();
@@ -1017,7 +1060,10 @@
                 _renderAllTmr = setTimeout(function () {
                     _renderAllTmr = null;
                     renderAll();
-                    if (currentTab === 'dashboard') switchTab('dashboard');
+                    // Obnov aktivní tab — renderTabBar přepsal innerHTML, takže
+                    // bez tohoto by sidebar nic nepodsvítil. Předej skipHistory,
+                    // ať to nevyvolá další pushState do historie.
+                    switchTab(currentTab, { skipHistory: true });
                 }, 120);
             }
 
@@ -1031,6 +1077,15 @@
             // dashboard se musí překreslit.
             window.addEventListener('storage', function (e) {
                 if (['fc_module_visibility','fc_module_groups','fc_module_order'].includes(e.key)) {
+                    scheduleRenderAll();
+                }
+            });
+
+            // PostMessage z Nastavení iframe — explicitní signál, že se změnil
+            // layout (pořadí / viditelnost / skupiny). Storage event je v iframe→parent
+            // cestě někdy nespolehlivý, postMessage je deterministický.
+            window.addEventListener('message', function (e) {
+                if (e && e.data && e.data.type === 'fc-layout-change') {
                     scheduleRenderAll();
                 }
             });

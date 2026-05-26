@@ -466,6 +466,23 @@
            (:not(.hidden) a .hidden + !important) zaručí spolehlivé skrytí/zobrazení. */
         .modal-overlay:not(.hidden) { display: flex !important; }
         .modal-overlay.hidden { display: none !important; }
+
+        /* ── Pivot table — theme-aware oddělovače řádků ──
+           V tmavém režimu chceme čáry MNOHEM jemnější (na slate-900 backgroundu
+           působí slate-700/600 příliš výrazně). V světlém režimu zachováme
+           kontrast slate-200/300. */
+        #pivot-table .pivot-th { border-bottom: 1px solid #1f2937; background: #0f172a; }
+        #pivot-table .pivot-row-top { border-bottom: 1px solid #1a2335; }
+        #pivot-table .pivot-row-sub { border-bottom: 1px solid #131b2b; }
+        #pivot-table .pivot-row-sub td:first-child { background: #0a1220; }
+        #pivot-table .pivot-row-grand { border-top: 1px solid #334155; }
+
+        html.light #pivot-table .pivot-th { border-bottom: 1px solid #cbd5e1; background: #ffffff; color: #475569; }
+        html.light #pivot-table .pivot-row-top { border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+        html.light #pivot-table .pivot-row-top td:first-child { background: #f8fafc; }
+        html.light #pivot-table .pivot-row-sub { border-bottom: 1px solid #f1f5f9; }
+        html.light #pivot-table .pivot-row-sub td:first-child { background: #ffffff; color: #475569; }
+        html.light #pivot-table .pivot-row-grand { border-top: 2px solid #94a3b8; background: #f1f5f9; }
     </style>
     <!-- finance-common.js: sjednocené nastavení + auto-sync modulových dat -->
     <meta name="fc-module" content="prijmy">
@@ -755,7 +772,7 @@
                     </div>
                     <div id="a-savrate" class="font-mono text-xl font-bold text-emerald-400">0%</div>
                 </div>
-                <div class="kpi-card">
+                <div class="kpi-card" title="Zůstatek rozprostřený rovnoměrně přes průměrný měsíc (30,44 dne). Kolik můžeš denně utrácet, aniž by ses dostal do mínusu.">
                     <div class="section-label flex items-center gap-1.5 mb-2">
                         <i data-lucide="sun" class="w-3 h-3 text-sky-400"></i> Volný denní rozpočet
                     </div>
@@ -2380,9 +2397,12 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
 
                 if (document.getElementById('a-daily')) {
                     const dailyExp = expenseSum / Math.max(1, new Date().getDate());
-                    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-                    const daysLeft = daysInMonth - new Date().getDate() + 1;
-                    const dailyLeft = balance > 0 ? balance / daysLeft : 0;
+                    // Volný denní rozpočet = balance rozprostřený rovnoměrně přes
+                    // průměrný měsíc (365/12 ≈ 30,4375 dne). Důvod: uživatel chce
+                    // vědět, "kolik můžu denně dlouhodobě utratit ze zůstatku",
+                    // ne "kolik můžu utratit zítra do konce měsíce".
+                    const AVG_DAYS_IN_MONTH = 365 / 12;
+                    const dailyLeft = balance > 0 ? balance / AVG_DAYS_IN_MONTH : 0;
 
                     document.getElementById('a-daily').innerText = this.fmt(dailyExp);
                     document.getElementById('a-savrate').innerText = `${savRate}%`;
@@ -2472,11 +2492,11 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
 
                 // Header
                 let html = '<thead><tr>'
-                    + '<th class="text-left px-2 py-2 border-b border-slate-700 text-slate-400 font-semibold uppercase tracking-widest text-[10px] sticky left-0 bg-slate-900 z-10">Popisky řádků</th>';
+                    + '<th class="pivot-th text-left px-2 py-2 text-slate-400 font-semibold uppercase tracking-widest text-[10px] sticky left-0 z-10">Popisky řádků</th>';
                 cols.forEach(c => {
-                    html += '<th class="text-right px-2 py-2 border-b border-slate-700 text-slate-400 font-semibold uppercase tracking-widest text-[10px] whitespace-nowrap">' + this._escapeHtml(c) + '</th>';
+                    html += '<th class="pivot-th text-right px-2 py-2 text-slate-400 font-semibold uppercase tracking-widest text-[10px] whitespace-nowrap">' + this._escapeHtml(c) + '</th>';
                 });
-                html += '<th class="text-right px-2 py-2 border-b border-slate-700 text-slate-200 font-semibold uppercase tracking-widest text-[10px] whitespace-nowrap">Celk. součet</th>';
+                html += '<th class="pivot-th text-right px-2 py-2 text-slate-200 font-semibold uppercase tracking-widest text-[10px] whitespace-nowrap">Celk. součet</th>';
                 html += '</tr></thead><tbody>';
 
                 // Sloupcový grand-total (na konec) — sčítáme z __tot
@@ -2491,7 +2511,7 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
 
                     const collapsed = !!this._pivotCollapsed[r1];
                     // Top row
-                    html += '<tr class="border-b border-slate-800 bg-slate-900/60">';
+                    html += '<tr class="pivot-row-top bg-slate-900/60">';
                     if (hasSubRow) {
                         html += '<td class="px-2 py-1.5 sticky left-0 bg-slate-900/60 cursor-pointer select-none text-slate-200 font-semibold" onclick="app.togglePivot(\'' + this._escapeAttr(r1) + '\')" title="Sbalit / rozbalit">'
                             + '<span class="inline-block w-3 text-slate-500">' + (collapsed ? '⊞' : '⊟') + '</span> ' + this._escapeHtml(r1) + '</td>';
@@ -2511,7 +2531,7 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                         subKeys.forEach(r2 => {
                             const rowMap = pivot[r1].__sub[r2];
                             const subSum = Object.values(rowMap).reduce((a, b) => a + b, 0);
-                            html += '<tr class="border-b border-slate-800/50">';
+                            html += '<tr class="pivot-row-sub">';
                             html += '<td class="px-2 py-1 pl-7 sticky left-0 bg-slate-950 text-slate-400">' + this._escapeHtml(r2) + '</td>';
                             cols.forEach(c => {
                                 const v = rowMap[c] || 0;
@@ -2524,7 +2544,7 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                 });
 
                 // Grand total
-                html += '<tr class="border-t-2 border-slate-600 bg-slate-900/80">';
+                html += '<tr class="pivot-row-grand bg-slate-900/80">';
                 html += '<td class="px-2 py-2 sticky left-0 bg-slate-900/80 text-slate-100 font-bold uppercase tracking-wider text-[10px]">Celkový součet</td>';
                 cols.forEach(c => {
                     const v = colGrand[c] || 0;
@@ -2592,18 +2612,21 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
             if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
             window.FinanceCommon.help.show({
                 title: 'Příjmy & Výdaje',
-                subtitle: 'Centrální deník všech transakcí — všechno ostatní (Spoření, Předplatná, Půjčky) se sem propojuje.',
+                subtitle: 'Evidence PRAVIDELNÝCH měsíčních pohybů — výplata, nájem, hypotéka, předplatná, spoření. Ne deník každodenních útrat.',
                 sections: [
                     {
                         kind: 'intro',
                         heading: '🎯 K čemu modul slouží',
                         body:
-                            '<p>Eviduje <b>každou jednu finanční transakci</b> — příjmy, výdaje, spoření, splátky půjček, předplatné. To je tvůj <b>jediný zdroj pravdy</b> o cashflow.</p>' +
-                            '<p>Modul má 3 záložky:</p>' +
+                            '<p>Modul slouží k evidenci <b>pravidelných měsíčních pohybů</b> na účtě — výplaty, nájem, hypotéka, předplatné, pravidelné spoření, splátky půjček. Ukazuje <b>strukturu měsíčního cashflow</b>: kolik každý měsíc přijde, kolik odejde na fixní výdaje, kolik zbyde.</p>' +
+                            '<p style="margin-top:.5rem"><b>NESLOUŽÍ</b> k zápisu každodenních nákupů (rohlík, oběd, benzín atp.). Na to nejsou pravidelné platby určené — jednorázové nákupy si veď zvlášť nebo zcela mimo tento modul.</p>' +
+                            '<p>Tip: roční platby (např. doména, antivir) zadej s pomocí <b>kalkulátoru</b> u částky — buď výrazem <code>1170/12</code> nebo tlačítkem <code>÷12 (ročně→měsíčně)</code>, ať tě modul ukazuje měsíční ekvivalent.</p>' +
+                            '<p>Modul má 4 záložky:</p>' +
                             '<ul>' +
-                                '<li><b>Deník</b> — formulář pro přidání transakce + tabulka všech záznamů.</li>' +
-                                '<li><b>Analýza</b> — KPI a grafy (struktura výdajů, cashflow trend, míra úspor).</li>' +
+                                '<li><b>Deník</b> — formulář pro přidání pravidelné platby + tabulka všech záznamů.</li>' +
+                                '<li><b>Analýza</b> — KPI, grafy a <b>kontingenční tabulka</b> (struktura plateb po účtech / typech).</li>' +
                                 '<li><b>AI Rádce</b> — strukturovaná AI analýza tvých dat s konkrétními doporučeními.</li>' +
+                                '<li><b>Předplatná</b> — zrcadlo modulu Předplatná pro rychlý přehled.</li>' +
                             '</ul>'
                     },
                     {
@@ -2640,9 +2663,11 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                         heading: '💡 Tipy & triky',
                         body:
                             '<ul>' +
-                                '<li>Pro pravidelné výdaje (Netflix, mobil) <b>nedělej kopii každý měsíc</b> — vytvoř záznam v modulu <b>Předplatná</b>. Tady se ti pak propojí automaticky.</li>' +
-                                '<li>Spořicí transakce dělej <b>se záporným znaménkem na běžném účtu</b> a kladným na spořicím (převod). Modul Spoření & Cíle vytvoří goal automaticky.</li>' +
-                                '<li>Export do JSON = kompletní záloha. Pravidelně si stáhni před experimenty.</li>' +
+                                '<li><b>Modul = pravidelné platby</b>. Eviduj sem výplatu, nájem, hypotéku, splátky, předplatná, pravidelné spoření. NE jednorázové nákupy.</li>' +
+                                '<li><b>Roční platby</b> rozpočítej na měsíc — v políčku Částka napiš výraz typu <code>1170/12</code> nebo klikni tlačítko <code>÷12 (ročně→měsíčně)</code>. Modul ti pak ukazuje skutečnou měsíční zátěž.</li>' +
+                                '<li><b>Typy s podpisem</b>: pokud napíšeš typ obsahující <code>Předplatné - roční</code>, modul Předplatná automaticky převezme cyklus „yearly". To samé pro <code>čtvrtletní</code> / <code>týdenní</code>.</li>' +
+                                '<li>Spořicí transakce <b>označ checkboxem „Položka je spoření"</b> — automaticky se zrcadlí do Spoření & Cíle.</li>' +
+                                '<li><b>Export</b> v Nastavení = kompletní záloha (konfigurace + data všech modulů). Pravidelně si stáhni před experimenty.</li>' +
                                 '<li>Když chceš v Analýze vidět <b>jen určité kategorie</b>, vyluč ostatní záznamy ikonou oka.</li>' +
                                 '<li>AI Rádce funguje líp s aspoň 30 dny dat — málo záznamů → generická rada.</li>' +
                             '</ul>'

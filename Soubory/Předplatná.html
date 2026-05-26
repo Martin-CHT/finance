@@ -228,8 +228,8 @@
                     <input id="fName" class="input" placeholder="Netflix">
                 </div>
                 <div>
-                    <label class="fld">Poskytovatel</label>
-                    <input id="fProvider" class="input" placeholder="netflix.com">
+                    <label class="fld">Podrobnosti</label>
+                    <input id="fProvider" class="input" placeholder="např. netflix.com / číslo smlouvy / poznámka">
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
@@ -315,6 +315,43 @@
         try { DB = JSON.parse(localStorage.getItem(STORE)) || { items: [] }; }
         catch(e) { DB = { items: [] }; }
         if (!Array.isArray(DB.items)) DB.items = [];
+        // Auto-advance: pokud nextBilling už uplynul, posuneme dopředu podle cyklu
+        // (opakovaně, dokud nebude v budoucnu). Mění DB.items in-place; pokud došlo
+        // k jakékoli změně, persistujeme zpět.
+        const changed = _autoAdvanceNextBilling(DB.items);
+        if (changed) {
+            try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch(e) {}
+        }
+    }
+    /* Posune nextBilling vpřed dle cyklu, dokud nebude v budoucnu nebo dnešní den.
+       Volá se z load() a po každé editaci. */
+    function _autoAdvanceNextBilling(items) {
+        let changed = false;
+        const today = new Date(); today.setHours(0,0,0,0);
+        items.forEach(x => {
+            if (!x || !x.active) return;
+            if (!x.nextBilling) return;
+            let dt;
+            try { dt = new Date(x.nextBilling); } catch(e) { return; }
+            if (isNaN(dt.getTime())) return;
+            dt.setHours(0,0,0,0);
+            let safety = 0; // safety guard proti zacyklení (max ~10 let posunů)
+            while (dt < today && safety < 600) {
+                const nd = new Date(dt);
+                switch (x.cycle) {
+                    case 'yearly':    nd.setFullYear(nd.getFullYear() + 1); break;
+                    case 'quarterly': nd.setMonth(nd.getMonth() + 3); break;
+                    case 'weekly':    nd.setDate(nd.getDate() + 7); break;
+                    case 'monthly':
+                    default:           nd.setMonth(nd.getMonth() + 1); break;
+                }
+                dt = nd;
+                safety++;
+                changed = true;
+            }
+            if (changed) x.nextBilling = dt.toISOString().slice(0, 10);
+        });
+        return changed;
     }
     function save() {
         localStorage.setItem(STORE, JSON.stringify(DB));
@@ -712,7 +749,7 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty):
                         '<ol>' +
                             '<li>Klikni <b>+ Přidat předplatné</b> (vpravo nahoře).</li>' +
                             '<li><b>Název</b> — co to je (Netflix, Lidl Plus, Vodafone…).</li>' +
-                            '<li><b>Poskytovatel</b> — kdo to fakturuje (volitelné, hodí se při sporu).</li>' +
+                            '<li><b>Podrobnosti</b> — libovolná poznámka (kdo fakturuje, číslo smlouvy, URL, atd.). Volitelné.</li>' +
                             '<li><b>Cena & Měna</b> — kolik platíš jednu platbu (ne ročně, ne měsíčně, jen <i>kolik vidíš na výpisu</i>).</li>' +
                             '<li><b>Cyklus</b> — týdně / měsíčně / čtvrtletně / ročně. Tohle určuje, jak se cena přepočítává na měsíční sumu v KPI.</li>' +
                             '<li><b>Kategorie</b> — Streaming / Mobil / Pojistka / atd. Datalist pamatuje předchozí.</li>' +

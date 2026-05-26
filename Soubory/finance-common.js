@@ -14,6 +14,33 @@
 (function () {
     'use strict';
 
+    /* ─────────────  REDIRECT STANDALONE → INDEX.HTML WRAPPER  ─────────────
+       Když uživatel otevře modul přímo (např. https://…/finance/Soubory/Fondy.html),
+       je to standalone režim BEZ topbaru/sidebaru → nekonzistentní UX. Detekujeme
+       to (window.self === window.top) a okamžitě přesměrujeme na root index.html
+       s parametrem `?from=<relativní cesta modulu>`. Index.html po startu načte
+       parametr, otevře daný modul v iframe (=topbar + sidebar) a přes
+       `history.replaceState` vrátí URL na původní krásnou cestu.
+
+       Spouštíme HNED na začátku skriptu, ještě před parserem zbytku finance-common.js,
+       aby uživatel viděl jen blik (raw HTML modulu se nezobrazí). */
+    (function autoRedirectStandalone() {
+        try {
+            if (window.self !== window.top) return;            // už v iframe → ne
+            var path = location.pathname;
+            // Standalone modul je jen ten, který je pod podadresářem Soubory/ nebo BTC/
+            var m = path.match(/^(.*?\/)(Soubory|BTC)\/[^/]+\.html?$/i);
+            if (!m) return;                                    // už je v rootu (index.html)
+            var rootBase = m[1];                               // např. "/finance/"
+            var rel      = path.slice(rootBase.length);        // např. "Soubory/Fondy.html"
+            var qs       = location.search ? location.search.slice(1) + '&' : '';
+            // Zkus zachovat hash (např. #ai-rádce)
+            var hash     = location.hash || '';
+            // Replace, ať se zachová Back navigace.
+            window.location.replace(rootBase + '?' + qs + 'from=' + encodeURIComponent(rel) + hash);
+        } catch (e) {}
+    })();
+
     /* ─────────────  KONSTANTY  ───────────── */
     var COOKIE_DAYS = 365;
 
@@ -528,7 +555,9 @@
         throw lastErr || new Error('all retries failed');
     }
 
-    /* Pošle libovolný JSON objekt jako data modulu. S retry + verifikací úspěchu. */
+    /* Pošle libovolný JSON objekt jako data modulu. S retry + verifikací úspěchu.
+       Po úspěšném pushi vyčistí tombstony pro daný modul (cloud teď obsahuje
+       aktuální stav včetně smazání). */
     async function pushModuleData(moduleName, data) {
         var base = _userSheetUrl();
         if (!base) return false; // user nemá Sheet nastavený — nic neděláme
@@ -537,7 +566,7 @@
         if (t) body.token = t;
         setSyncBusy(true);
         try {
-            return await _withRetry(async function () {
+            var ok = await _withRetry(async function () {
                 var r = await fetch(base, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -549,10 +578,14 @@
                 if (!j || !j.ok) throw new Error((j && j.error) || 'push_failed');
                 return true;
             });
+            // Úspěšný push → tombstony už nejsou potřeba (cloud je aktuální)
+            if (ok && moduleName) clearTombstones(moduleName);
+            return ok;
         } catch (e) {
             // Po vyčerpání retry — log a vrátí false, ale data zůstávají v localStorage,
-            // takže příští úspěšný push je dotáhne nahoru.
+            // a tombstony zůstávají, takže příští pull se neztratí.
             try { console.warn('[FinanceCommon] pushModuleData failed for', moduleName, e && e.message); } catch (_) {}
+            setSyncBusy(false, true);
             return false;
         }
         finally { setSyncBusy(false); }
@@ -674,6 +707,69 @@
         }, typeof delayMs === 'number' ? delayMs : 3000);
     }
 
+    /* ═══ Tombstones — sledování smazaných ID per modul ═══
+       Když uživatel smaže položku lokálně, ale push do cloudu selže nebo
+       je odložen, příští pull by cloud znovu poslal smazanou položku zpět.
+       Řešíme tombstony: per modul držíme set ID, která byla lokálně smazána.
+       Při merge se tyto ID z remote vyfiltrují. Tombstone se vyčistí, jakmile
+       proběhne úspěšný push (cloud už obsahuje aktuální stav bez smazaných). */
+    function _tombstoneKey(moduleName) { return 'fc_tomb_' + moduleName; }
+    function getTombstones(moduleName) {
+        try {
+            var raw = lsGet(_tombstoneKey(moduleName));
+            if (!raw) return [];
+            var arr = JSON.parse(raw);
+            return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+    }
+    function setTombstones(moduleName, ids) {
+        try { lsSet(_tombstoneKey(moduleName), JSON.stringify(ids || [])); } catch (e) {}
+    }
+    function addTombstone(moduleName, id) {
+        if (id == null) return;
+        var arr = getTombstones(moduleName);
+        var idStr = String(id);
+        if (arr.indexOf(idStr) === -1) {
+            arr.push(idStr);
+            // Limit na poslední 1000 záznamů — chrání před nekonečným růstem
+            if (arr.length > 1000) arr = arr.slice(-1000);
+            setTombstones(moduleName, arr);
+        }
+    }
+    function clearTombstones(moduleName) { setTombstones(moduleName, []); }
+
+    /* Diff sets — porovná dva snapshoty modulu, najde ID/fingerprinty, které
+       v "after" chybí oproti "before". Volá se po každém setItem hooku
+       (auto-sync via meta tagy), aby tombstony byly automaticky aktualizované
+       bez nutnosti měnit kód jednotlivých modulů. */
+    function _itemsOf(data) {
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.items)) return data.items;
+        return [];
+    }
+    function _detectDeletions(before, after) {
+        var beforeItems = _itemsOf(before);
+        var afterItems  = _itemsOf(after);
+        if (!beforeItems.length) return { ids: [], fingerprints: [] };
+        var afterIdSet = {};
+        var afterFpSet = {};
+        afterItems.forEach(function (it) {
+            if (it && it.id != null) afterIdSet[String(it.id)] = true;
+            else afterFpSet[_fingerprint(it)] = true;
+        });
+        var deletedIds = [];
+        var deletedFps = [];
+        beforeItems.forEach(function (it) {
+            if (it && it.id != null) {
+                if (!afterIdSet[String(it.id)]) deletedIds.push(String(it.id));
+            } else {
+                var fp = _fingerprint(it);
+                if (!afterFpSet[fp]) deletedFps.push(fp);
+            }
+        });
+        return { ids: deletedIds, fingerprints: deletedFps };
+    }
+
     /* ═══ Helpers pro merge / konflikt ═══ */
     function _isEmpty(d) {
         if (d == null) return true;
@@ -710,27 +806,30 @@
         return picks.map(function (v) { return String(v).toLowerCase().trim(); }).join('|');
     }
 
-    function _mergeArraysById(local, remote) {
+    function _mergeArraysById(local, remote, tombstoneIds, tombstoneFps) {
         // Union podle id; v případě konfliktu lokální verze vyhrává.
-        // Položky bez ID se deduplikují podle fingerprint (nejčastěji bývá
-        // duplikace způsobena tím, že modul po importu/restoru přidělil novou
-        // sadu ID — fingerprint to zachytí).
+        // Položky bez ID se deduplikují podle fingerprint.
+        // tombstoneIds/Fps: pole stringů — položky s tímto ID/fingerprint
+        // z REMOTE budou vyfiltrovány (uživatel je lokálně smazal, ale push
+        // do cloudu ještě neproběhl, takže by se vrátily zpět).
+        var tombIds = new Set((tombstoneIds || []).map(String));
+        var tombFps = new Set((tombstoneFps || []));
         var byId = {};
-        var localById = {}, remoteById = {};
         var fpLocal = {}, fpRemote = {};
         (Array.isArray(remote) ? remote : []).forEach(function (it) {
             if (it && it.id != null) {
+                if (tombIds.has(String(it.id))) return; // smazáno lokálně
                 byId[it.id] = { remote: it };
-                remoteById[it.id] = true;
             } else {
-                fpRemote[_fingerprint(it)] = it;
+                var fp = _fingerprint(it);
+                if (tombFps.has(fp)) return;
+                fpRemote[fp] = it;
             }
         });
         (Array.isArray(local) ? local : []).forEach(function (it) {
             if (it && it.id != null) {
-                if (byId[it.id]) byId[it.id].local = it; // local wins
+                if (byId[it.id]) byId[it.id].local = it;
                 else byId[it.id] = { local: it };
-                localById[it.id] = true;
             } else {
                 fpLocal[_fingerprint(it)] = it;
             }
@@ -740,7 +839,6 @@
             var pair = byId[k];
             out.push(pair.local || pair.remote);
         });
-        // Sloučení položek bez ID podle fingerprint — duplicity zmizí.
         var seenFp = {};
         Object.keys(fpLocal).forEach(function (fp) {
             if (!seenFp[fp]) { out.push(fpLocal[fp]); seenFp[fp] = true; }
@@ -750,16 +848,16 @@
         });
         return out;
     }
-    function _mergeData(local, remote) {
+    function _mergeData(local, remote, moduleName) {
+        var tombs = moduleName ? getTombstones(moduleName) : [];
         if (Array.isArray(local) && Array.isArray(remote)) {
-            return _mergeArraysById(local, remote);
+            return _mergeArraysById(local, remote, tombs, []);
         }
         if (local && remote && Array.isArray(local.items) && Array.isArray(remote.items)) {
             var merged = Object.assign({}, remote, local);
-            merged.items = _mergeArraysById(local.items, remote.items);
+            merged.items = _mergeArraysById(local.items, remote.items, tombs, []);
             return merged;
         }
-        // Strukturně neporovnatelné → lokální vyhrává
         return local;
     }
     function _escapeHtml(s) {
@@ -840,9 +938,27 @@
         var storageKey = mKey.content.trim();
 
         // Hook localStorage.setItem pro daný klíč — auto-push do cloudu (debounced 3 s)
+        // + detekce smazání pro tombstone tracking.
         var _origSetItem = localStorage.setItem.bind(localStorage);
+        var _origGetItem = localStorage.getItem.bind(localStorage);
         var _suppressPushOnce = false;
         localStorage.setItem = function (k, v) {
+            if (k === storageKey && !_suppressPushOnce) {
+                // Před přepsáním: porovnej s předchozím obsahem a najdi smazané IDs
+                try {
+                    var prevRaw = _origGetItem(k);
+                    if (prevRaw && prevRaw !== v) {
+                        var prev = null, next = null;
+                        try { prev = JSON.parse(prevRaw); } catch (e) {}
+                        try { next = JSON.parse(v); } catch (e) {}
+                        if (prev != null && next != null) {
+                            var diff = _detectDeletions(prev, next);
+                            diff.ids.forEach(function (id) { addTombstone(moduleName, id); });
+                            // fingerprints zatím nepoužíváme pro tombstony (nebezpečné — fp se může změnit při edit)
+                        }
+                    }
+                } catch (e) {}
+            }
             _origSetItem(k, v);
             if (k !== storageKey) return;
             if (_suppressPushOnce) { _suppressPushOnce = false; return; }
@@ -906,24 +1022,48 @@
                     applyDataAndNotify(remote);
                     return;
                 }
-                // Identické → nic neudělej.
+
+                // Pokud máme tombstony, předfiltrujeme remote, ať smazaná data
+                // z cloudu nevyrobí falešný konflikt. Pokud po filtraci je shoda
+                // s lokálem, tiše pushneme lokál do cloudu, ať se odstraní i tam.
+                var tombs = getTombstones(moduleName);
+                var remoteFiltered = remote;
+                if (tombs.length) {
+                    if (Array.isArray(remote)) {
+                        remoteFiltered = remote.filter(function (it) {
+                            return !(it && it.id != null && tombs.indexOf(String(it.id)) !== -1);
+                        });
+                    } else if (remote && Array.isArray(remote.items)) {
+                        remoteFiltered = Object.assign({}, remote, {
+                            items: remote.items.filter(function (it) {
+                                return !(it && it.id != null && tombs.indexOf(String(it.id)) !== -1);
+                            })
+                        });
+                    }
+                }
+
+                // Identické (po aplikaci tombstones) → tiše pushneme lokál,
+                // čímž odstraníme smazané položky i v cloudu. Žádný dialog.
                 try {
-                    if (JSON.stringify(local) === JSON.stringify(remote)) return;
+                    if (JSON.stringify(local) === JSON.stringify(remoteFiltered)) {
+                        // Cloud má víc položek než lokál právě o ty smazané —
+                        // pushni lokál a vyčisti tombstony.
+                        pushModuleData(moduleName, local);
+                        return;
+                    }
                 } catch (e) {}
 
-                // Rozdíl → zeptej se uživatele. Konflikt dialog je opt-in akce,
-                // takže tady reload v případě výběru 'remote' nebo 'merge' DÁVÁ smysl —
-                // uživatel ho vědomě potvrdil.
+                // Reálný rozdíl mimo deletions → zeptej se uživatele.
                 showConflictDialog(moduleName, local, remote, function (choice) {
                     if (choice === 'remote') {
                         applyDataAndNotify(remote);
+                        clearTombstones(moduleName); // uživatel zvolil cloud → tombstony zahodit
                     } else if (choice === 'local') {
-                        // Pošli lokál do cloudu, lokál zůstává.
                         pushModuleData(moduleName, local);
                     } else if (choice === 'merge') {
-                        var merged = _mergeData(local, remote);
+                        // _mergeData respektuje tombstony (smazané z lokálu nezpůsobí návrat)
+                        var merged = _mergeData(local, remote, moduleName);
                         applyDataAndNotify(merged);
-                        // Push merged do cloudu, ať druhé zařízení dostane sloučenou verzi.
                         pushModuleData(moduleName, merged);
                     }
                     // 'cancel' → nic neměnit
@@ -1122,7 +1262,11 @@
             collectAllData:     collectAllModuleData,
             applyAllData:       applyAllModuleData,
             pushAllData:        pushAllModuleData,
-            pullAllData:        pullAllModuleData
+            pullAllData:        pullAllModuleData,
+            /* Tombstones — sledování smazaných ID per modul */
+            getTombstones:      getTombstones,
+            clearTombstones:    clearTombstones,
+            addTombstone:       addTombstone
         },
 
         /* bi-directional cross-module linking */
