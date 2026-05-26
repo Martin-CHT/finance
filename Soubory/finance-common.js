@@ -342,9 +342,11 @@
         if (!oldPw || !newPw) throw new Error('Vyplň staré i nové heslo.');
         var oldHash = await pbkdf2Hex(oldPw, s.user);
         var newHash = await pbkdf2Hex(newPw, s.user);
-        var res = await apiCall('changePassword', {
+        // Backend (Apps Script auth) přijímá akci 'changePw' s payloadem
+        // { username, token, oldHash, newHash }.
+        var res = await apiCall('changePw', {
             username: s.user, token: s.token,
-            oldClientHash: oldHash, newClientHash: newHash
+            oldHash: oldHash, newHash: newHash
         });
         if (!res || !res.ok) throw new Error(res && res.error ? res.error : 'change_password_failed');
         // Backend nám vrátí čerstvý token; pokud ne, ponecháme stávající.

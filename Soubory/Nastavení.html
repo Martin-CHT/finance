@@ -436,18 +436,22 @@
                     Návod: jak vytvořit Apps Script (5 minut)
                 </summary>
                 <div class="mt-3 text-[12px] text-slate-300 space-y-3">
+                    <p class="text-slate-300 text-[12px] mb-2">
+                        Postupně nasaď <b>oba dva</b> skripty níže — každý do svého vlastního Google Sheetu. <b>Skript A</b> je pro data, <b>Skript B</b> pro autentizaci. URL každého nasazení vlož na své místo.
+                    </p>
                     <ol class="list-decimal list-outside ml-5 space-y-1.5">
-                        <li>Otevři <a href="https://sheets.new" target="_blank" class="text-sky-400 hover:underline">sheets.new</a> — vytvoří se prázdný Google Sheet, který bude úložiště.</li>
+                        <li>Otevři <a href="https://sheets.new" target="_blank" class="text-sky-400 hover:underline">sheets.new</a> — vytvoří se prázdný Google Sheet.</li>
                         <li>V něm klikni <span class="font-mono text-slate-100">Rozšíření → Apps Script</span>.</li>
-                        <li>Smaž vzorový kód a vlož <b>celý kód z rámečku níže</b>. Ulož projekt (Ctrl+S).</li>
+                        <li>Smaž vzorový kód a vlož <b>celý obsah skriptu A z rámečku níže</b> (tlačítko Kopírovat v pravém horním rohu rámečku). Ulož projekt (Ctrl+S).</li>
                         <li>Klikni vpravo nahoře <span class="font-mono text-slate-100">Deploy → New deployment</span>. Vyber typ <span class="font-mono text-slate-100">Web app</span>.
                             <ul class="list-disc list-outside ml-5 mt-1 text-slate-400">
                                 <li>„Execute as": <span class="font-mono text-slate-200">Me</span></li>
                                 <li>„Who has access": <span class="font-mono text-slate-200">Anyone</span> (jinak prohlížeč nedosáhne)</li>
                             </ul>
                         </li>
-                        <li>Klikni <b>Deploy</b>, Google si vyžádá oprávnění → povol pro tvůj účet (uvidí „neověřené" varování, klikni „Pokročilé → Pokračovat", je to tvůj vlastní skript).</li>
-                        <li>Zkopíruj zobrazenou URL končící <span class="font-mono text-slate-100">/exec</span> a vlož ji do pole <b>Web App URL</b> nahoře. Klikni <b>Uložit URL</b>, pak <b>Otestovat spojení</b>.</li>
+                        <li>Klikni <b>Deploy</b>, Google si vyžádá oprávnění → povol pro tvůj účet (uvidíš „neověřené" varování, klikni „Pokročilé → Pokračovat", je to tvůj vlastní skript).</li>
+                        <li>Zkopíruj zobrazenou URL končící <span class="font-mono text-slate-100">/exec</span> a vlož ji do pole <b>Web App URL</b> nahoře.</li>
+                        <li><b>Zopakuj kroky 1–5 pro skript B</b> v jiném (druhém) Sheetu. Výslednou URL vlož do konstanty <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code> a commituj/nasaď.</li>
                     </ol>
                     <p class="text-slate-400">
                         <b class="text-slate-200">Token (nepovinné, ochrana):</b> pokud chceš, aby URL bez tvého „hesla" odmítla volání, nastav <span class="font-mono">TOKEN</span> v kódu na libovolný řetězec a stejný vlož níže v <i>Pokročilé</i>.
@@ -456,17 +460,20 @@
                         <p class="text-[12px] text-sky-200 leading-relaxed flex items-start gap-2">
                             <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
                             <span>
-                                Níže jsou <b>DVĚ úplné varianty</b> Apps Scriptu — vyber si jednu z nich a <b>celý obsah rámečku</b> vlož do svého Apps Scriptu (žádné doplňování, kód je hotový k použití). Tlačítkem <b>Kopírovat</b> v rohu rámečku zkopíruješ obsah do schránky.
+                                Aplikace používá <b>DVA samostatné Apps Scripty</b> nasazené v <b>DVOU různých Google Sheetech</b>:
+                                <br><b>Skript A</b> = synchronizace dat (uložené v Sheetu č. 1). URL jde do <code>Web App URL</code> nahoře.
+                                <br><b>Skript B</b> = autentizace (login / register / změna hesla, v Sheetu č. 2). URL jde do konstanty <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code>.
+                                <br><br>Tlačítkem <b>Kopírovat</b> v rohu rámečku zkopíruješ celý obsah skriptu do schránky.
                             </span>
                         </p>
                     </div>
 
                     <h4 class="text-[13px] font-semibold text-emerald-200 mb-2 mt-4 flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">A · doporučené</span>
-                        Kompletní backend (data + auth v jednom)
+                        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">Skript A</span>
+                        Synchronizace dat (sheet č. 1)
                     </h4>
                     <p class="text-slate-400 mb-2 text-[12px]">
-                        Jediný skript pro vše. Stejnou URL vlož do <b>Web App URL</b> výše (data sync) a do konstanty <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code> (auth). Tato verze podporuje <b>změnu hesla</b> a <b>změnu uživatelského jména</b>.
+                        Tento skript běží v <b>Sheetu č. 1</b>, který hostí <b>data všech modulů</b> (transakce, předplatná, cíle, půjčky, BTC investice atd.) a <b>sjednocenou konfiguraci</b> (AI klíče, téma, pořadí modulů). URL nasazení vlož do pole <b>Web App URL</b> výše. <b>Neřeší autentizaci</b> — login má vlastní backend (skript B).
                     </p>
 
                     <div class="code-block">
@@ -475,205 +482,13 @@
                                 <i data-lucide="copy" class="w-3 h-3"></i> Kopírovat
                             </button>
                         </div>
-                    <pre class="code">/** Finance Terminal — KOMPLETNÍ Apps Script endpoint.
- *  Obsahuje VŠE potřebné — stačí nasadit jednou.
- *
- *  Listy v Sheetu, které se vytvoří automaticky:
- *    - 'Config'    — sjednocená konfigurace (AI klíče, téma, pořadí…).
- *    - 'Auth'      — uživatelské účty: username | clientHash | token | configJson.
- *    - 'mod_*'     — data každého modulu (mod_prijmy, mod_predplatna, mod_btc…).
- *
- *  URL tohoto nasazení vlož do:
- *    a) pole "Web App URL" v Nastavení (data sync).
- *    b) konstantu FC_AUTH_URL v souboru Soubory/finance-common.js (auth).
- */
-const SHEET_CONFIG = 'Config';
-const SHEET_AUTH   = 'Auth';
-const TOKEN = ''; // volitelně: nastav heslo pro ochranu URL; klient ho pak musí poslat v ?token=...
-
-function doGet(e) {
-  if (!_checkToken(e)) return _json({ok:false, error:'bad token'});
-  const action = (e.parameter.action || 'getConfig');
-  if (action === 'getConfig') return _json({ok:true, config: _readConfig()});
-  if (action === 'getData')   return _json({ok:true, data: _readModule(e.parameter.module)});
-  return _json({ok:false, error:'unknown action'});
-}
-
-function doPost(e) {
-  if (!_checkToken(e)) return _json({ok:false, error:'bad token'});
-  const body = JSON.parse(e.postData.contents || '{}');
-  // ─── Data API ───
-  if (body.action === 'saveConfig') { _writeConfig(body.data || body.config || {}); return _json({ok:true}); }
-  if (body.action === 'saveData')   {
-    if (!body.module) return _json({ok:false, error:'missing module'});
-    _writeModule(body.module, body.data);
-    return _json({ok:true});
-  }
-  if (body.action === 'getConfig') {
-    if (body.username &amp;&amp; body.token) {
-      // per-user config (uložený v Auth listu pod tímto userem)
-      const u = _findUser(body.username);
-      if (!u || u.token !== body.token) return _json({ok:false, error:'bad_token'});
-      let cfg = {}; try { cfg = JSON.parse(u.configJson || '{}'); } catch (e) {}
-      return _json({ok:true, config: cfg});
-    }
-    return _json({ok:true, config: _readConfig()});
-  }
-  if (body.action === 'getData') return _json({ok:true, data: _readModule(body.module)});
-
-  // ─── Auth API ───
-  if (body.action === 'register') {
-    const u = String(body.username || '').toLowerCase();
-    if (!/^[a-z0-9._-]{3,32}$/.test(u)) return _json({ok:false, error:'invalid_username'});
-    if (!body.clientHash) return _json({ok:false, error:'invalid_hash'});
-    if (_findUser(u)) return _json({ok:false, error:'user_exists'});
-    const token = Utilities.getUuid();
-    _writeUser({username: u, clientHash: body.clientHash, token: token, configJson: '{}'});
-    return _json({ok:true, token: token});
-  }
-  if (body.action === 'login') {
-    const u = String(body.username || '').toLowerCase();
-    const found = _findUser(u);
-    if (!found) return _json({ok:false, error:'no_user'});
-    if (found.clientHash !== body.clientHash) return _json({ok:false, error:'bad_credentials'});
-    const token = Utilities.getUuid();
-    found.token = token;
-    _writeUser(found);
-    let cfg = {}; try { cfg = JSON.parse(found.configJson || '{}'); } catch (e) {}
-    return _json({ok:true, token: token, config: cfg});
-  }
-  if (body.action === 'saveConfig' &amp;&amp; body.username) {
-    // per-user saveConfig (auth-protected)
-    const u = _findUser(body.username);
-    if (!u || u.token !== body.token) return _json({ok:false, error:'bad_token'});
-    u.configJson = JSON.stringify(body.config || {});
-    _writeUser(u);
-    return _json({ok:true});
-  }
-  if (body.action === 'changePassword') {
-    const u = _findUser(body.username);
-    if (!u) return _json({ok:false, error:'no_user'});
-    if (u.token !== body.token) return _json({ok:false, error:'bad_token'});
-    if (u.clientHash !== body.oldClientHash) return _json({ok:false, error:'bad_credentials'});
-    u.clientHash = body.newClientHash;
-    u.token = Utilities.getUuid();
-    _writeUser(u);
-    return _json({ok:true, token: u.token});
-  }
-  if (body.action === 'renameUser') {
-    const u = _findUser(body.username);
-    if (!u) return _json({ok:false, error:'no_user'});
-    if (u.token !== body.token) return _json({ok:false, error:'bad_token'});
-    if (u.clientHash !== body.clientHash) return _json({ok:false, error:'bad_credentials'});
-    const newU = String(body.newUsername || '').toLowerCase();
-    if (!/^[a-z0-9._-]{3,32}$/.test(newU)) return _json({ok:false, error:'invalid_username'});
-    if (_findUser(newU)) return _json({ok:false, error:'user_exists'});
-    _deleteUser(u.username);
-    u.username = newU;
-    u.clientHash = body.newClientHash;
-    u.token = Utilities.getUuid();
-    _writeUser(u);
-    return _json({ok:true, token: u.token});
-  }
-  // Legacy POSTy bez 'action' — ignorujeme.
-  return _json({ok:true, ignored:true, hint:'use action:...'});
-}
-
-function _checkToken(e) { return !TOKEN || e.parameter.token === TOKEN; }
-
-// ─── Config (global / per-user) ───
-function _readConfig() {
-  const sh = _getSheet(SHEET_CONFIG);
-  const rows = sh.getDataRange().getValues();
-  const cfg = {}; rows.forEach(r =&gt; { if (r[0]) cfg[r[0]] = r[1]; });
-  return cfg;
-}
-function _writeConfig(cfg) {
-  const sh = _getSheet(SHEET_CONFIG); sh.clear();
-  const rows = Object.entries(cfg);
-  if (rows.length) sh.getRange(1,1,rows.length,2).setValues(rows);
-}
-
-// ─── Module data ───
-function _readModule(name) {
-  if (!name) return null;
-  const sh = _getSheet('mod_' + name);
-  const raw = sh.getRange(1,1).getValue();
-  if (raw === '' || raw == null) return null;
-  try { return JSON.parse(raw); } catch (_) { return raw; }
-}
-function _writeModule(name, data) {
-  const sh = _getSheet('mod_' + name); sh.clear();
-  sh.getRange(1,1).setValue(JSON.stringify(data));
-}
-
-// ─── Auth: list 'Auth' s hlavičkou [username | clientHash | token | configJson] ───
-function _authSheet() {
-  const sh = _getSheet(SHEET_AUTH);
-  if (sh.getLastRow() === 0) sh.getRange(1,1,1,4).setValues([['username','clientHash','token','configJson']]);
-  return sh;
-}
-function _findUser(username) {
-  if (!username) return null;
-  const sh = _authSheet();
-  const rows = sh.getDataRange().getValues();
-  for (let i = 1; i &lt; rows.length; i++) {
-    if (String(rows[i][0]).toLowerCase() === String(username).toLowerCase()) {
-      return { _row: i+1, username: rows[i][0], clientHash: rows[i][1], token: rows[i][2], configJson: rows[i][3] || '{}' };
-    }
-  }
-  return null;
-}
-function _writeUser(u) {
-  const sh = _authSheet();
-  const existing = _findUser(u.username);
-  const values = [[u.username, u.clientHash, u.token, u.configJson || '{}']];
-  if (existing) sh.getRange(existing._row, 1, 1, 4).setValues(values);
-  else sh.getRange(sh.getLastRow()+1, 1, 1, 4).setValues(values);
-}
-function _deleteUser(username) {
-  const found = _findUser(username);
-  if (found) _authSheet().deleteRow(found._row);
-}
-
-// ─── Helpers ───
-function _getSheet(name) {
-  const ss = SpreadsheetApp.getActive();
-  return ss.getSheetByName(name) || ss.insertSheet(name);
-}
-function _json(o) {
-  return ContentService.createTextOutput(JSON.stringify(o))
-    .setMimeType(ContentService.MimeType.JSON);
-}</pre>
-                    </div>
-
-                    <p class="text-slate-400 mt-3 text-[12px]">
-                        <b class="text-slate-200">Migrace ze stávajícího auth backendu:</b> pokud už máš nasazený jiný <code>FC_AUTH_URL</code> (login/register funguje, ale změna hesla ne), nahraď ho touto verzí — protokol je <b>kompatibilní</b> a navíc přidává <code>changePassword</code> a <code>renameUser</code>. Hesla zůstávají v PBKDF2 hashi, backend nikdy nevidí čistý text. V <code>Soubory/finance-common.js</code> změň hodnotu <code>FC_AUTH_URL</code> na URL svého nasazení a v Nastavení se znovu zaregistruj (stávající centrální účet už nepoužívej).
-                    </p>
-
-                    <h4 class="text-[13px] font-semibold text-slate-200 mb-2 mt-6 flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 text-[10px] font-bold uppercase tracking-wider">B · minimální</span>
-                        Pouze datový backend (BEZ auth)
-                    </h4>
-                    <p class="text-slate-400 mb-2 text-[12px]">
-                        Variantní zjednodušená verze — řeší <b>pouze synchronizaci dat modulů</b> (saveConfig / saveData / getData). <b>Změna hesla / jména nebude fungovat</b>, protože tento backend nezná účty. Použij tuto verzi pouze pokud nepotřebuješ cloud login (data v Sheetu pak nejsou per-user, ale globální pro celý Sheet). Pro autentizaci budeš dál používat původní <code>FC_AUTH_URL</code>.
-                    </p>
-
-                    <div class="code-block">
-                        <div class="code-actions">
-                            <button type="button" class="code-btn" onclick="copyCodeBlock(this)" title="Zkopírovat celý obsah skriptu do schránky">
-                                <i data-lucide="copy" class="w-3 h-3"></i> Kopírovat
-                            </button>
-                        </div>
-                    <pre class="code">/** Finance Terminal — DATA-ONLY Apps Script endpoint.
- *  Pouze synchronizace dat modulů, BEZ auth (login/register).
- *
- *  Listy v Sheetu, které se vytvoří automaticky:
+                    <pre class="code">/** Finance Terminal — Apps Script pro SYNCHRONIZACI DAT (Sheet č. 1).
+ *  Spravuje obsah listů:
  *    - 'Config' — sjednocená konfigurace (AI klíče, téma, pořadí…).
  *    - 'mod_*'  — data každého modulu (mod_prijmy, mod_predplatna, mod_btc…).
  *
- *  URL tohoto nasazení vlož POUZE do pole "Web App URL" v Nastavení.
- *  Pro auth dál používej původní FC_AUTH_URL v souboru finance-common.js.
+ *  URL tohoto nasazení vlož do pole "Web App URL" v Nastavení.
+ *  Autentizaci řeší samostatný skript B (jiný Sheet, FC_AUTH_URL).
  */
 const SHEET_CONFIG = 'Config';
 const TOKEN = ''; // volitelně: nastav heslo pro ochranu URL; klient ho pak musí poslat v ?token=...
@@ -740,6 +555,293 @@ function _getSheet(name) {
 function _json(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                    </div>
+
+                    <h4 class="text-[13px] font-semibold text-sky-200 mb-2 mt-6 flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-wider">Skript B</span>
+                        Autentizace · login / registrace / změna hesla (sheet č. 2)
+                    </h4>
+                    <p class="text-slate-400 mb-2 text-[12px]">
+                        Tento skript běží v <b>Sheetu č. 2</b>, který hostí <b>uživatelské účty</b> (list <code>Users</code>) a audit log operací (list <code>Logs</code>). URL nasazení vlož do konstanty <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code>. Podporuje akce: <code>register</code>, <code>login</code>, <code>getConfig</code>, <code>saveConfig</code>, <code>changePw</code>, <code>renameUser</code>, <code>deleteUser</code>. Hesla se ukládají jako <b>PBKDF2(200k) + per-user salt + server pepper + SHA-256</b> — backend nikdy nevidí čistý text.
+                    </p>
+
+                    <div class="p-3 mb-3 rounded-lg" style="background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.3);">
+                        <p class="text-[12px] text-amber-200 leading-relaxed flex items-start gap-2 mb-2">
+                            <i data-lucide="shield-alert" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                            <span><b>POZOR — před nasazením:</b> upravit konstantu <code>SERVER_PEPPER</code> na vlastní náhodný řetězec (alespoň 32 znaků). Co to je a proč to potřebuješ:</span>
+                        </p>
+                        <ul class="text-[11px] text-amber-100/90 leading-relaxed pl-6 list-disc space-y-1">
+                            <li><b>Co dělá:</b> Server-side „pepř" — tajný řetězec přimíchávaný do hashe hesla na backendu. Klient ho nezná, takže ani útočník s <i>celou klientskou stránkou</i> ho nezíská.</li>
+                            <li><b>Proč to chceš mít</b> i pro osobní webovku: pokud někdo získá obsah tvého Auth Sheetu (např. sdílel jsi omylem, Google účet kompromitován), má <code>username</code>, <code>salt</code> a <code>hash</code>. <b>Bez pepperu</b> může offline brute-forcem (i přes PBKDF2 200k iterací) zkoušet slovníková hesla. <b>S pepperem</b> by musel uhodnout i pepper — což u 32+ náhodných znaků je prakticky nemožné.</li>
+                            <li><b>Co když řádek smažeš:</b> Apps Script při každém volání spadne na <code>ReferenceError: SERVER_PEPPER is not defined</code>. Login, registrace ani změna hesla nebudou fungovat vůbec.</li>
+                            <li><b>Co když nastavíš na prázdný string</b> (<code>const SERVER_PEPPER = '';</code>): backend pojede, ale hash bude <code>SHA-256(clientHash + ':' + salt + ':')</code> — bez ochrany před únikem Sheetu.</li>
+                            <li><b>Co když ho později změníš:</b> všechna existující hesla přestanou pasovat, protože uložený hash byl spočítán se starým pepperem. Musel by ses znovu zaregistrovat. <b>Drž ho stejný napořád.</b></li>
+                        </ul>
+                        <p class="text-[11px] text-amber-100/90 mt-2">
+                            <b>Jak vygenerovat:</b> např. v DevTools konzoli prohlížeče (F12) spusť
+                            <code class="font-mono text-[10px] text-amber-200 bg-amber-950/50 px-1 rounded">crypto.getRandomValues(new Uint8Array(32)).reduce((s,b)=&gt;s+b.toString(16).padStart(2,'0'),'')</code>
+                            — výstup je 64-znakový hex, ideální pro pepper.
+                        </p>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-actions">
+                            <button type="button" class="code-btn" onclick="copyCodeBlock(this)" title="Zkopírovat celý obsah skriptu do schránky">
+                                <i data-lucide="copy" class="w-3 h-3"></i> Kopírovat
+                            </button>
+                        </div>
+                    <pre class="code">/** Finance Terminal — Apps Script pro AUTENTIZACI (Sheet č. 2).
+ *  Vlož do nového Google Sheetu (Rozšíření → Apps Script), nasaď jako Web App.
+ *  URL vlož do konstanty FC_AUTH_URL v souboru Soubory/finance-common.js.
+ *
+ *  Listy, které se vytvoří automaticky:
+ *    - 'Users' — sloupce: username | salt | storedHash | configJson | createdAt | lastLogin | failedCount | lockedUntil
+ *    - 'Logs'  — audit log: timestamp | user | action | ok | note
+ */
+
+const SHEET_USERS = 'Users';
+const SHEET_LOGS  = 'Logs';
+
+/* SERVER PEPPER — povinný server-side secret. NESMÍ být prázdný!
+   Vygeneruj 32+ znaků v F12 konzoli prohlížeče:
+     crypto.getRandomValues(new Uint8Array(32)).reduce((s,b)=&gt;s+b.toString(16).padStart(2,'0'),'')
+   Po nasazení už NIKDY neměň, jinak existující hesla přestanou pasovat. */
+const SERVER_PEPPER = 'ZMĚŇ_MĚ_NA_SVŮJ_NÁHODNÝ_ŘETĚZEC_32_PLUS_ZNAKŮ';
+
+/* Brute-force ochrana: po N chybných pokusech zamkni účet na X minut. */
+const MAX_FAILED   = 5;
+const LOCK_MINUTES = 15;
+
+/* ────────────────────────  ENTRY POINTS  ──────────────────────── */
+function doGet(e)  { return handle(e, (e.parameter && e.parameter.action) || 'ping', e.parameter || {}); }
+function doPost(e) {
+  let body = {};
+  try { body = JSON.parse(e.postData.contents || '{}'); } catch (err) {}
+  return handle(e, body.action || 'ping', body);
+}
+
+function handle(e, action, payload) {
+  try {
+    switch (action) {
+      case 'ping':       return jsonOut({ ok: true, msg: 'Finance Terminal auth backend OK' });
+      case 'register':   return register(payload);
+      case 'login':      return login(payload);
+      case 'getConfig':  return getConfig(payload);
+      case 'saveConfig': return saveConfig(payload);
+      case 'changePw':   return changePw(payload);
+      case 'renameUser': return renameUser(payload);
+      case 'deleteUser': return deleteUser(payload);
+      default:           return jsonOut({ ok: false, error: 'unknown action: ' + action });
+    }
+  } catch (err) {
+    return jsonOut({ ok: false, error: String(err && err.message || err) });
+  }
+}
+
+/* ─────────────────────────  ACTIONS  ──────────────────────── */
+
+/*  payload: { username, clientHash }
+    clientHash = PBKDF2(password, username, 200k iter, SHA-256) hex */
+function register(p) {
+  const u = String(p.username || '').trim().toLowerCase();
+  const h = String(p.clientHash || '');
+  if (!validUsername(u)) return jsonOut({ ok: false, error: 'invalid_username' });
+  if (h.length &lt; 32)     return jsonOut({ ok: false, error: 'invalid_hash' });
+
+  const sh = sheet(SHEET_USERS);
+  if (findRow(sh, u) &gt; 0) return jsonOut({ ok: false, error: 'user_exists' });
+
+  const salt   = randomHex(16);
+  const stored = sha256Hex(h + ':' + salt + ':' + SERVER_PEPPER);
+  sh.appendRow([u, salt, stored, '{}', new Date(), '', 0, '']);
+  log(u, 'register', true);
+  return jsonOut({ ok: true });
+}
+
+/*  payload: { username, clientHash }
+    response: { ok, token, config } — token používej v dalších voláních. */
+function login(p) {
+  const u = String(p.username || '').trim().toLowerCase();
+  const h = String(p.clientHash || '');
+  const sh = sheet(SHEET_USERS);
+  const row = findRow(sh, u);
+  if (row &lt; 1) { log(u, 'login', false, 'no_user'); return jsonOut({ ok: false, error: 'bad_credentials' }); }
+
+  const lockedUntil = sh.getRange(row, 8).getValue();
+  if (lockedUntil instanceof Date && lockedUntil.getTime() &gt; Date.now()) {
+    return jsonOut({ ok: false, error: 'locked', until: lockedUntil.toISOString() });
+  }
+
+  const salt   = sh.getRange(row, 2).getValue();
+  const stored = sh.getRange(row, 3).getValue();
+  const calc   = sha256Hex(h + ':' + salt + ':' + SERVER_PEPPER);
+
+  if (calc !== stored) {
+    const fails = (Number(sh.getRange(row, 7).getValue()) || 0) + 1;
+    sh.getRange(row, 7).setValue(fails);
+    if (fails &gt;= MAX_FAILED) {
+      const until = new Date(Date.now() + LOCK_MINUTES * 60000);
+      sh.getRange(row, 8).setValue(until);
+    }
+    log(u, 'login', false, 'bad_hash, fails=' + fails);
+    return jsonOut({ ok: false, error: 'bad_credentials' });
+  }
+
+  // úspěch — reset counter, vystav token
+  sh.getRange(row, 6).setValue(new Date());
+  sh.getRange(row, 7).setValue(0);
+  sh.getRange(row, 8).setValue('');
+  const cfg   = safeJson(sh.getRange(row, 4).getValue());
+  const token = makeToken(u);
+  log(u, 'login', true);
+  return jsonOut({ ok: true, token: token, config: cfg });
+}
+
+/*  payload: { username, token } */
+function getConfig(p) {
+  const u = checkToken(p);
+  if (!u) return jsonOut({ ok: false, error: 'bad_token' });
+  const sh = sheet(SHEET_USERS);
+  const row = findRow(sh, u);
+  if (row &lt; 1) return jsonOut({ ok: false, error: 'no_user' });
+  return jsonOut({ ok: true, config: safeJson(sh.getRange(row, 4).getValue()) });
+}
+
+/*  payload: { username, token, config: {...} } */
+function saveConfig(p) {
+  const u = checkToken(p);
+  if (!u) return jsonOut({ ok: false, error: 'bad_token' });
+  const sh = sheet(SHEET_USERS);
+  const row = findRow(sh, u);
+  if (row &lt; 1) return jsonOut({ ok: false, error: 'no_user' });
+  sh.getRange(row, 4).setValue(JSON.stringify(p.config || {}));
+  log(u, 'saveConfig', true);
+  return jsonOut({ ok: true });
+}
+
+/*  payload: { username, token, oldHash, newHash }
+    response: { ok, token } — token se obnoví (stará session přestane platit). */
+function changePw(p) {
+  const u = checkToken(p);
+  if (!u) return jsonOut({ ok: false, error: 'bad_token' });
+  const sh = sheet(SHEET_USERS);
+  const row = findRow(sh, u);
+  if (row &lt; 1) return jsonOut({ ok: false, error: 'no_user' });
+  const salt   = sh.getRange(row, 2).getValue();
+  const stored = sh.getRange(row, 3).getValue();
+  const calc   = sha256Hex(String(p.oldHash) + ':' + salt + ':' + SERVER_PEPPER);
+  if (calc !== stored) return jsonOut({ ok: false, error: 'bad_credentials' });
+  const newSalt   = randomHex(16);
+  const newStored = sha256Hex(String(p.newHash) + ':' + newSalt + ':' + SERVER_PEPPER);
+  sh.getRange(row, 2).setValue(newSalt);
+  sh.getRange(row, 3).setValue(newStored);
+  log(u, 'changePw', true);
+  return jsonOut({ ok: true, token: makeToken(u) });
+}
+
+/*  payload: { username, token, clientHash (potvrzení starým heslem),
+              newUsername, newClientHash (= PBKDF2 stejného hesla, sůl = nové jméno) }
+    response: { ok, token } — token pro NOVÉ uživatelské jméno. */
+function renameUser(p) {
+  const u = checkToken(p);
+  if (!u) return jsonOut({ ok: false, error: 'bad_token' });
+  const newU = String(p.newUsername || '').trim().toLowerCase();
+  if (!validUsername(newU)) return jsonOut({ ok: false, error: 'invalid_username' });
+  if (newU === u)           return jsonOut({ ok: false, error: 'same_username' });
+
+  const sh = sheet(SHEET_USERS);
+  if (findRow(sh, newU) &gt; 0) return jsonOut({ ok: false, error: 'user_exists' });
+
+  const row = findRow(sh, u);
+  if (row &lt; 1) return jsonOut({ ok: false, error: 'no_user' });
+
+  // Potvrzení starým heslem (clientHash = PBKDF2 stejného hesla solený STARÝM jménem)
+  const salt   = sh.getRange(row, 2).getValue();
+  const stored = sh.getRange(row, 3).getValue();
+  const calc   = sha256Hex(String(p.clientHash || '') + ':' + salt + ':' + SERVER_PEPPER);
+  if (calc !== stored) return jsonOut({ ok: false, error: 'bad_credentials' });
+
+  // newClientHash je PBKDF2 stejného hesla solený NOVÝM jménem
+  const newSalt   = randomHex(16);
+  const newStored = sha256Hex(String(p.newClientHash || '') + ':' + newSalt + ':' + SERVER_PEPPER);
+
+  sh.getRange(row, 1).setValue(newU);
+  sh.getRange(row, 2).setValue(newSalt);
+  sh.getRange(row, 3).setValue(newStored);
+  log(u, 'renameUser', true, 'to=' + newU);
+
+  return jsonOut({ ok: true, token: makeToken(newU) });
+}
+
+function deleteUser(p) {
+  const u = checkToken(p);
+  if (!u) return jsonOut({ ok: false, error: 'bad_token' });
+  const sh = sheet(SHEET_USERS);
+  const row = findRow(sh, u);
+  if (row &gt; 0) sh.deleteRow(row);
+  log(u, 'deleteUser', true);
+  return jsonOut({ ok: true });
+}
+
+/* ─────────────────────────  HELPERS  ──────────────────────── */
+function sheet(name) {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  return sh;
+}
+function findRow(sh, username) {
+  const last = sh.getLastRow();
+  if (last &lt; 2) return -1;
+  const col = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (let i = 0; i &lt; col.length; i++) {
+    if (String(col[i][0]).trim().toLowerCase() === username) return i + 2;
+  }
+  return -1;
+}
+function validUsername(u) { return /^[a-z0-9._-]{3,32}$/.test(u); }
+
+function sha256Hex(s) {
+  const b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s, Utilities.Charset.UTF_8);
+  return b.map(function (x) { return (x &lt; 0 ? x + 256 : x).toString(16).padStart(2, '0'); }).join('');
+}
+function randomHex(n) {
+  let s = '';
+  for (let i = 0; i &lt; n; i++) s += Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+  return s;
+}
+function safeJson(s) { try { return JSON.parse(s || '{}'); } catch (e) { return {}; } }
+
+/* Token = day-bucket podpis: sha256(username + ':' + day + ':' + pepper).
+   Platí ~7 dní, server si nic neukládá (stateless). */
+function makeToken(username) {
+  const day = Math.floor(Date.now() / 86400000);
+  return day + '.' + sha256Hex(username + ':' + day + ':' + SERVER_PEPPER).slice(0, 32);
+}
+function checkToken(p) {
+  const u = String(p && p.username || '').trim().toLowerCase();
+  const t = String(p && p.token || '');
+  if (!u || !t) return null;
+  const parts = t.split('.');
+  const dayStr = parts[0], sig = parts[1];
+  const day = Number(dayStr);
+  if (!day || !sig) return null;
+  const today = Math.floor(Date.now() / 86400000);
+  if (today - day &gt; 7) return null;  // platnost 7 dní
+  const expected = sha256Hex(u + ':' + day + ':' + SERVER_PEPPER).slice(0, 32);
+  return expected === sig ? u : null;
+}
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function log(user, action, ok, note) {
+  try {
+    const sh = sheet(SHEET_LOGS);
+    sh.appendRow([new Date(), user, action, !!ok, note || '']);
+  } catch (e) {}
 }</pre>
                     </div>
 
