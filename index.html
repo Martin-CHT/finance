@@ -840,34 +840,47 @@
             const tabBtn = document.getElementById('tab-' + name);
             if (tabBtn) tabBtn.classList.add('active');
 
-            if (name === 'dashboard') {
-                document.getElementById('dashboard').classList.add('active');
-                document.getElementById('breadcrumbCurrent').textContent = 'Dashboard';
-            } else {
-                const f = document.getElementById('frame-' + name);
-                if (f) {
-                    if (!f.src && f.dataset.src) f.src = f.dataset.src;
-                    f.classList.add('active');
-                }
-                document.getElementById('breadcrumbCurrent').textContent = MODULES[name].label;
-            }
-
-            currentTab = name;
-
-            // ── URL routing ──
-            // Aktualizujeme adresní řádek tak, aby reflektoval otevřený modul.
-            // F5 (reload) pak otevře přímo standalone modul (na GitHub Pages je
-            // soubor reálně dostupný na dané cestě). Standalone modul má vlastní
-            // FAB Nastavení a funguje samostatně. Při návratu na Dashboard
-            // URL vyresetuje na index.html.
-            if (!opts.skipHistory) {
+            // KLÍČOVÉ: pushState měníme PŘED nastavením iframe.src.
+            // Důvod: pushState měmí location.pathname → tím se mění i baseURI
+            // dokumentu, vůči kterému prohlížeč rezolvuje relativní URL iframe
+            // tagu. Když src nastavíme až POTOM, ale jako ABSOLUTNÍ cestu
+            // (ROOT_BASE + m.file), nezáleží na baseURI — load proběhne na
+            // správné URL bez ohledu na pořadí operací.
+            if (!opts.skipHistory && name !== 'dashboard') {
                 try {
                     const url = computeUrlForTab(name);
                     if (url && location.pathname + location.search + location.hash !== url) {
                         history.pushState({ tab: name }, '', url);
                     }
                 } catch (e) {}
+            } else if (!opts.skipHistory && name === 'dashboard') {
+                // Návrat na Dashboard — URL vyresetuj na čistý root.
+                try {
+                    if (location.pathname !== ROOT_BASE || location.search) {
+                        history.pushState({ tab: 'dashboard' }, '', ROOT_BASE);
+                    }
+                } catch (e) {}
             }
+
+            if (name === 'dashboard') {
+                document.getElementById('dashboard').classList.add('active');
+                document.getElementById('breadcrumbCurrent').textContent = 'Dashboard';
+            } else {
+                const f = document.getElementById('frame-' + name);
+                if (f) {
+                    // Nastavujeme ABSOLUTNÍ URL (ROOT_BASE + soubor) — žádné
+                    // relativní cesty, které by mohly být chybně rezolvované
+                    // pokud baseURI mezitím změnila pushState (např. doubled
+                    // /Soubory/Soubory/...).
+                    if (!f.src && f.dataset.src) {
+                        f.src = ROOT_BASE + f.dataset.src;
+                    }
+                    f.classList.add('active');
+                }
+                document.getElementById('breadcrumbCurrent').textContent = MODULES[name].label;
+            }
+
+            currentTab = name;
         }
 
         /* ── ROOT BASE DIR (stabilní) ──
@@ -905,7 +918,11 @@
             return ROOT_BASE + m.file;
         }
 
-        /* Z URL pathname (nebo ?from= query) odvodí klíč modulu (nebo 'dashboard'). */
+        /* Z URL pathname (nebo ?from= query) odvodí klíč modulu (nebo 'dashboard').
+           POZOR: matching je striktní podle CELÉ relativní cesty modulu (m.file).
+           Důvod: některé moduly mají generický název souboru jako `index.html`
+           (BTC), takže fallback na samotný filename by URL jako
+           `/finance/index.html` falešně označil za BTC modul. */
         function tabFromUrl() {
             // 1) ?from=Soubory/Fondy.html — když standalone modul redirectoval sem
             //    přes finance-common.js (autoRedirectStandalone).
@@ -916,17 +933,23 @@
                     for (const key of Object.keys(MODULES)) {
                         const m = MODULES[key];
                         if (!m || !m.file) continue;
-                        if (from === m.file || from.endsWith('/' + m.file) || from.endsWith(m.file)) return key;
+                        // Striktní match na konec relativní cesty.
+                        if (from === m.file || from.endsWith('/' + m.file)) return key;
                     }
                 }
             } catch (e) {}
-            // 2) Klasická detekce z pathname (po replaceState v switchTab).
+            // 2) Detekce z pathname (po replaceState v switchTab).
             const path = location.pathname;
+            // Pokud je cesta jen root (např. "/finance/" nebo "/finance/index.html"),
+            // explicitně vrátíme dashboard — index.html je entry point, ne modul.
+            if (path === ROOT_BASE || path === ROOT_BASE + 'index.html' || path === ROOT_BASE + 'index.htm') {
+                return 'dashboard';
+            }
             for (const key of Object.keys(MODULES)) {
                 const m = MODULES[key];
                 if (!m || !m.file) continue;
-                const fileName = m.file.split('/').pop();
-                if (path.endsWith(m.file) || path.endsWith('/' + fileName)) return key;
+                // Striktní match na konec celé relativní cesty modulu.
+                if (path.endsWith('/' + m.file)) return key;
             }
             return 'dashboard';
         }
