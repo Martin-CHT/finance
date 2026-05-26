@@ -47,7 +47,7 @@
     /* URL Apps Script Web App, který hostí účty Finance Terminalu.
        Pokud se rozhodnete změnit / přesunout backend, stačí upravit
        tuto jedinou konstantu. */
-    var FC_AUTH_URL = 'https://script.google.com/macros/s/AKfycby7bCEqwuTeqBqksHDVdJRQ7CmywUixcOUhh6X1ACpX7EoCEhc7i2iOJL8UKOsDjQc/exec';
+    var FC_AUTH_URL = 'https://script.google.com/macros/s/AKfycbyYN7ZZD15sO7soWfQdGtS12CrOy1S_uzGd1lsNm_2zScGzfJif7t2huolB9QEAMbQ/exec';
 
     /* Klíče, které tvoří "cloud config" — synchronizují se mezi zařízeními. */
     var CLOUD_KEYS = [
