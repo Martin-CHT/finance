@@ -179,12 +179,47 @@
             border: 1px solid #1e293b;
             border-radius: 0.4rem;
             padding: 0.75rem;
+            padding-right: 6.5rem; /* místo pro tlačítko Kopírovat vpravo nahoře */
             font-size: 0.7rem;
             color: #cbd5e1;
             overflow-x: auto;
             font-family: 'JetBrains Mono', monospace;
             line-height: 1.5;
+            user-select: text;
+            -webkit-user-select: text;
+            tab-size: 2;
         }
+        /* Wrapper pro pre.code + tlačítko Kopírovat */
+        .code-block {
+            position: relative;
+            margin: 0.5rem 0;
+        }
+        .code-block .code-actions {
+            position: absolute;
+            top: 0.4rem;
+            right: 0.4rem;
+            display: flex;
+            gap: 0.3rem;
+            z-index: 2;
+        }
+        .code-block .code-btn {
+            padding: 0.3rem 0.6rem;
+            font: 500 0.65rem 'Inter', system-ui, sans-serif;
+            color: #cbd5e1;
+            background: rgba(15,23,42,0.92);
+            border: 1px solid #334155;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            backdrop-filter: blur(4px);
+        }
+        .code-block .code-btn:hover { background: rgba(30,41,59,0.95); color: #f8fafc; border-color: #475569; }
+        .code-block .code-btn.copied { background: rgba(22,163,74,0.25); color: #4ade80; border-color: rgba(74,222,128,0.5); }
+        html.light .code-block .code-btn { background: rgba(255,255,255,0.95); color: #475569; border-color: #cbd5e1; }
+        html.light .code-block .code-btn:hover { background: #f1f5f9; color: #0f172a; }
 
         /* ─── LIGHT THEME ─── */
         html.light body { background-color: #f1f5f9; color: #0f172a; }
@@ -421,10 +456,25 @@
                         <p class="text-[12px] text-sky-200 leading-relaxed flex items-start gap-2">
                             <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
                             <span>
-                                Níže je <b>jediný kompletní skript</b>, který stačí vložit do svého Apps Scriptu (jak je popsáno v krocích 1–6 výše) — obsahuje <b>data backend</b> (saveConfig / saveData / getData) <b>i auth backend</b> (login / register / changePassword / renameUser). URL nasaď do <b>obou polí</b> v aplikaci: do <code>Web App URL</code> nahoře (data sync) a do <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code> (auth).
+                                Níže jsou <b>DVĚ úplné varianty</b> Apps Scriptu — vyber si jednu z nich a <b>celý obsah rámečku</b> vlož do svého Apps Scriptu (žádné doplňování, kód je hotový k použití). Tlačítkem <b>Kopírovat</b> v rohu rámečku zkopíruješ obsah do schránky.
                             </span>
                         </p>
                     </div>
+
+                    <h4 class="text-[13px] font-semibold text-emerald-200 mb-2 mt-4 flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">A · doporučené</span>
+                        Kompletní backend (data + auth v jednom)
+                    </h4>
+                    <p class="text-slate-400 mb-2 text-[12px]">
+                        Jediný skript pro vše. Stejnou URL vlož do <b>Web App URL</b> výše (data sync) a do konstanty <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code> (auth). Tato verze podporuje <b>změnu hesla</b> a <b>změnu uživatelského jména</b>.
+                    </p>
+
+                    <div class="code-block">
+                        <div class="code-actions">
+                            <button type="button" class="code-btn" onclick="copyCodeBlock(this)" title="Zkopírovat celý obsah skriptu do schránky">
+                                <i data-lucide="copy" class="w-3 h-3"></i> Kopírovat
+                            </button>
+                        </div>
                     <pre class="code">/** Finance Terminal — KOMPLETNÍ Apps Script endpoint.
  *  Obsahuje VŠE potřebné — stačí nasadit jednou.
  *
@@ -595,9 +645,109 @@ function _json(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
 }</pre>
+                    </div>
 
-                    <p class="text-slate-400 mt-3">
-                        <b class="text-slate-200">Migrace ze stávajícího auth backendu:</b> pokud už máš starý centrální <code>FC_AUTH_URL</code>, který funguje (login/register), můžeš zde použít stejnou URL jako pro data sync — tento skript je <b>kompatibilní</b> se stávajícím protokolem a navíc přidává <code>changePassword</code> a <code>renameUser</code>. Hesla pak budou v tvém vlastním Sheetu (PBKDF2 hash; backend nevidí čistý text). Změň hodnotu <code>FC_AUTH_URL</code> v souboru <code>Soubory/finance-common.js</code> na URL svého Apps Script a uložené účty z původního backendu si registruj znovu (stačí raz).
+                    <p class="text-slate-400 mt-3 text-[12px]">
+                        <b class="text-slate-200">Migrace ze stávajícího auth backendu:</b> pokud už máš nasazený jiný <code>FC_AUTH_URL</code> (login/register funguje, ale změna hesla ne), nahraď ho touto verzí — protokol je <b>kompatibilní</b> a navíc přidává <code>changePassword</code> a <code>renameUser</code>. Hesla zůstávají v PBKDF2 hashi, backend nikdy nevidí čistý text. V <code>Soubory/finance-common.js</code> změň hodnotu <code>FC_AUTH_URL</code> na URL svého nasazení a v Nastavení se znovu zaregistruj (stávající centrální účet už nepoužívej).
+                    </p>
+
+                    <h4 class="text-[13px] font-semibold text-slate-200 mb-2 mt-6 flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 text-[10px] font-bold uppercase tracking-wider">B · minimální</span>
+                        Pouze datový backend (BEZ auth)
+                    </h4>
+                    <p class="text-slate-400 mb-2 text-[12px]">
+                        Variantní zjednodušená verze — řeší <b>pouze synchronizaci dat modulů</b> (saveConfig / saveData / getData). <b>Změna hesla / jména nebude fungovat</b>, protože tento backend nezná účty. Použij tuto verzi pouze pokud nepotřebuješ cloud login (data v Sheetu pak nejsou per-user, ale globální pro celý Sheet). Pro autentizaci budeš dál používat původní <code>FC_AUTH_URL</code>.
+                    </p>
+
+                    <div class="code-block">
+                        <div class="code-actions">
+                            <button type="button" class="code-btn" onclick="copyCodeBlock(this)" title="Zkopírovat celý obsah skriptu do schránky">
+                                <i data-lucide="copy" class="w-3 h-3"></i> Kopírovat
+                            </button>
+                        </div>
+                    <pre class="code">/** Finance Terminal — DATA-ONLY Apps Script endpoint.
+ *  Pouze synchronizace dat modulů, BEZ auth (login/register).
+ *
+ *  Listy v Sheetu, které se vytvoří automaticky:
+ *    - 'Config' — sjednocená konfigurace (AI klíče, téma, pořadí…).
+ *    - 'mod_*'  — data každého modulu (mod_prijmy, mod_predplatna, mod_btc…).
+ *
+ *  URL tohoto nasazení vlož POUZE do pole "Web App URL" v Nastavení.
+ *  Pro auth dál používej původní FC_AUTH_URL v souboru finance-common.js.
+ */
+const SHEET_CONFIG = 'Config';
+const TOKEN = ''; // volitelně: nastav heslo pro ochranu URL; klient ho pak musí poslat v ?token=...
+
+function doGet(e) {
+  if (!_checkToken(e)) return _json({ok:false, error:'bad token'});
+  const action = e.parameter.action || 'getConfig';
+  if (action === 'getConfig') return _json({ok:true, config: _readConfig()});
+  if (action === 'getData')   return _json({ok:true, data: _readModule(e.parameter.module)});
+  return _json({ok:false, error:'unknown action'});
+}
+
+function doPost(e) {
+  if (!_checkToken(e)) return _json({ok:false, error:'bad token'});
+  const body = JSON.parse(e.postData.contents || '{}');
+  if (body.action === 'saveConfig') {
+    _writeConfig(body.data || body.config || {});
+    return _json({ok:true});
+  }
+  if (body.action === 'saveData') {
+    if (!body.module) return _json({ok:false, error:'missing module'});
+    _writeModule(body.module, body.data);
+    return _json({ok:true});
+  }
+  if (body.action === 'getConfig') return _json({ok:true, config: _readConfig()});
+  if (body.action === 'getData')   return _json({ok:true, data: _readModule(body.module)});
+  // Legacy POSTy bez 'action' — ignorujeme.
+  return _json({ok:true, ignored:true, hint:'use action:saveData with module:name'});
+}
+
+function _checkToken(e) { return !TOKEN || e.parameter.token === TOKEN; }
+
+function _readConfig() {
+  const sh = _getSheet(SHEET_CONFIG);
+  const rows = sh.getDataRange().getValues();
+  const cfg = {};
+  rows.forEach(r =&gt; { if (r[0]) cfg[r[0]] = r[1]; });
+  return cfg;
+}
+function _writeConfig(cfg) {
+  const sh = _getSheet(SHEET_CONFIG);
+  sh.clear();
+  const rows = Object.entries(cfg);
+  if (rows.length) sh.getRange(1, 1, rows.length, 2).setValues(rows);
+}
+
+function _readModule(name) {
+  if (!name) return null;
+  const sh = _getSheet('mod_' + name);
+  const raw = sh.getRange(1, 1).getValue();
+  if (raw === '' || raw == null) return null;
+  try { return JSON.parse(raw); } catch (_) { return raw; }
+}
+function _writeModule(name, data) {
+  const sh = _getSheet('mod_' + name);
+  sh.clear();
+  sh.getRange(1, 1).setValue(JSON.stringify(data));
+}
+
+function _getSheet(name) {
+  const ss = SpreadsheetApp.getActive();
+  return ss.getSheetByName(name) || ss.insertSheet(name);
+}
+function _json(o) {
+  return ContentService.createTextOutput(JSON.stringify(o))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                    </div>
+
+                    <p class="text-slate-500 mt-4 text-[11px] flex items-start gap-2">
+                        <i data-lucide="lightbulb" class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-400"></i>
+                        <span>
+                            Po vložení skriptu do Apps Scriptu klikni <b>Deploy → Manage deployments → Edit (tužka) → New version → Deploy</b>. URL zůstane stejná, jen poběží nová verze. Bez redeploye se kód nepoužije.
+                        </span>
                     </p>
                 </div>
             </details>
@@ -1375,6 +1525,49 @@ function _json(o) {
                 return 'tato funkce není v cloud-backendu zatím dostupná. Aktualizuj svůj auth Apps Script (přidej akce changePassword + renameUser podle návodu) a redeployni novou verzi pod stejnou URL.';
             }
             return m;
+        }
+
+        /* ── Kopírování obsahu code-blocku ── */
+        function copyCodeBlock(btn) {
+            const wrap = btn.closest('.code-block');
+            if (!wrap) return;
+            const pre = wrap.querySelector('pre.code');
+            if (!pre) return;
+            // textContent dekóduje HTML entity (např. &gt; → >, &lt; → <, &amp; → &) automaticky,
+            // takže výsledek je validní JS — uživatel může vložit bez ručních úprav.
+            const code = pre.textContent;
+            const showCopied = () => {
+                const original = btn.innerHTML;
+                btn.classList.add('copied');
+                btn.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i> Zkopírováno';
+                lucide.createIcons();
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = original;
+                    lucide.createIcons();
+                }, 1800);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code).then(showCopied).catch(() => {
+                    fallbackCopy(code, showCopied);
+                });
+            } else {
+                fallbackCopy(code, showCopied);
+            }
+        }
+        function fallbackCopy(text, onSuccess) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                onSuccess && onSuccess();
+            } catch (e) {
+                toast('Kopírování selhalo, označ ručně (Ctrl+A uvnitř rámečku) a Ctrl+C', 'error');
+            }
         }
 
         /* ── Force push/pull všech modulů ── */
