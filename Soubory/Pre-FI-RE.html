@@ -117,16 +117,16 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
                 <label class="fld">Aktuální majetek (Kč)</label>
-                <input id="inpCurrent" type="number" min="0" step="10000" class="input" value="500000">
+                <input id="inpCurrent" type="text" inputmode="decimal" data-fc-numfmt class="input" value="500000">
             </div>
             <div>
                 <label class="fld">Roční výdaje (Kč)</label>
-                <input id="inpExpenses" type="number" min="0" step="10000" class="input" value="360000">
+                <input id="inpExpenses" type="text" inputmode="decimal" data-fc-numfmt class="input" value="360000">
                 <p class="text-[10px] text-slate-600 mt-1">~30 000 Kč/měs</p>
             </div>
             <div>
                 <label class="fld">Měsíční úspora / investice (Kč)</label>
-                <input id="inpSavings" type="number" min="0" step="1000" class="input" value="10000">
+                <input id="inpSavings" type="text" inputmode="decimal" data-fc-numfmt class="input" value="10000">
             </div>
             <div>
                 <label class="fld">Předpokládaný výnos (% / rok, po inflaci)</label>
@@ -199,12 +199,19 @@
         setScenario(state.scenario, false);
     }
     function saveInputs() {
-        state.current = +document.getElementById('inpCurrent').value || 0;
-        state.expenses = +document.getElementById('inpExpenses').value || 0;
-        state.savings = +document.getElementById('inpSavings').value || 0;
-        state.ret = +document.getElementById('inpReturn').value || 0;
-        state.wr = +document.getElementById('inpWR').value || 4;
-        state.age = +document.getElementById('inpAge').value || 35;
+        // Pomocný read s podporou "10 000" formátu (přes FinanceCommon.ui.parseNumber pokud je k dispozici)
+        const num = (id, def) => {
+            const raw = document.getElementById(id)?.value;
+            const fc = window.FinanceCommon?.ui?.parseNumber;
+            const v = fc ? fc(raw) : (+String(raw).replace(/[\s ]/g, '').replace(',', '.'));
+            return isFinite(v) ? v : def;
+        };
+        state.current  = num('inpCurrent', 0);
+        state.expenses = num('inpExpenses', 0);
+        state.savings  = num('inpSavings', 0);
+        state.ret      = num('inpReturn', 0);
+        state.wr       = num('inpWR', 4);
+        state.age      = num('inpAge', 35);
         localStorage.setItem(KEY, JSON.stringify(state));
     }
     function fmtCZK(n) {
@@ -319,49 +326,164 @@
     }
 
     function autofill() {
-        // Pokus odhadnout majetek z dat ostatních modulů (jsou-li v localStorage stejného originu).
-        let total = 0;
+        // Posbírá majetek + měsíční úspory + roční výdaje z modulů a vyplní formulář.
+        // Storage klíče se přesně shodují s FinanceCommon.cloud.moduleRegistry.
+        let totalAssets = 0;
+        let monthlyExpenses = 0;
+        let monthlySavings = 0;
         const sources = [];
 
-        // Spoření
+        // ── Spoření & Cíle — pole/strom, listy mají initial (= aktuální naspořeno) ──
         try {
-            const sp = JSON.parse(localStorage.getItem('sporeni_data_v1'));
-            if (sp && Array.isArray(sp.goals)) {
-                const sum = sp.goals.reduce((s,g) => s + (g.current || g.saved || 0), 0);
-                if (sum) { total += sum; sources.push(`Spoření: ${fmtCZK(sum)}`); }
+            const raw = localStorage.getItem('sporici_data_ai_tree');
+            if (raw) {
+                const tree = JSON.parse(raw);
+                const flat = [];
+                const walk = (arr) => {
+                    (arr || []).forEach(n => {
+                        if (!n) return;
+                        if (n.type === 'folder' && Array.isArray(n.children)) walk(n.children);
+                        else flat.push(n);
+                    });
+                };
+                walk(Array.isArray(tree) ? tree : []);
+                const sumSav  = flat.reduce((s, g) => s + (Number(g.initial) || 0), 0);
+                const planMth = flat.reduce((s, g) => s + (Number(g.monthly) || 0), 0);
+                if (sumSav) { totalAssets += sumSav; sources.push(`Spoření & Cíle: ${fmtCZK(sumSav)} (${flat.length} cílů)`); }
+                if (planMth) { monthlySavings += planMth; }
             }
-        } catch(e) {}
+        } catch (e) {}
 
-        // Investice / penze (různé klíče)
+        // ── Investice & Penze — pension_settings ──
         try {
-            const ip = JSON.parse(localStorage.getItem('pension_data'));
-            if (ip && typeof ip.currentValue === 'number') { total += ip.currentValue; sources.push(`Penze: ${fmtCZK(ip.currentValue)}`); }
-        } catch(e) {}
-
-        // Fondy
-        try {
-            const fd = JSON.parse(localStorage.getItem('fondy_data_v1'));
-            if (fd && Array.isArray(fd.entries) && fd.entries.length) {
-                const last = fd.entries[fd.entries.length - 1];
-                if (last && typeof last.value === 'number') { total += last.value; sources.push(`Fondy: ${fmtCZK(last.value)}`); }
+            const raw = localStorage.getItem('pension_settings');
+            if (raw) {
+                const ip = JSON.parse(raw);
+                // V různých verzích modulu se majetek uchovává různě — zkusíme známé klíče
+                const candidates = [ip.currentValue, ip.current, ip.totalCurrent, ip.actualValue, ip.lastValue];
+                const v = candidates.find(x => typeof x === 'number' && x > 0);
+                if (v) { totalAssets += v; sources.push(`Investice & Penze: ${fmtCZK(v)}`); }
             }
-        } catch(e) {}
+        } catch (e) {}
 
-        // BTC
+        // ── BTC Investice — btc-invest:v1 (struktura: { strategies: [{ history: [...], plan: {...} }] }) ──
         try {
-            const btc = JSON.parse(localStorage.getItem('btc-invest:v1'));
-            if (btc && Array.isArray(btc.investments)) {
-                const inv = btc.investments.reduce((s,i) => s + (i.amount || 0), 0);
-                if (inv) { total += inv; sources.push(`BTC (vklady): ${fmtCZK(inv)}`); }
+            const raw = localStorage.getItem('btc-invest:v1');
+            if (raw) {
+                const btc = JSON.parse(raw);
+                // Posbíráme všechny vklady ze všech strategií
+                let btcInvested = 0;
+                if (btc && Array.isArray(btc.strategies)) {
+                    btc.strategies.forEach(s => {
+                        (s.history || []).forEach(h => { btcInvested += Number(h.amount || h.invested || 0); });
+                    });
+                } else if (Array.isArray(btc?.history)) {
+                    btc.history.forEach(h => { btcInvested += Number(h.amount || h.invested || 0); });
+                } else if (Array.isArray(btc?.investments)) {
+                    btc.investments.forEach(i => { btcInvested += Number(i.amount || 0); });
+                }
+                if (btcInvested > 0) { totalAssets += btcInvested; sources.push(`BTC (vklady): ${fmtCZK(btcInvested)}`); }
             }
-        } catch(e) {}
+        } catch (e) {}
 
-        if (total > 0) {
-            document.getElementById('inpCurrent').value = Math.round(total);
-            compute();
-            alert('Auto-vyplněno z modulů:\n' + sources.join('\n') + `\n\nCelkem: ${fmtCZK(total)}`);
+        // ── Broker — broker_v1 (akcie / ETF / P2P pozice) ──
+        try {
+            const raw = localStorage.getItem('broker_v1');
+            if (raw) {
+                const br = JSON.parse(raw);
+                const positions = Array.isArray(br) ? br : (br?.positions || br?.items || []);
+                let brokerValue = 0;
+                positions.forEach(p => {
+                    // Hodnota = qty * priceCzk, nebo currentValue, podle struktury
+                    if (typeof p.currentValue === 'number') brokerValue += p.currentValue;
+                    else if (typeof p.qty === 'number' && typeof p.priceCzk === 'number') brokerValue += p.qty * p.priceCzk;
+                    else if (typeof p.invested === 'number') brokerValue += p.invested;
+                });
+                if (brokerValue > 0) { totalAssets += brokerValue; sources.push(`Broker: ${fmtCZK(brokerValue)}`); }
+            }
+        } catch (e) {}
+
+        // ── Majetek & Odpisy — majetek_odpisy_items (pole položek, .residualValue nebo .purchasePrice) ──
+        try {
+            const raw = localStorage.getItem('majetek_odpisy_items');
+            if (raw) {
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr)) {
+                    let majetek = 0;
+                    arr.forEach(it => {
+                        const v = Number(it.residualValue ?? it.currentValue ?? it.purchasePrice ?? 0);
+                        if (v > 0) majetek += v;
+                    });
+                    if (majetek > 0) { totalAssets += majetek; sources.push(`Majetek (zůstatková h.): ${fmtCZK(majetek)}`); }
+                }
+            }
+        } catch (e) {}
+
+        // ── Příjmy & Výdaje — odhad měsíčních výdajů (a tedy ročních) + úspor ──
+        try {
+            const raw = localStorage.getItem('FinanceAI_data');
+            if (raw) {
+                const txs = JSON.parse(raw);
+                if (Array.isArray(txs)) {
+                    const active = txs.filter(t => !t.isExcluded);
+                    const isSaving = t => t.saving === 'ANO' || String(t.pohyb || '').toLowerCase().includes('spoř');
+                    const exp = Math.abs(active.filter(t => t.suma < 0 && !isSaving(t)).reduce((s, t) => s + t.suma, 0));
+                    const sav = Math.abs(active.filter(t => isSaving(t)).reduce((s, t) => s + t.suma, 0));
+                    if (exp > 0) {
+                        monthlyExpenses = exp;
+                        sources.push(`Měsíční výdaje (P&V): ${fmtCZK(exp)}`);
+                    }
+                    if (sav > 0) {
+                        // Pokud Spoření ještě nedalo plán, použij P&V hodnotu spoření
+                        if (!monthlySavings) monthlySavings = sav;
+                        sources.push(`Měsíční spoření (P&V): ${fmtCZK(sav)}`);
+                    }
+                }
+            }
+        } catch (e) {}
+
+        // ── Půjčky & Splátky — zbytek jistiny odečteme od majetku (negativní hodnota) ──
+        try {
+            const raw = localStorage.getItem('pujcky_data_v1');
+            if (raw) {
+                const loans = JSON.parse(raw);
+                if (Array.isArray(loans)) {
+                    let outstanding = 0;
+                    loans.forEach(l => {
+                        const v = Number(l.outstanding ?? l.remainingPrincipal ?? l.principal ?? 0);
+                        if (v > 0) outstanding += v;
+                    });
+                    if (outstanding > 0) {
+                        totalAssets -= outstanding;
+                        sources.push(`Půjčky (odečteno): −${fmtCZK(outstanding)}`);
+                    }
+                }
+            }
+        } catch (e) {}
+
+        let summary = [];
+        if (totalAssets) {
+            document.getElementById('inpCurrent').value = Math.round(totalAssets);
+            summary.push(`Aktuální majetek: ${fmtCZK(totalAssets)}`);
+        }
+        if (monthlyExpenses) {
+            // Ročně, ne měsíčně — pole inpExpenses je roční
+            document.getElementById('inpExpenses').value = Math.round(monthlyExpenses * 12);
+            summary.push(`Roční výdaje: ${fmtCZK(monthlyExpenses * 12)} (12 × ${fmtCZK(monthlyExpenses)})`);
+        }
+        if (monthlySavings) {
+            document.getElementById('inpSavings').value = Math.round(monthlySavings);
+            summary.push(`Měsíční spoření: ${fmtCZK(monthlySavings)}`);
+        }
+
+        compute();
+
+        if (sources.length || summary.length) {
+            const head = summary.length ? 'Auto-vyplněno:\n' + summary.join('\n') : 'Nepodařilo se nic vyplnit';
+            const detail = sources.length ? '\n\nZdroje:\n' + sources.join('\n') : '';
+            alert(head + detail);
         } else {
-            alert('Nepodařilo se najít data v ostatních modulech.\nUloženo: žádné. Vyplň ručně.');
+            alert('V ostatních modulech nejsou data k vyplnění.\nVyplň ručně, nebo nejdřív přidej data v Příjmy & Výdaje, Spoření a Investice.');
         }
     }
 
@@ -466,62 +588,106 @@ Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni
     function openModuleHelp() {
         if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
         window.FinanceCommon.help.show({
-            title: 'Pre-FI/RE — Předčasná penze',
-            subtitle: 'Kalkulačka finanční nezávislosti. Kdy můžeš odejít? Kolik potřebuješ?',
+            title: 'Pre-FI/RE — Předčasná penze (FIRE)',
+            subtitle: 'Kalkulačka finanční nezávislosti — kdy můžeš odejít a kolik kapitálu na to potřebuješ.',
             sections: [
-                { kind:'intro', heading:'🎯 K čemu modul slouží',
-                  body:'<p><b>FIRE</b> = <b>F</b>inancial <b>I</b>ndependence, <b>R</b>etire <b>E</b>arly. Hnutí lidí, kteří chtějí odejít z práce dřív než v 65 — tím, že nashromáždí takový kapitál, jehož 4% ročně pokryjí jejich výdaje.</p>'+
-                       '<p>Tenhle modul ti spočítá:</p>'+
+                { kind:'intro', heading:'🎯 Co je FIRE a proč to chceš spočítat',
+                  body:'<p><b>FIRE</b> = <b>F</b>inancial <b>I</b>ndependence, <b>R</b>etire <b>E</b>arly. Stručně: nashromáždíš tolik kapitálu, že jeho ročně vybíraná část (typicky 4 %) pokryje tvé výdaje, takže pracovat už <b>nemusíš</b>. Hnutí vzniklo v 90. letech v USA na základě tzv. <i>Trinity study</i>, která modelovala, že portfolio rozdělené 60/40 (akcie/dluhopisy) ustojí 30leté čerpání 4 % p.a. s úspěšností &gt;95 %.</p>'+
+                       '<p><b>Proč to chceš spočítat</b>:</p>'+
                        '<ul>'+
-                            '<li><b>FIRE číslo</b> — kolik kapitálu potřebuješ.</li>'+
-                            '<li><b>Roky do FIRE</b> — kdy ho při tvé úložce dosáhneš.</li>'+
-                            '<li><b>Které z 5 FIRE úrovní</b> (Pre / Lean / Standard / Fat / Coast) jsi.</li>'+
+                            '<li>Dává ti <b>konkrétní cílovou částku</b> místo abstraktního „spořit na důchod".</li>'+
+                            '<li>Ukáže, jak <b>velký vliv má zvýšení úspor</b> — i 5 000 Kč/měs navíc zkrátí FIRE o roky.</li>'+
+                            '<li>Pomůže rozhodnout mezi „výdělečnější ale stresující práce" vs „nižší příjem ale rychlejší cesta díky nižším výdajům".</li>'+
+                            '<li>Není to <i>buď anebo</i> — Coast FIRE / Barista FIRE jsou meziseřízení, kdy si pomalu odlehčuješ.</li>'+
+                       '</ul>'+
+                       '<p>Modul ti spočítá:</p>'+
+                       '<ul>'+
+                            '<li><b>FIRE číslo</b> — kapitál potřebný pro tvou variantu.</li>'+
+                            '<li><b>Roky do FIRE</b> — kdy ho při aktuální úložce dosáhneš.</li>'+
+                            '<li><b>Grafickou křivku</b> kapitálu vs. FIRE cíle.</li>'+
+                            '<li><b>AI radu</b> co konkrétně udělat, abys urychlil cestu.</li>'+
                        '</ul>' },
-                { kind:'steps', heading:'📝 Postup',
+
+                { kind:'steps', heading:'📝 Postup krok za krokem',
                   body:'<ol>'+
-                        '<li><b>Věk</b> — kolik ti je dnes.</li>'+
-                        '<li><b>Roční výdaje</b> — kolik ročně utratíš (potřebuješ na život).</li>'+
-                        '<li><b>Aktuální majetek</b> — všechen kapitál, který už máš (investice + spoření + nemovitosti − dluhy). Klikni <b>Auto-vyplnit z modulů</b> pro odhad.</li>'+
-                        '<li><b>Měsíční úspora</b> — kolik z výplaty zbude na investice.</li>'+
-                        '<li><b>Předpokládaný výnos</b> — reálný (po inflaci), typicky 4-5% pro akcie.</li>'+
-                        '<li><b>Withdrawal rate</b> — kolik % kapitálu si budeš ročně brát. Default 4% (Trinity study).</li>'+
-                        '<li><b>Scénář</b> — Lean (–30% výdajů, skromně), Standard, Fat (+50%, komfort), Coast (přestaneš spořit a čekáš na compound).</li>'+
-                        '<li>Klikni <b>Přepočítat</b>. Pak <b>Uložit nastavení</b>.</li>'+
-                        '<li><b>AI rada</b> → strukturovaný feedback.</li>'+
-                      '</ol>' },
-                { kind:'features', heading:'✨ Vychytávky',
-                  body:'<ul>'+
-                        '<li><b>3 KPI</b> — Aktuální majetek (% FIRE), FIRE číslo, Roky do FIRE.</li>'+
-                        '<li><b>Graf kapitálu v čase</b> — křivka, kde tě protne FIRE linka.</li>'+
-                        '<li><b>Auto-vyplnit z modulů</b> — pokus odhadne aktuální majetek z Spoření + Investic + Fondů + BTC.</li>'+
-                        '<li><b>5 scénářů FIRE</b>:'+
+                        '<li><b>Auto-vyplnit z modulů</b> — pokud máš data v ostatních modulech (P&V, Spoření, Investice, BTC, Broker, Majetek, Půjčky), klikni a modul ti automaticky předvyplní:'+
                             '<ul>'+
-                                '<li><b>Lean FIRE</b> — výdaje −30% (skromný režim).</li>'+
-                                '<li><b>Standard FIRE</b> — aktuální výdaje × 25.</li>'+
-                                '<li><b>Fat FIRE</b> — výdaje +50% (komfort).</li>'+
-                                '<li><b>Coast FIRE</b> — bod, kdy už nemusíš spořit, jen čekat na compound.</li>'+
-                                '<li><b>Barista FIRE</b> — částečný úvazek pokrývá výdaje + zdravotku.</li>'+
+                                '<li><b>Aktuální majetek</b> = součet spoření + investic + BTC + brokerských pozic + zůstatkové hodnoty majetku <b>mínus</b> nezaplacené jistiny půjček.</li>'+
+                                '<li><b>Roční výdaje</b> = 12 × měsíční výdaje z P&V (bez spoření).</li>'+
+                                '<li><b>Měsíční úspora</b> = plánovaná měsíční úložka ze Spoření & Cílů.</li>'+
                             '</ul>'+
                         '</li>'+
-                        '<li><b>AI rada</b> — strukturovaný výstup: kde stojíš, páka, riziko, akce.</li>'+
-                      '</ul>' },
-                { kind:'tips', heading:'💡 Tipy & triky',
+                        '<li><b>Věk</b> — kolik ti je dnes.</li>'+
+                        '<li><b>Roční výdaje</b> — kolik ročně utratíš (typický rok, ne výjimečný). Nezahrnuje spoření.</li>'+
+                        '<li><b>Aktuální majetek</b> — všechen <b>likvidní kapitál</b> (investice + spoření + BTC + broker) <b>mínus dluhy</b>. Nemovitost se obvykle nezapočítává, protože v ní bydlíš a nemůžeš ji „prodat" pro generování příjmu.</li>'+
+                        '<li><b>Měsíční úspora / investice</b> — čistá částka, která jde každý měsíc do kapitálu (po výdajích).</li>'+
+                        '<li><b>Předpokládaný výnos (% / rok, po inflaci)</b>:'+
+                            '<ul>'+
+                                '<li>S&amp;P 500 dlouhodobý reálný výnos = <b>~7 %</b> nominál mínus ~3 % inflace = <b>~4 %</b> reálný.</li>'+
+                                '<li>Globální akciová tržní průměr (MSCI World) = ~<b>5 %</b> reálný.</li>'+
+                                '<li>Default modulu = 4 % (konzervativní). Pro odvážnější použij 5–6 %.</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li><b>Withdrawal rate (% / rok)</b> — kolik kapitálu si budeš ročně brát:'+
+                            '<ul>'+
+                                '<li><b>4 %</b> = klasické Trinity (30letý horizont, akcie+bondy).</li>'+
+                                '<li><b>3,5 %</b> = bezpečnější pro early retirement (čerpáš 40+ let).</li>'+
+                                '<li><b>3 %</b> = ultra-konzervativní (čerpáš 50+ let, scénář „odejít ve 35").</li>'+
+                            '</ul>'+
+                        '</li>'+
+                        '<li><b>Scénář</b> — Lean / Standard / Fat / Coast (viz „Vychytávky").</li>'+
+                        '<li>Klikni <b>Přepočítat</b>, pak <b>Uložit nastavení</b>.</li>'+
+                        '<li>Volitelně <b>AI rada</b> → strukturovaný feedback s konkrétními tipy.</li>'+
+                      '</ol>' },
+
+                { kind:'features', heading:'✨ 4 FIRE scénáře — který je tvůj?',
                   body:'<ul>'+
-                        '<li><b>Snížení výdajů má dvojí efekt</b>: 1) potřebuješ menší FIRE číslo, 2) ušetříš víc → rychleji ho dosáhneš.</li>'+
-                        '<li><b>Sekvenční riziko</b> — když narazíš na 50% propad trhu hned po odchodu, 4% withdrawal může portfolio zničit. Pro early retirement opatrnější 3.5%.</li>'+
-                        '<li><b>Daňová optimalizace</b> — DPS, ETF s daňovou amnestií po 3 letech držby — výrazně zkracuje FIRE.</li>'+
-                        '<li><b>Coast FIRE</b> je realistický mezistup: jakmile máš dost na to, aby compound dorostlo k FIRE bez další úložky, můžeš snížit úvazek nebo zkusit nižší placenou ale smysluplnější práci.</li>'+
-                        '<li><b>Inflace</b> v reálném výnosu už zahrnutá (4-5% reálných). Pokud používáš nominální výnos (7%), musíš FIRE číslo růst.</li>'+
-                      '</ul>' },
-                { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
-                  body:'<p><b>Auto-vyplnit z modulů</b> čte:</p>'+
-                       '<ul>'+
-                            '<li><b>Spoření</b> → součet všech naspořených částek u cílů.</li>'+
-                            '<li><b>Investice & Penze</b> → aktuální kapitál z pension_settings.</li>'+
-                            '<li><b>Fondy</b> → aktuální hodnota podílů.</li>'+
-                            '<li><b>BTC</b> → součet investic × aktuální cena.</li>'+
+                        '<li><b>Lean FIRE</b> — <b>výdaje −30 %</b>, skromný režim. Pro lidi ochotné se uskromnit (bezdětní, minimalistický life). FIRE číslo nejmenší → cesta nejkratší.<br>'+
+                            '<i>Příklad:</i> roční výdaje 240 000 Kč → Lean: 168 000 → FIRE číslo @4% = <b>4,2 mil. Kč</b>.</li>'+
+                        '<li><b>Standard FIRE</b> — <b>aktuální výdaje × 25</b>. Klasická 4 % varianta. Pohodlný život v podobné kvalitě jak teď.<br>'+
+                            '<i>Příklad:</i> 240 000 Kč/rok → FIRE číslo = <b>6 mil. Kč</b>.</li>'+
+                        '<li><b>Fat FIRE</b> — <b>výdaje +50 %</b>. Bohatá pension — luxus, cestování, hobby bez omezení. FIRE číslo největší.<br>'+
+                            '<i>Příklad:</i> 240 000 × 1,5 = 360 000 → FIRE @4% = <b>9 mil. Kč</b>.</li>'+
+                        '<li><b>Coast FIRE</b> — speciální bod: <b>už máš dost</b>, aby compound interest sám dorostlo do plného FIRE k tvému typickému důchodovému věku (65). Od tohoto bodu <b>nemusíš dál šetřit</b> — jen čekat. Volnost: snížit úvazek, vzít kreativní práci, vzdělávat se. Doporučený krok pro lidi v 30. letech.<br>'+
+                            '<i>Výpočet:</i> Coast = FIRE / (1 + r)^(65 − věk).</li>'+
                        '</ul>'+
-                       '<p style="margin-top:0.6rem">Pro <b>výdaje</b> modul nečte data z Příjmů automaticky — musíš zadat ručně, protože FIRE počítá s typickým ročním výdajem, ne s aktuálním měsícem.</p>' }
+                       '<p style="margin-top:0.6rem">Mimo modul ještě existuje <b>Barista FIRE</b> — kompromis: částečný úvazek pokrývá zdravotní pojištění a běžné výdaje, kapitál roste sám. Hodí se pro lidi, kteří chtějí <b>část</b> pracovat (kreativní práce, mentoring) ale ne na plno.</p>' },
+
+                { kind:'features', heading:'✨ Vychytávky modulu',
+                  body:'<ul>'+
+                        '<li><b>3 KPI nahoře</b> — Aktuální majetek (% FIRE), FIRE číslo, Roky do FIRE — vidíš okamžitý vliv změny každého inputu.</li>'+
+                        '<li><b>Graf kapitálu v čase</b> — křivka tvého kapitálu protíná vodorovnou FIRE linku — to je tvůj odchod.</li>'+
+                        '<li><b>Auto-vyplnit z modulů</b> — viz Postup, krok 1. Čte 7 modulů.</li>'+
+                        '<li><b>AI rada</b> — analyzuje tvou trajektorii + dává konkrétní akce (ne „šetři víc", ale třeba „převést 50 000 Kč z hotovostního spoření do indexového ETF zkrátí cíl o 8 měsíců").</li>'+
+                        '<li><b>Reálný vs. nominální výnos</b> — modul počítá s reálným (po inflaci), takže <i>FIRE číslo</i> je v dnešních korunách. Nemusíš nic indexovat.</li>'+
+                      '</ul>' },
+
+                { kind:'tips', heading:'💡 Tipy & vhledy',
+                  body:'<ul>'+
+                        '<li><b>Snížení výdajů má dvojí efekt</b>: 1) potřebuješ menší FIRE číslo (přímý poměr), 2) ušetříš víc každý měsíc → rychleji dosáhneš. Snížit výdaje o 5 000 Kč/měs typicky zkrátí FIRE o <b>2–4 roky</b>.</li>'+
+                        '<li><b>Vzorec pro „roky do FIRE"</b> (zjednodušený): roky = ln((FIRE × r + s) / (current × r + s)) / ln(1 + r), kde r = roční výnos / 12, s = měsíční úspora. Modul počítá přesněji s mesíčním kompoundem.</li>'+
+                        '<li><b>Sequence of returns risk</b> — když narazíš na propad trhu (-30 %) hned po odchodu, 4 % withdrawal může portfolio zničit za 15 let místo 30. <b>Mitigace</b>: 3 roky výdajů v hotovosti při odchodu (cash buffer), abys neprodaval levně.</li>'+
+                        '<li><b>Daňová optimalizace v ČR</b>:<br>'+
+                            '— DPS s příspěvkem zaměstnavatele = okamžitý ~30 % výnos.<br>'+
+                            '— ETF s držbou &gt;3 roky → časový test → <b>nulová daň z výnosů</b>. Klíčový nástroj pro FIRE v Česku.<br>'+
+                            '— Investice do nemovitosti k pronájmu: 5letý časový test pro daňovou amnestii, jinak 15 % daň.</li>'+
+                        '<li><b>Inflace</b> — pokud zadáš 4 % výnos a 4 % withdrawal, počítáš v dnešních korunách. Pokud bys zadal 7 % nominál, FIRE číslo musíš nahoru posunout o 30 % na inflaci.</li>'+
+                        '<li><b>Coast FIRE</b> je realistický mezistup pro většinu: jakmile compound umí samo do 65 let dorůst, <b>můžeš pracovat půl úvazku, vzít sabbatical, zkusit start-up</b>. Nic se nezruší — jen se nestresuješ.</li>'+
+                        '<li><b>Když ti FIRE vychází na 30+ let</b>: pravděpodobně máš příliš malou úložku nebo příliš velké výdaje. Cíl by měl být dosažitelný za 10–20 let při slušné úspoře. Pokud ne — extrémně dlouhé spoření je v Česku méně oblíbené než „pracovat do 60 a pak relax".</li>'+
+                      '</ul>' },
+
+                { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
+                  body:'<p><b>Auto-vyplnit z modulů</b> čte tyto storage klíče (pouze čte, nezapisuje):</p>'+
+                       '<ul>'+
+                            '<li><b>Spoření & Cíle</b> (<code>sporici_data_ai_tree</code>) — součet <code>initial</code> všech listových cílů (= aktuálně naspořeno) + součet <code>monthly</code> (= plánovaná měsíční úložka).</li>'+
+                            '<li><b>Investice & Penze</b> (<code>pension_settings</code>) — aktuální hodnota portfolia.</li>'+
+                            '<li><b>BTC Investice</b> (<code>btc-invest:v1</code>) — součet všech vkladů ze všech strategií.</li>'+
+                            '<li><b>Broker</b> (<code>broker_v1</code>) — součet hodnot pozic (qty × cena CZK).</li>'+
+                            '<li><b>Majetek &amp; Odpisy</b> (<code>majetek_odpisy_items</code>) — součet zůstatkových hodnot.</li>'+
+                            '<li><b>Příjmy &amp; Výdaje</b> (<code>FinanceAI_data</code>) — měsíční výdaje (× 12 = roční) a měsíční spoření jako fallback.</li>'+
+                            '<li><b>Půjčky &amp; Splátky</b> (<code>pujcky_data_v1</code>) — součet zbývajících jistin se odečítá od majetku.</li>'+
+                       '</ul>'+
+                       '<p style="margin-top:0.6rem">Modul <b>nezapisuje</b> nic do ostatních modulů — je čistě výpočetní nástroj.</p>' }
             ]
         });
     }
@@ -532,6 +698,12 @@ Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni
         load();
         compute();
         lucide.createIcons();
+        // Připoj formátovač "10 000" na všechna číselná pole označená data-fc-numfmt
+        try {
+            if (window.FinanceCommon && window.FinanceCommon.ui && window.FinanceCommon.ui.attachNumberFormat) {
+                window.FinanceCommon.ui.attachNumberFormat('input[data-fc-numfmt]', { maxFrac: 0 });
+            }
+        } catch (e) {}
     })();
 </script>
 </body>

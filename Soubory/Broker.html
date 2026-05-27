@@ -213,10 +213,36 @@
                 <div><label class="fld">Účet *</label><select id="posAccount" class="input"></select></div>
             </div>
             <div class="grid grid-cols-3 gap-3">
-                <div><label class="fld">Počet *</label><input id="posQuantity" type="number" step="0.0001" class="input font-mono"></div>
-                <div><label class="fld">Prům. cena *</label><input id="posAvgPrice" type="number" step="0.01" class="input font-mono"></div>
-                <div><label class="fld">Měna</label><select id="posCurrency" class="input"><option>CZK</option><option>EUR</option><option>USD</option></select></div>
+                <div><label class="fld">Počet *</label><input id="posQuantity" type="number" step="0.0001" class="input font-mono" oninput="brokerRecalcFromQty()"></div>
+                <div><label class="fld">Prům. cena *</label><input id="posAvgPrice" type="number" step="0.01" class="input font-mono" oninput="brokerRecalcFromQty()"></div>
+                <div><label class="fld">Měna ceny</label><select id="posCurrency" class="input" onchange="brokerRecalcFromQty()"><option>CZK</option><option>EUR</option><option>USD</option></select></div>
             </div>
+
+            <!-- ─── Alternativní vstup: nákup za částku ─── -->
+            <details class="rounded border border-slate-800 p-3 bg-slate-950/40 text-xs">
+                <summary class="cursor-pointer text-slate-300 font-semibold flex items-center gap-2">
+                    <i data-lucide="calculator" class="w-3.5 h-3.5 text-sky-400"></i>
+                    Dopočítat „Počet" z investované částky <span class="text-slate-500 font-normal">(např. koupil jsem za 1000 Kč při ceně 77000 USD/ks)</span>
+                </summary>
+                <div class="grid grid-cols-3 gap-2 mt-3">
+                    <div>
+                        <label class="fld">Investovaná částka</label>
+                        <input id="posSpentAmount" type="number" step="0.01" class="input font-mono" placeholder="1000" oninput="brokerRecalcFromSpent()">
+                    </div>
+                    <div>
+                        <label class="fld">Měna investice</label>
+                        <select id="posSpentCurrency" class="input" onchange="brokerRecalcFromSpent()">
+                            <option>CZK</option><option>EUR</option><option>USD</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" class="btn btn-secondary w-full" onclick="brokerRecalcFromSpent(true)" title="Vypočítat „Počet" z investované částky a tržní ceny">
+                            <i data-lucide="equal" class="w-3.5 h-3.5"></i> Vypočítat
+                        </button>
+                    </div>
+                </div>
+                <p id="posSpentInfo" class="text-[10px] text-slate-500 mt-2 font-mono">—</p>
+            </details>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="fld">Akt. cena</label><input id="posCurrentPrice" type="number" step="0.01" class="input font-mono" placeholder="můžeš nechat prázdné"></div>
                 <div><label class="fld">Sektor</label><input id="posSector" class="input" placeholder="Tech / Healthcare / …"></div>
@@ -277,6 +303,41 @@
 
     const KEY = 'broker_v1';
     const RATES = { CZK: 1, EUR: 25, USD: 23 };
+
+    /* ── Pomocné funkce pro alternativní vstup „Investovaná částka × cena = počet" ──
+       Uživatel může zadat: investoval jsem 1000 Kč při ceně 77000 USD/BTC →
+       systém spočítá: počet = 1000 / (77000 × 23) = 0.000565 BTC. */
+    function brokerRecalcFromSpent(force) {
+        const spent = +document.getElementById('posSpentAmount')?.value || 0;
+        const spentCur = document.getElementById('posSpentCurrency')?.value || 'CZK';
+        const price = +document.getElementById('posAvgPrice')?.value || 0;
+        const priceCur = document.getElementById('posCurrency')?.value || 'CZK';
+        const info = document.getElementById('posSpentInfo');
+        if (!spent || !price) {
+            if (info) info.textContent = '— vyplň investovanou částku i tržní cenu';
+            return;
+        }
+        // Převedeme obojí na CZK a vypočítáme počet (qty = investedCZK / priceCZK)
+        const spentCZK = spent * (RATES[spentCur] || 1);
+        const priceCZK = price * (RATES[priceCur] || 1);
+        const qty = priceCZK > 0 ? spentCZK / priceCZK : 0;
+        if (info) {
+            info.innerHTML = `≈ <b class="text-sky-300 font-mono">${qty.toFixed(8)}</b> ks `+
+                `(${spent.toLocaleString('cs-CZ')} ${spentCur} ÷ ${price.toLocaleString('cs-CZ')} ${priceCur}/ks)`;
+        }
+        // Pokud uživatel klikl na tlačítko Vypočítat, dosadíme do "Počet". Při běžném oninput jen ukážeme náhled.
+        if (force === true) {
+            const qtyInp = document.getElementById('posQuantity');
+            if (qtyInp) qtyInp.value = qty.toFixed(8).replace(/\.?0+$/, '');
+        }
+    }
+
+    /* Zpětný směr: při změně Počet × Prům. cena vyresetuj „spent" náhled,
+       protože by mohl být zastaralý. */
+    function brokerRecalcFromQty() {
+        const info = document.getElementById('posSpentInfo');
+        if (info) info.textContent = '—';
+    }
     let DB = { accounts: [], positions: [], transactions: [] };
     let editingId = { acc: null, pos: null, tx: null };
     let currentView = 'positions';
@@ -309,9 +370,11 @@
         if (t === 'acc') { editingId.acc = null; ['accName','accBroker','accNotes'].forEach(id => document.getElementById(id).value=''); document.getElementById('accCurrency').value='CZK'; document.getElementById('modalAccTitle').textContent='Nový účet'; }
         if (t === 'pos') {
             editingId.pos = null;
-            ['posTicker','posName','posQuantity','posAvgPrice','posCurrentPrice','posSector','posNotes'].forEach(id => document.getElementById(id).value='');
+            ['posTicker','posName','posQuantity','posAvgPrice','posCurrentPrice','posSector','posNotes','posSpentAmount'].forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
             document.getElementById('posType').value = 'etf';
             document.getElementById('posCurrency').value = 'CZK';
+            const spentCur = document.getElementById('posSpentCurrency'); if (spentCur) spentCur.value = 'CZK';
+            const info = document.getElementById('posSpentInfo'); if (info) info.textContent = '—';
             document.getElementById('posDelete').classList.add('hidden');
             document.getElementById('modalPosTitle').textContent = 'Nová pozice';
         }

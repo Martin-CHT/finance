@@ -182,6 +182,17 @@
         html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
         html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
         html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Doplnění barev pro light theme — hardcoded prvky */
+        html.light .year-header-row { background: #f8fafc !important; border-top-color: #cbd5e1 !important; border-bottom-color: #e2e8f0 !important; }
+        html.light .year-header-row:hover { background: #f1f5f9 !important; }
+        html.light .row-current-month { background: rgba(2,132,199,0.15) !important; border-left-color: #0284c7 !important; color: #0f172a; }
+        html.light tbody td { color: #0f172a !important; }
+        html.light tbody td.text-slate-300, html.light tbody td .text-slate-300 { color: #1e293b !important; }
+        html.light .table-number { color: #0f172a !important; }
+        /* Inline number inputs (extra splátka) */
+        html.light tbody input[type="number"] { background: transparent !important; color: #0f172a !important; }
+        html.light tbody input[type="number"]:focus { background: #f1f5f9 !important; }
     </style>
     <!-- finance-common.js: sjednocené nastavení + auto-sync modulových dat -->
     <meta name="fc-module" content="pujcky">
@@ -1658,8 +1669,14 @@ function doPost(e) {
                                 const isPaid = rowDate < today;
                                 const isPayoff = row.balance <= 0.005;
 
-                                if (isCurrentMonth) tr.style.background = 'rgba(14,165,233,0.04)';
-                                if (isPayoff) tr.style.background = 'rgba(16,185,129,0.04)';
+                                if (isCurrentMonth) {
+                                    // Výrazné zvýraznění aktuálního měsíce: silnější pozadí + levý okraj
+                                    tr.style.background = 'rgba(56,189,248,0.14)';
+                                    tr.style.borderLeft = '3px solid #38bdf8';
+                                    tr.style.fontWeight = '600';
+                                    tr.classList.add('row-current-month');
+                                }
+                                if (isPayoff) tr.style.background = 'rgba(16,185,129,0.10)';
 
                                 const extraVal = row.extra !== 0 ? row.extra : '';
                                 const extraClass = row.extra > 0 ? 'color:#fbbf24;font-weight:600;' : '';

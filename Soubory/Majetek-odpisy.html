@@ -793,6 +793,14 @@
             const months = Math.floor(remaining / 30.4375);
             return `${years}r ${months}m`;
         }
+        // Datum z ISO "YYYY-MM-DD" → "DD.MM.YYYY" pro zobrazení.
+        function formatDateCS(iso) {
+            if (!iso) return '';
+            const s = String(iso);
+            const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (!m) return s;
+            return `${m[3]}.${m[2]}.${m[1]}`;
+        }
         function computeRow(item) {
             const dni = daysBetween(item.datumNakupu);
             const roky = dni / 365.25;
@@ -1156,7 +1164,7 @@
                                 </td>
                                 <td class="text-right font-mono ${aktClass}">${fmtCZK(c.aktualniCena)}</td>
                                 <td class="text-right font-mono text-slate-300">${fmtCZK(it.nakupniCena)}</td>
-                                <td class="font-mono text-slate-400">${escapeHtml(it.datumNakupu || '')}</td>
+                                <td class="font-mono text-slate-400" data-iso="${escapeHtml(it.datumNakupu || '')}">${formatDateCS(it.datumNakupu)}</td>
                                 <td><span class="badge badge-sky">${formatAge(c.dni)}</span></td>
                                 <td class="text-center font-mono text-slate-300">${c.zivotnost} r</td>
                                 <td class="text-right">
@@ -1311,7 +1319,7 @@
                     elD.innerHTML = depreciated.map(x => `
                         <div class="flex items-center justify-between py-1.5 border-b border-slate-800 last:border-0">
                             <div class="text-slate-200">${escapeHtml(x.nazev)}</div>
-                            <div class="font-mono text-slate-500 text-[11px]">${escapeHtml(x.datumNakupu)}</div>
+                            <div class="font-mono text-slate-500 text-[11px]">${formatDateCS(x.datumNakupu)}</div>
                         </div>`).join('');
                 }
 

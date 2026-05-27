@@ -536,6 +536,23 @@
                         <div class="progress-track">
                             <div id="progress-bar" class="progress-fill" style="width: 0%"></div>
                         </div>
+                        <!-- ETA info -->
+                        <div id="eta-row" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-xs">
+                            <div class="flex items-center gap-2 px-3 py-2 rounded bg-slate-900/40 border border-slate-800">
+                                <i data-lucide="calendar-check-2" class="w-3.5 h-3.5 text-emerald-400 flex-shrink-0"></i>
+                                <div>
+                                    <div class="text-[10px] uppercase tracking-wider text-slate-500">Datum dosažení cíle</div>
+                                    <div id="eta-date" class="font-mono text-slate-200 font-semibold">—</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 px-3 py-2 rounded bg-slate-900/40 border border-slate-800">
+                                <i data-lucide="hourglass" class="w-3.5 h-3.5 text-sky-400 flex-shrink-0"></i>
+                                <div>
+                                    <div class="text-[10px] uppercase tracking-wider text-slate-500">Zbývá času</div>
+                                    <div id="eta-remaining" class="font-mono text-slate-200 font-semibold">—</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- AI Coaching -->
@@ -1029,6 +1046,26 @@ function doPost(e) {
             finally { btn.innerHTML = originalContent; btn.disabled = false; btn.classList.remove('opacity-70', 'cursor-not-allowed'); }
         }
 
+        /* AI vrací občas Markdown místo HTML — převedeme základní syntaxi
+           (**bold**, *kurzíva*, číslované seznamy, zalomení) na HTML. */
+        function formatAiMarkdown(text) {
+            if (!text) return '';
+            let s = String(text);
+            // Pokud už obsahuje HTML tagy (např. <ul>/<li>/<b>), ponecháme.
+            const hasHtml = /<\/?(b|ul|ol|li|p|br|strong|em|i)\b/i.test(s);
+            if (!hasHtml) {
+                // Escape HTML rovnou, ať se nevkládá nic nečekaného.
+                s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                // **bold** → <b>
+                s = s.replace(/\*\*([^*]+)\*\*/g, '<b class="text-sky-300">$1</b>');
+                // *kurzíva* (single asterisk, only when not adjacent to another)
+                s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<i>$2</i>');
+                // Zalomení řádků → <br>
+                s = s.replace(/\n/g, '<br>');
+            }
+            return s;
+        }
+
         async function getAICoaching() {
             const goal = findItemById(activeGoalId);
             if (!goal) return;
@@ -1088,7 +1125,11 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod:
 Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180 slov. Žádný opis metrik výše.`;
                 const systemInst = `Jsi přátelský, ale věcný finanční poradce. Mluvíš česky. Nikdy nepřevyprávíš data, která už uživatel vidí v UI — jdeš rovnou k analýze a akci.`;
                 const response = await callAI(prompt, systemInst);
-                resultDiv.innerHTML = response;
+                // AI občas vrátí Markdown místo HTML — převeď **bold**, *kurzíva*,
+                // číslované seznamy a zalomení řádků na HTML, ať se v panelu
+                // neukazují raw hvězdičky.
+                resultDiv.innerHTML = formatAiMarkdown(response);
+                lucide.createIcons();
             } catch (error) {
                 resultDiv.innerHTML = `<span class="text-rose-400 font-medium"><i data-lucide="alert-triangle" class="w-4 h-4 inline mr-1"></i> Chyba: ${error.message}</span>`;
                 lucide.createIcons();
@@ -1695,6 +1736,41 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
             document.getElementById('progress-current').textContent = formatCZK(currentSaved);
             document.getElementById('progress-target').textContent = formatCZK(target);
 
+            // ETA výpočet — kdy se cíl dosáhne při aktuální naplánované úložce.
+            // Najdeme první řádek v rows, kde `actual >= target`. Pokud target je
+            // už dosažen, ukážeme "Dosaženo".
+            const etaDateEl = document.getElementById('eta-date');
+            const etaRemEl  = document.getElementById('eta-remaining');
+            if (etaDateEl && etaRemEl) {
+                if (target <= 0) {
+                    etaDateEl.textContent = '—';
+                    etaRemEl.textContent  = 'Zadej cílovou částku';
+                } else if (currentSaved >= target) {
+                    etaDateEl.textContent = 'Splněno';
+                    etaRemEl.textContent  = '✓ Cíl je již dosažen';
+                } else {
+                    let etaRow = null;
+                    for (let i = 0; i < rows.length; i++) {
+                        if ((rows[i].actual || 0) >= target) { etaRow = rows[i]; break; }
+                    }
+                    if (!etaRow) {
+                        etaDateEl.textContent = 'Nikdy (při aktuální úložce)';
+                        etaRemEl.textContent  = '— navýši měsíční úložku';
+                    } else {
+                        const eta = new Date(etaRow.dateStr);
+                        etaDateEl.textContent = eta.toLocaleDateString('cs-CZ', { month: 'long', year: 'numeric' });
+                        // Roky a měsíce do cíle
+                        const months = (eta.getFullYear() - today.getFullYear()) * 12 + (eta.getMonth() - today.getMonth());
+                        const y = Math.floor(Math.max(0, months) / 12);
+                        const m = Math.max(0, months) % 12;
+                        const parts = [];
+                        if (y > 0) parts.push(y + (y === 1 ? ' rok' : (y < 5 ? ' roky' : ' let')));
+                        if (m > 0 || y === 0) parts.push(m + (m === 1 ? ' měsíc' : (m < 5 ? ' měsíce' : ' měsíců')));
+                        etaRemEl.textContent = parts.join(' ') || 'tento měsíc';
+                    }
+                }
+            }
+
             const tbody = document.getElementById('table-body'); tbody.innerHTML = '';
 
             if (rows.length === 0) {
@@ -1790,6 +1866,31 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
             if (rows.length === 0) {
                  chartInstance = new Chart(ctx, { type: 'line', data: { datasets: [] }, options: { scales: { x: { display: false }, y: { display: false } }, plugins: { title: { display: true, text: 'Zadejte hodnoty pro vykreslení grafu', color: chartText } } } });
                  return;
+            }
+
+            /* ── Posuvné okno X osy ──
+               Pokud je dat víc než `WINDOW` měsíců, neukazujeme všechno —
+               okno se posouvá tak, že DNES je co možná nejvíc uprostřed:
+                 • dokud je DNES nalevo od půlky okna → okno začíná na 0 (DNES vlevo)
+                 • dokud je DNES vpravo od (konec - půlka) → okno končí na konci (DNES vpravo)
+                 • jinak: DNES uprostřed okna, graf se posouvá doprava s plynutím času.
+               Po dosažení cíle nebo dat se okno opět vrátí ke konci. */
+            const WINDOW_MONTHS = 60; // 5 let — kompromis mezi přehledem a čitelností
+            let xMin = labels[0];
+            let xMax = labels[labels.length - 1];
+            if (rows.length > WINDOW_MONTHS && todayIndex >= 0) {
+                const half = Math.floor(WINDOW_MONTHS / 2);
+                let start;
+                if (todayIndex < half) {
+                    start = 0;                                             // DNES vlevo
+                } else if (todayIndex > rows.length - (WINDOW_MONTHS - half) - 1) {
+                    start = rows.length - WINDOW_MONTHS;                   // DNES vpravo
+                } else {
+                    start = todayIndex - half;                             // DNES uprostřed
+                }
+                const end = Math.min(rows.length - 1, start + WINDOW_MONTHS - 1);
+                xMin = labels[start];
+                xMax = labels[end];
             }
 
             const chartPlugins = [{
@@ -1904,7 +2005,12 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
                             grid: { color: chartGrid },
                             ticks: { color: chartText, callback: function(value) { return value.toLocaleString('cs-CZ') + ' Kč'; }, font: { family: "'Inter', sans-serif", size: 11 } }
                         },
-                        x: { grid: { display: false }, ticks: { color: chartText, font: { family: "'Inter', sans-serif", size: 11 } } }
+                        x: {
+                            min: xMin,
+                            max: xMax,
+                            grid: { display: false },
+                            ticks: { color: chartText, font: { family: "'Inter', sans-serif", size: 11 }, autoSkip: true, maxTicksLimit: 24 }
+                        }
                     }
                 },
                 plugins: chartPlugins

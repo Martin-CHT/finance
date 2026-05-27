@@ -658,12 +658,18 @@
     }
 
     /* Pull všech modulů z user's Sheetu po loginu / refreshi.
-       Aplikuje pouze tam, kde lokál je prázdný nebo se data liší.
-       Vrací { moduleKey: data } — co se podařilo stáhnout. */
+       Vrací { moduleKey: data } — co se podařilo stáhnout.
+       BEZPEČNOSTNÍ PRAVIDLA:
+       - remote null (cloud o modulu nic neví) → skip.
+       - remote prázdné A lokál neprázdný → NIKDY nepřepíšeme (chrání před
+         ztrátou dat, když cloud ještě nestihl uložit nebo má jiný účet bez dat).
+       - preferRemote=true a remote neprázdné → přepíše lokál.
+       - preferRemote=false a lokál neprázdný → necháme rozhodnutí na initialPull
+         v iframe modulu (případný konflikt dialog). */
     async function pullAllModuleData(options) {
         if (!_userSheetUrl()) return null;
         var opts = options || {};
-        var preferRemote = !!opts.preferRemote; // pokud true → cloud přepíše lokál bez ptaní
+        var preferRemote = !!opts.preferRemote;
         var keys = Object.keys(MODULE_DATA_REGISTRY);
         var loaded = {};
         for (var i = 0; i < keys.length; i++) {
@@ -672,25 +678,32 @@
             var remote;
             try { remote = await pullModuleData(modKey); }
             catch (e) { remote = null; }
-            if (remote == null) continue;
+            if (remote == null) continue; // cloud neví → nech být
             loaded[modKey] = remote;
             var localRaw = lsGet(sKey);
             var local = null;
             try { local = localRaw ? JSON.parse(localRaw) : null; } catch (e) { local = null; }
-            if (preferRemote || _isEmpty(local)) {
+
+            var remoteEmpty = _isEmpty(remote);
+            var localEmpty  = _isEmpty(local);
+
+            // Klíčová ochrana: prázdný remote NIKDY nepřepisuje neprázdný lokál.
+            // Bez tohoto by se po loginu na účet bez cloud-dat smazal lokální stav.
+            if (remoteEmpty && !localEmpty) {
+                continue;
+            }
+
+            if (preferRemote || localEmpty) {
                 try { lsSet(sKey, JSON.stringify(remote)); } catch (e) {}
                 try {
                     window.dispatchEvent(new CustomEvent('fc-module-data-updated', {
                         detail: { module: modKey, data: remote, storageKey: sKey, source: 'global-pull' }
                     }));
                 } catch (e) {}
-                // Označ že už jsme to v rámci session pulled — autoSyncModuleViaMeta initialPull pak nebude duplikovat
                 try { sessionStorage.setItem('fc_pulled_' + modKey, '1'); } catch (e) {}
-            } else {
-                // Lokál neprázdný a remote se liší → necháme rozhodnutí na auto-sync uvnitř modulu
-                // (initialPull v autoSyncModuleViaMeta ukáže konflikt dialog jen pokud
-                // se data reálně liší; my jsme jen "ohřáli" cache toho, co je v cloudu).
             }
+            // Jinak: lokál neprázdný + cloud neprázdný + preferRemote=false →
+            // nech to na initialPull v iframe modulu (konflikt dialog).
         }
         return loaded;
     }
@@ -1279,10 +1292,57 @@
             promptHandleLinked:       promptHandleLinkedTransaction
         },
 
-        /* UI helpers — jednotný toast + sync indikátor */
+        /* UI helpers — jednotný toast + sync indikátor + číselné formátování */
         ui: {
             toast:        showToast,
-            setSyncBusy:  setSyncBusy
+            setSyncBusy:  setSyncBusy,
+            // Vrátí číslo z řetězce — odebere mezery, NBSP, převede čárku na tečku
+            parseNumber: function (s) {
+                if (typeof s === 'number') return s;
+                if (s == null) return NaN;
+                var str = String(s).replace(/[\s  ]/g, '').replace(',', '.').trim();
+                if (!str) return NaN;
+                var n = Number(str);
+                return isFinite(n) ? n : NaN;
+            },
+            // Naformátuje číslo s mezerou jako oddělovačem tisíců (cs-CZ)
+            formatNumber: function (n, maxFrac) {
+                if (n == null || n === '' || isNaN(Number(n))) return '';
+                return new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: (maxFrac == null ? 2 : maxFrac) }).format(Number(n));
+            },
+            /* Připojí formátovací handlery k <input> elementu (nebo CSS selectoru):
+                 - blur → zformátuje hodnotu na "10 000"
+                 - focus → vrátí raw hodnotu "10000" pro editaci
+                 - oninvalid/change → preserve raw
+               Použití: FinanceCommon.ui.attachNumberFormat('#myInput', { maxFrac: 0 }); */
+            attachNumberFormat: function (target, opts) {
+                opts = opts || {};
+                var maxFrac = (opts.maxFrac == null) ? 0 : opts.maxFrac;
+                var inputs = (typeof target === 'string')
+                    ? Array.from(document.querySelectorAll(target))
+                    : (target.length ? Array.from(target) : [target]);
+                var parseN = window.FinanceCommon.ui.parseNumber;
+                var fmtN   = window.FinanceCommon.ui.formatNumber;
+                inputs.forEach(function (inp) {
+                    if (!inp || inp._fcNumFormat) return;
+                    inp._fcNumFormat = true;
+                    // Při focusu: ukaž raw číslo bez mezer (pro snadnou editaci)
+                    inp.addEventListener('focus', function () {
+                        var v = parseN(inp.value);
+                        inp.value = isFinite(v) ? String(v).replace('.', ',') : '';
+                    });
+                    // Při blur: zformátuj zpět s mezerami
+                    inp.addEventListener('blur', function () {
+                        var v = parseN(inp.value);
+                        inp.value = isFinite(v) ? fmtN(v, maxFrac) : '';
+                    });
+                    // Po načtení (pokud má hodnotu) hned zformátuj
+                    if (inp.value && document.activeElement !== inp) {
+                        var v = parseN(inp.value);
+                        if (isFinite(v)) inp.value = fmtN(v, maxFrac);
+                    }
+                });
+            }
         },
 
         /* Help modal — strukturovaná nápověda pro každý modul */

@@ -56,6 +56,11 @@
 
         table.subs { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.78rem; }
         table.subs th { text-align: left; font-weight: 600; color: #64748b; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.6rem 0.5rem; border-bottom: 1px solid #1e293b; }
+        table.subs th.th-sort { cursor: pointer; user-select: none; transition: color 0.15s; white-space: nowrap; }
+        table.subs th.th-sort:hover { color: #d946ef; }
+        table.subs th.th-sort .sort-arrow { display: inline-block; width: 0.7em; margin-left: 0.2em; color: #475569; font-size: 0.7em; }
+        table.subs th.th-sort.sort-asc .sort-arrow::before { content: '▲'; color: #d946ef; }
+        table.subs th.th-sort.sort-desc .sort-arrow::before { content: '▼'; color: #d946ef; }
         table.subs td { padding: 0.65rem 0.5rem; border-bottom: 1px solid #1e293b; vertical-align: middle; }
         table.subs tr.inactive td { opacity: 0.45; }
         table.subs tr:hover td { background: rgba(217,70,239,0.04); }
@@ -180,12 +185,12 @@
             <table class="subs">
                 <thead>
                     <tr>
-                        <th>Název</th>
-                        <th>Kategorie</th>
-                        <th class="text-right">Cena</th>
-                        <th>Cyklus</th>
-                        <th>Příští platba</th>
-                        <th>Konec smlouvy</th>
+                        <th class="th-sort" data-sort="name">Název <span class="sort-arrow"></span></th>
+                        <th class="th-sort" data-sort="category">Kategorie <span class="sort-arrow"></span></th>
+                        <th class="th-sort text-right" data-sort="amountCzk">Cena <span class="sort-arrow"></span></th>
+                        <th class="th-sort" data-sort="cycle">Cyklus <span class="sort-arrow"></span></th>
+                        <th class="th-sort" data-sort="nextBilling">Příští platba <span class="sort-arrow"></span></th>
+                        <th class="th-sort" data-sort="contractEnd">Konec smlouvy <span class="sort-arrow"></span></th>
                         <th class="text-right">Akce</th>
                     </tr>
                 </thead>
@@ -310,6 +315,44 @@
     const STORE = 'predplatna_v1';
     let DB = { items: [] };
     let currentEditId = null;
+    // Stav řazení tabulky — default: nejbližší platba první.
+    let sortState = { key: 'nextBilling', dir: 'asc' };
+
+    /* Pro daný klíč vrátí porovnatelnou hodnotu. Cena se přepočítává na CZK
+       pro správné řazení napříč měnami. */
+    function sortFieldValue(item, key) {
+        if (!item) return null;
+        if (key === 'amountCzk') {
+            const r = { CZK: 1, EUR: 25, USD: 23 };
+            const f = r[item.currency] || 1;
+            return Number(item.amount || 0) * f;
+        }
+        if (key === 'nextBilling' || key === 'contractEnd') {
+            const v = item[key];
+            return v ? new Date(v).getTime() : null;
+        }
+        if (key === 'cycle') {
+            // Pořadí cyklů (časová délka)
+            const order = { weekly: 1, monthly: 2, quarterly: 3, yearly: 4 };
+            return order[item.cycle] || 99;
+        }
+        const v = item[key];
+        if (v == null) return null;
+        return String(v).toLowerCase();
+    }
+
+    /* Klik na záhlaví → toggle směr nebo přepnout sloupec. */
+    function bindSortHandlers() {
+        document.querySelectorAll('table.subs th.th-sort').forEach(th => {
+            if (th._wired) return; th._wired = true;
+            th.addEventListener('click', () => {
+                const k = th.dataset.sort;
+                if (sortState.key === k) sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+                else sortState = { key: k, dir: 'asc' };
+                render();
+            });
+        });
+    }
 
     function load() {
         try { DB = JSON.parse(localStorage.getItem(STORE)) || { items: [] }; }
@@ -438,10 +481,25 @@
         else if (filterStatus === 'inactive') list = list.filter(x => !x.active);
         if (filterCat) list = list.filter(x => x.category === filterCat);
 
-        list.sort((a,b) => {
-            const da = a.nextBilling || '9999-12-31';
-            const db = b.nextBilling || '9999-12-31';
-            return da.localeCompare(db);
+        // Řazení podle aktivního sortStavu (default: nextBilling asc).
+        const sortKey = (sortState && sortState.key) || 'nextBilling';
+        const sortDir = (sortState && sortState.dir) || 'asc';
+        list.sort((a, b) => {
+            const va = sortFieldValue(a, sortKey);
+            const vb = sortFieldValue(b, sortKey);
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+            let cmp;
+            if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb;
+            else cmp = String(va).localeCompare(String(vb), 'cs', { numeric: true });
+            return sortDir === 'asc' ? cmp : -cmp;
+        });
+
+        // Aktualizace šipek v hlavičce.
+        document.querySelectorAll('table.subs th.th-sort').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.dataset.sort === sortKey) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
         });
 
         const tbody = document.getElementById('tblBody');
@@ -481,6 +539,7 @@
             }).join('');
         }
         lucide.createIcons();
+        bindSortHandlers();
     }
 
     function cxRate(c) {

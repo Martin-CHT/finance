@@ -459,6 +459,35 @@
         html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
         html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+        /* ─── Light theme dorovnání pro hardcoded barvy ─── */
+        html.light .stat-card .stat-value { color: #0f172a !important; }
+        html.light .stat-card .stat-label { color: #64748b !important; }
+        html.light .stat-card .stat-sub   { color: #64748b !important; }
+        html.light .section-label { color: #64748b !important; }
+        html.light .kpi-card { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        html.light .kpi-card .section-label { color: #475569 !important; }
+        html.light .filter-inactive { color: #64748b !important; border-color: #cbd5e1 !important; }
+        html.light .filter-inactive:hover { color: #0f172a !important; border-color: #94a3b8 !important; }
+        html.light .group-btn-inactive { color: #64748b !important; }
+        html.light .group-btn-inactive:hover { color: #0f172a !important; background: #e2e8f0 !important; }
+        html.light .tab-btn { color: #64748b !important; }
+        html.light .tab-btn:hover { color: #0f172a !important; }
+        html.light .tab-btn.tab-active { color: #0284c7 !important; border-bottom-color: #0284c7 !important; }
+        html.light .group-row td { background: #f1f5f9 !important; color: #0284c7 !important; border-color: #e2e8f0 !important; }
+        html.light #ai-advice-content { color: #475569 !important; }
+        html.light #ai-advice-content b { color: #0284c7 !important; }
+        html.light .data-table thead th { background-color: #f1f5f9 !important; color: #64748b !important; border-bottom-color: #cbd5e1 !important; }
+        html.light .data-table tbody tr { background-color: #ffffff !important; border-bottom-color: #f1f5f9 !important; }
+        html.light .data-table tbody tr:hover { background-color: #f8fafc !important; }
+        html.light .data-table tbody td { color: #0f172a !important; }
+        /* Vstupy v light tématu — sjednocené */
+        html.light .pro-input { color-scheme: light; }
+        html.light input::placeholder { color: #94a3b8 !important; }
+        /* Section v PV (DENÍK/ANALÝZA/AI RÁDCE) — border slate-800 */
+        html.light .border-slate-800 { border-color: #e2e8f0 !important; }
+        /* Inline color="#f8fafc" / fff na badges */
+        html.light .currency-tag { color: #0284c7 !important; }
+
         /* ── Modal overlay (groq/gemini popupy) ──
            Markup používá `class="... hidden flex ..."`. Tailwindovo .hidden vs .flex
            se v CDN v3/v4 řadí různě v cascade — někdy .flex vyhraje a modal je
@@ -476,6 +505,14 @@
         #pivot-table .pivot-row-sub { border-bottom: 1px solid #131b2b; }
         #pivot-table .pivot-row-sub td:first-child { background: #0a1220; }
         #pivot-table .pivot-row-grand { border-top: 1px solid #334155; }
+
+        /* Hover + sticky-selection — uživatel uvidí na řádek z pivotu */
+        #pivot-table tbody tr { transition: background 0.12s; }
+        #pivot-table tbody tr:hover td { background: rgba(56,189,248,0.10) !important; }
+        #pivot-table tbody tr.pivot-selected td { background: rgba(56,189,248,0.18) !important; box-shadow: inset 2px 0 0 #38bdf8; }
+        #pivot-table tbody tr { cursor: pointer; }
+        html.light #pivot-table tbody tr:hover td { background: rgba(14,165,233,0.12) !important; }
+        html.light #pivot-table tbody tr.pivot-selected td { background: rgba(14,165,233,0.18) !important; }
 
         html.light #pivot-table .pivot-th { border-bottom: 1px solid #cbd5e1; background: #ffffff; color: #475569; }
         html.light #pivot-table .pivot-row-top { border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
@@ -1461,6 +1498,18 @@
                 return /\b(?:příjem|prijem|mzda|plat|odměna|dividenda|úrok|bonus)\b/i.test(String(pohyb || ''));
             },
 
+            /* Centralizovaná klasifikace transakce — používá se ve stat-cards,
+               grafech I AI prompt. Aby nedocházelo k tomu, že stat-card
+               počítá spoření jedním filtrem a AI/graf jiným.
+               Vrací: 'income' | 'saving' | 'expense'. */
+            classifyTx(t) {
+                if (!t) return 'expense';
+                const isSaving = t.saving === 'ANO' || String(t.pohyb || '').toLowerCase().includes('spoř');
+                if (isSaving) return 'saving';
+                if (t.suma > 0) return 'income';
+                return 'expense';
+            },
+
             /* ════════════════════════════════════════════════════════════
                Provázanost s ostatními moduly:
                - pohyb=Předplatné       → upsert do predplatna_v1.items
@@ -1846,9 +1895,10 @@
 
             renderStats() {
                 const active = this.data.filter(t => !t.isExcluded);
-                const income = active.filter(t => t.suma > 0 && t.saving !== 'ANO').reduce((a, b) => a + b.suma, 0);
-                const savings = Math.abs(active.filter(t => t.saving === 'ANO' || t.pohyb.toLowerCase().includes('spoření')).reduce((a, b) => a + b.suma, 0));
-                const expense = Math.abs(active.filter(t => t.suma < 0 && t.saving !== 'ANO' && !t.pohyb.toLowerCase().includes('spoření')).reduce((a, b) => a + b.suma, 0));
+                // Single source of truth — classifyTx() — sjednoceno s pie chart + AI
+                const income  = active.filter(t => this.classifyTx(t) === 'income').reduce((a, b) => a + b.suma, 0);
+                const savings = Math.abs(active.filter(t => this.classifyTx(t) === 'saving').reduce((a, b) => a + b.suma, 0));
+                const expense = Math.abs(active.filter(t => this.classifyTx(t) === 'expense').reduce((a, b) => a + b.suma, 0));
                 const balance = active.reduce((a, b) => a + b.suma, 0);
 
                 const els = { 'stat-income': income, 'stat-expense': expense, 'stat-savings': savings, 'stat-balance': balance };
@@ -1933,16 +1983,18 @@
                     // Předpočítané metriky — AI nedostává surová data k převyprávění,
                     // dostává analytické shrnutí, aby se mohla soustředit na konkrétní rady.
                     const active = this.data.filter(t => !t.isExcluded);
-                    const income = active.filter(t => t.suma > 0 && t.saving !== 'ANO').reduce((s,t) => s + t.suma, 0);
-                    const savings = Math.abs(active.filter(t => t.saving === 'ANO').reduce((s,t) => s + t.suma, 0));
-                    const expense = Math.abs(active.filter(t => t.suma < 0 && t.saving !== 'ANO').reduce((s,t) => s + t.suma, 0));
+                    // KRITICKÉ: stejný klasifikátor jako v stat-cards a grafech,
+                    // ať AI vidí stejná čísla jako uživatel v UI nahoře.
+                    const income  = active.filter(t => this.classifyTx(t) === 'income').reduce((s,t) => s + t.suma, 0);
+                    const savings = Math.abs(active.filter(t => this.classifyTx(t) === 'saving').reduce((s,t) => s + t.suma, 0));
+                    const expense = Math.abs(active.filter(t => this.classifyTx(t) === 'expense').reduce((s,t) => s + t.suma, 0));
                     const balance = active.reduce((s,t) => s + t.suma, 0);
                     const savRate = income > 0 ? Math.round(savings / income * 100) : 0;
                     const expRate = income > 0 ? Math.round(expense / income * 100) : 0;
 
-                    // Top 5 kategorií výdajů
+                    // Top 5 kategorií výdajů — stejný klasifikátor
                     const expByCat = {};
-                    active.filter(t => t.suma < 0 && t.saving !== 'ANO').forEach(t => {
+                    active.filter(t => this.classifyTx(t) === 'expense').forEach(t => {
                         const key = (t.pohyb || 'Ostatní');
                         expByCat[key] = (expByCat[key] || 0) + Math.abs(t.suma);
                     });
@@ -1952,7 +2004,7 @@
                     // Anomálie: jednotlivé transakce výrazně nad mediánem kategorie
                     const anomalies = [];
                     Object.keys(expByCat).forEach(cat => {
-                        const inCat = active.filter(t => t.suma < 0 && t.saving !== 'ANO' && t.pohyb === cat);
+                        const inCat = active.filter(t => this.classifyTx(t) === 'expense' && t.pohyb === cat);
                         if (inCat.length < 3) return;
                         const vals = inCat.map(t => Math.abs(t.suma)).sort((a,b) => a-b);
                         const median = vals[Math.floor(vals.length/2)];
@@ -2321,14 +2373,30 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                 const chartText = '#475569';
                 const chartGrid = '#1e293b';
 
-                const cats = {}; active.filter(t => t.suma < 0 && t.saving !== "ANO" && !t.pohyb.toLowerCase().includes('spoření')).forEach(t => cats[t.pohyb] = (cats[t.pohyb] || 0) + Math.abs(t.suma));
+                // Struktura výdajů — používáme classifyTx, případy se nemísí.
+                // Klíče sjednocujeme přes lowercase, aby "VÝDAJ" a "Výdaj"
+                // tvořily jednu kategorii. Hodnoty seřazené sestupně.
+                const catsMap = {};
+                active.filter(t => this.classifyTx(t) === 'expense').forEach(t => {
+                    const rawKey = (t.pohyb || 'Ostatní').trim();
+                    const k = rawKey.toLowerCase();
+                    if (!catsMap[k]) catsMap[k] = { label: rawKey, sum: 0 };
+                    catsMap[k].sum += Math.abs(t.suma);
+                });
+                const catsArr = Object.values(catsMap).sort((a, b) => b.sum - a.sum);
+                const pieLabels = catsArr.map(c => c.label);
+                const pieValues = catsArr.map(c => c.sum);
+                // Paleta — opakuje se cyklicky, aby žádná kategorie nezůstala bez barvy
+                const palette = ['#0ea5e9', '#f97316', '#10b981', '#f43f5e', '#6366f1', '#8b5cf6', '#eab308', '#14b8a6', '#ec4899', '#a855f7', '#f59e0b', '#22c55e'];
+                const pieColors = pieValues.map((_, i) => palette[i % palette.length]);
+                const pieTotal = pieValues.reduce((a, b) => a + b, 0);
                 this.chart = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: Object.keys(cats),
+                        labels: pieLabels,
                         datasets: [{
-                            data: Object.values(cats),
-                            backgroundColor: ['#0ea5e9', '#f97316', '#10b981', '#f43f5e', '#6366f1', '#8b5cf6'],
+                            data: pieValues,
+                            backgroundColor: pieColors,
                             borderWidth: 0,
                             borderRadius: 2
                         }]
@@ -2345,16 +2413,25 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                                     font: { weight: '600', family: 'Inter', size: 11 },
                                     padding: 16
                                 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const v = ctx.parsed;
+                                        const pct = pieTotal > 0 ? Math.round(v / pieTotal * 100) : 0;
+                                        return ` ${ctx.label}: ${this.fmt(v)}  ·  ${pct}% výdajů`;
+                                    }
+                                }
                             }
                         }
                     }
                 });
 
-                const inc = active.filter(t => t.suma > 0 && t.saving !== 'ANO').reduce((a, b) => a + b.suma, 0);
-                const sav = Math.abs(active.filter(t => t.saving === 'ANO' || t.pohyb.toLowerCase().includes('spoření')).reduce((a, b) => a + b.suma, 0));
+                const inc = active.filter(t => this.classifyTx(t) === 'income').reduce((a, b) => a + b.suma, 0);
+                const sav = Math.abs(active.filter(t => this.classifyTx(t) === 'saving').reduce((a, b) => a + b.suma, 0));
                 const balance = active.reduce((a, b) => a + b.suma, 0);
 
-                const expenses = active.filter(t => t.suma < 0 && t.saving !== 'ANO' && !t.pohyb.toLowerCase().includes('spoření'));
+                const expenses = active.filter(t => this.classifyTx(t) === 'expense');
                 const expenseSum = Math.abs(expenses.reduce((a, b) => a + b.suma, 0));
 
                 // Secondary Bar Chart
@@ -2554,6 +2631,18 @@ POŽADAVEK — vrať MAX 4 stručné body (každý 1-2 věty), žádný úvod:
                 html += '</tr></tbody>';
 
                 table.innerHTML = html;
+
+                // Klik kdekoli na řádek (tbody) → toggle .pivot-selected.
+                // Sticky výběr přetrvává i mezi re-rendery (pole _pivotSelectedRow).
+                table.querySelectorAll('tbody tr').forEach(tr => {
+                    tr.addEventListener('click', (ev) => {
+                        // Pokud klik byl na top-row (expand/collapse), nechej tu logiku v togglePivot
+                        if (ev.target.closest('[onclick*="togglePivot"]')) return;
+                        const wasSelected = tr.classList.contains('pivot-selected');
+                        table.querySelectorAll('tbody tr.pivot-selected').forEach(r => r.classList.remove('pivot-selected'));
+                        if (!wasSelected) tr.classList.add('pivot-selected');
+                    });
+                });
             },
 
             togglePivot(key) {
