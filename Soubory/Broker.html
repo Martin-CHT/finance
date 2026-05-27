@@ -858,23 +858,39 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
         // Bez suffixu → defaultně .us (US burza)
         return t + '.us';
     }
+    /* Stooq vrací CSV. Pro řadu prohlížečů funguje CORS, pro některé ne — pokud
+       Stooq odmítne, zkusíme fallback přes všeobecný CORS proxy (corsproxy.io).
+       Vrátí { price, date } nebo throw Error s detailem (pro diagnostiku). */
     async function fetchStooqPrice(ticker) {
         const sym = normalizeTickerForStooq(ticker);
-        if (!sym) return null;
-        const url = 'https://stooq.com/q/l/?s=' + encodeURIComponent(sym) + '&f=sd2t2ohlcv&h&e=csv';
-        try {
-            const r = await fetch(url);
-            if (!r.ok) return null;
-            const csv = await r.text();
-            const lines = csv.trim().split('\n');
-            if (lines.length < 2) return null;
-            const cols = lines[1].split(',');
-            // Symbol, Date, Time, Open, High, Low, Close, Volume
-            const close = parseFloat(cols[6]);
-            const date = cols[1];
-            if (!isFinite(close) || close <= 0 || cols[6] === 'N/D') return null;
-            return { price: close, date: date };
-        } catch (e) { return null; }
+        if (!sym) throw new Error('prázdný ticker');
+        const path = '/q/l/?s=' + encodeURIComponent(sym) + '&f=sd2t2ohlcv&h&e=csv';
+        const urls = [
+            'https://stooq.com' + path,
+            'https://corsproxy.io/?' + encodeURIComponent('https://stooq.com' + path)
+        ];
+        let lastErr = null;
+        for (const url of urls) {
+            try {
+                const r = await fetch(url, { redirect: 'follow' });
+                if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
+                const csv = await r.text();
+                const lines = csv.trim().split('\n');
+                if (lines.length < 2) { lastErr = new Error('prázdná odpověď'); continue; }
+                const cols = lines[1].split(',');
+                // Symbol, Date, Time, Open, High, Low, Close, Volume
+                const close = parseFloat(cols[6]);
+                const date = cols[1];
+                if (cols[6] === 'N/D' || !isFinite(close) || close <= 0) {
+                    lastErr = new Error('Stooq nezná ticker ' + sym);
+                    continue;
+                }
+                return { price: close, date: date };
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        throw lastErr || new Error('nepodařilo se získat cenu');
     }
     async function refreshAllPrices() {
         const btn = document.getElementById('btnRefreshPrices');
@@ -886,17 +902,24 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
         btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Stahuji…';
         try { lucide.createIcons(); } catch(e){}
 
-        let ok = 0, fail = 0, failNames = [];
-        // Sekvenčně (Stooq je benevolentní, ale neudělejme z toho DDoS)
+        let ok = 0, fail = 0, skipped = 0;
+        const failDetails = [];
+        const skippedTypes = [];
         for (const p of positions) {
-            const res = await fetchStooqPrice(p.ticker);
-            if (res) {
+            // Krypto Stooq nepodporuje — automaticky přeskočíme, ne fail.
+            if (p.type === 'crypto') {
+                skipped++;
+                skippedTypes.push(p.ticker);
+                continue;
+            }
+            try {
+                const res = await fetchStooqPrice(p.ticker);
                 p.currentPrice = res.price;
                 p.lastUpdate = res.date;
                 ok++;
-            } else {
+            } catch (e) {
                 fail++;
-                failNames.push(p.ticker);
+                failDetails.push(p.ticker + ' (' + (e.message || e) + ')');
             }
         }
         save();
@@ -904,19 +927,25 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
         btn.disabled = false;
         btn.innerHTML = original;
         try { lucide.createIcons(); } catch(e){}
-        if (fail === 0) {
-            toast('Aktualizováno ' + ok + ' pozic');
-        } else {
-            toast('OK: ' + ok + ' · selhalo: ' + fail + ' (' + failNames.slice(0,3).join(', ') + (failNames.length > 3 ? ', …' : '') + ')');
-        }
+        // Souhrnný toast
+        const parts = [];
+        if (ok)      parts.push('✓ ' + ok + ' OK');
+        if (fail)    parts.push('✗ ' + fail + ' selhalo');
+        if (skipped) parts.push('⊘ ' + skipped + ' krypto přeskočeno (Stooq nepodporuje)');
+        let msg = parts.join(' · ') || 'Žádné pozice k aktualizaci';
+        if (fail) msg += '\nSelhalo: ' + failDetails.slice(0, 3).join(', ') + (failDetails.length > 3 ? '…' : '');
+        if (skipped) msg += '\nKrypto (' + skippedTypes.slice(0, 3).join(', ') + (skippedTypes.length > 3 ? '…' : '') + ') — aktualizuj „Akt. cenu" ručně.';
+        toast(msg);
     }
     function toast(msg) {
-        // Lehký inline toast
+        // Lehký inline toast s podporou víceřádkového textu
         const t = document.createElement('div');
-        t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;padding:0.7rem 1rem;background:#0369a1;color:#fff;border-radius:0.4rem;font-size:0.8rem;z-index:200;box-shadow:0 10px 25px rgba(0,0,0,0.4)';
+        t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;padding:0.7rem 1rem;background:#0369a1;color:#fff;border-radius:0.4rem;font-size:0.8rem;z-index:200;box-shadow:0 10px 25px rgba(0,0,0,0.4);max-width:32rem;white-space:pre-wrap;line-height:1.5';
         t.textContent = msg;
         document.body.appendChild(t);
-        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3000);
+        // Delší doba zobrazení podle délky zprávy (1 vteřina + 80ms za znak, max 12s)
+        const dur = Math.min(12000, 1500 + (msg || '').length * 60);
+        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, dur);
     }
 
     (function init(){

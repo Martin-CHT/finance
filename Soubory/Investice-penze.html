@@ -139,6 +139,42 @@
         /* ── Manual override highlight ── */
         .manual-entry { background: rgba(251,146,60,.06) !important; }
 
+        /* ── Pension table scroll — viditelný scrollbar v dark theme ── */
+        .pension-table-scroll {
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: #475569 #1e293b;
+        }
+        .pension-table-scroll::-webkit-scrollbar {
+            height: 10px;
+        }
+        .pension-table-scroll::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 5px;
+        }
+        .pension-table-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 5px;
+        }
+        .pension-table-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Pravý fade pro indikaci scroll-overflow */
+        .pension-table-scroll::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; bottom: 10px; width: 28px;
+            background: linear-gradient(to right, transparent, rgba(15,23,42,0.8));
+            pointer-events: none;
+            opacity: 0.9;
+        }
+        html.light .pension-table-scroll { scrollbar-color: #94a3b8 #e2e8f0; }
+        html.light .pension-table-scroll::-webkit-scrollbar-track { background: #e2e8f0; }
+        html.light .pension-table-scroll::-webkit-scrollbar-thumb { background: #94a3b8; }
+        html.light .pension-table-scroll::after {
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.85));
+        }
+
         /* ── Badges ── */
         .age-badge {
             background: rgba(14,165,233,.15);
@@ -506,7 +542,7 @@
         </div>
 
         <!-- ── DATA TABLE ── -->
-        <div class="panel overflow-hidden">
+        <div class="panel">
             <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 flex-wrap gap-2">
                 <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-400 flex items-center gap-2">
                     <i data-lucide="table-2" class="w-3.5 h-3.5 text-slate-500"></i>
@@ -524,18 +560,21 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full data-table text-left text-xs" style="min-width: 1280px; table-layout: auto;">
+            <!-- Vodorovné scrollování je opt-in pomocí třídy `pension-table-scroll`,
+                 která je definovaná v CSS s vlastní stylizací scrollbaru (viditelným i v dark theme).
+                 Tabulka má pevné minimální šířky sloupců, takže se vždy vejde nebo se dá rolovat. -->
+            <div class="pension-table-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="data-table text-left text-xs" style="width: max-content; min-width: 100%; table-layout: fixed;">
                     <colgroup>
+                        <col style="width:110px">
+                        <col style="width:85px">
                         <col style="width:120px">
-                        <col style="width:90px">
-                        <col style="width:140px">
-                        <col style="width:130px">
-                        <col style="width:100px">
-                        <col style="width:130px">
-                        <col style="width:140px">
-                        <col style="width:130px">
-                        <col style="width:60px">
+                        <col style="width:110px">
+                        <col style="width:95px">
+                        <col style="width:115px">
+                        <col style="width:125px">
+                        <col style="width:115px">
+                        <col style="width:55px">
                     </colgroup>
                     <thead>
                         <tr>

@@ -333,7 +333,11 @@
         let monthlySavings = 0;
         const sources = [];
 
-        // ── Spoření & Cíle — pole/strom, listy mají initial (= aktuální naspořeno) ──
+        // ── Spoření & Cíle ──
+        // POZOR: pole `initial` v datech znamená POČÁTEČNÍ vklad cíle (např. 6 000 Kč
+        // na začátku), NE aktuálně naspořenou částku. Aktuální stav = initial + měsíční
+        // úložky × počet uplynulých měsíců + případné extra vklady. Replikujeme stejnou
+        // matematiku jako modul Spoření & Cíle (calculateGoalData → goalSaved).
         try {
             const raw = localStorage.getItem('sporici_data_ai_tree');
             if (raw) {
@@ -343,14 +347,42 @@
                     (arr || []).forEach(n => {
                         if (!n) return;
                         if (n.type === 'folder' && Array.isArray(n.children)) walk(n.children);
-                        else flat.push(n);
+                        else if (n.type === 'goal' || !n.type) flat.push(n);
                     });
                 };
                 walk(Array.isArray(tree) ? tree : []);
-                const sumSav  = flat.reduce((s, g) => s + (Number(g.initial) || 0), 0);
-                const planMth = flat.reduce((s, g) => s + (Number(g.monthly) || 0), 0);
-                if (sumSav) { totalAssets += sumSav; sources.push(`Spoření & Cíle: ${fmtCZK(sumSav)} (${flat.length} cílů)`); }
-                if (planMth) { monthlySavings += planMth; }
+
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const calcSaved = (goal) => {
+                    const initial = Number(goal.initial) || 0;
+                    const monthly = Number(goal.monthly) || 0;
+                    const extras = goal.extras && typeof goal.extras === 'object' ? goal.extras : {};
+                    const target  = Number(goal.target) || 0;
+                    let startDate = goal.startDate ? new Date(goal.startDate) : new Date();
+                    if (isNaN(startDate)) startDate = new Date();
+                    startDate.setHours(0, 0, 0, 0);
+                    if (startDate > today) return initial; // ještě nezačal, naspořeno = initial
+                    // Spočítej kolik měsíců uběhlo od startu (včetně startovního měsíce)
+                    let monthsElapsed = (today.getFullYear() - startDate.getFullYear()) * 12
+                                       + (today.getMonth() - startDate.getMonth()) + 1;
+                    if (monthsElapsed < 1) monthsElapsed = 1;
+                    let saved = initial;
+                    for (let m = 2; m <= monthsElapsed; m++) {
+                        saved += monthly;
+                        saved += Number(extras[m]) || 0;
+                    }
+                    // Cíl už dosažen? Cap na target.
+                    if (target > 0 && saved > target) saved = target;
+                    return Math.max(0, saved);
+                };
+
+                let sumSav = 0, planMth = 0;
+                flat.forEach(g => {
+                    sumSav += calcSaved(g);
+                    planMth += Number(g.monthly) || 0;
+                });
+                if (sumSav) { totalAssets += sumSav; sources.push(`Spoření & Cíle: ${fmtCZK(sumSav)} (${flat.length} cílů, aktuální naspořeno)`); }
+                if (planMth) { monthlySavings += planMth; sources.push(`└ Měsíční plán Spoření: ${fmtCZK(planMth)}`); }
             }
         } catch (e) {}
 
@@ -419,7 +451,10 @@
             }
         } catch (e) {}
 
-        // ── Příjmy & Výdaje — odhad měsíčních výdajů (a tedy ročních) + úspor ──
+        // ── Příjmy & Výdaje — měsíční výdaje + skutečné měsíční spoření ──
+        // Důležité: P&V odráží SKUTEČNÝ cashflow (kolik reálně teče do spoření z účtu).
+        // Spoření modul má `monthly` jen jako PLÁN (jaký vklad si uživatel nastavil ke každému cíli).
+        // Pro FIRE výpočet preferujeme P&V (skutečné) — pokud existuje, přepíšeme plán.
         try {
             const raw = localStorage.getItem('FinanceAI_data');
             if (raw) {
@@ -434,9 +469,16 @@
                         sources.push(`Měsíční výdaje (P&V): ${fmtCZK(exp)}`);
                     }
                     if (sav > 0) {
-                        // Pokud Spoření ještě nedalo plán, použij P&V hodnotu spoření
-                        if (!monthlySavings) monthlySavings = sav;
-                        sources.push(`Měsíční spoření (P&V): ${fmtCZK(sav)}`);
+                        // P&V hodnota SKUTEČNÉHO spoření má přednost před plánem ze Spoření.
+                        // Plán mohl být 16 500 Kč/měs, ale reálně může uživatel spořit 18 400 Kč/měs
+                        // (například extra do rezervy, která není v cílech).
+                        const fromPlan = monthlySavings;
+                        monthlySavings = sav;
+                        if (fromPlan && fromPlan !== sav) {
+                            sources.push(`Měsíční spoření (P&V skutečnost): ${fmtCZK(sav)} (přepsalo plán ${fmtCZK(fromPlan)} ze Spoření)`);
+                        } else {
+                            sources.push(`Měsíční spoření (P&V skutečnost): ${fmtCZK(sav)}`);
+                        }
                     }
                 }
             }
