@@ -442,20 +442,30 @@
             }
         } catch (e) {}
 
-        // ── Půjčky & Splátky — zbytek jistiny odečteme od majetku (negativní hodnota) ──
+        // ── Půjčky & Splátky ──
+        // ZÁMĚRNĚ NEODEČÍTÁME zbývající jistiny z majetku. Důvod:
+        //  1) Splátky půjček už jsou součástí MĚSÍČNÍCH VÝDAJŮ (ty se započítávají
+        //     × 12 do ročních výdajů → ovlivňují FIRE číslo a withdrawal rate).
+        //     Odečtení jistiny by představovalo "dvojí postih".
+        //  2) Aktivum, které půjčka financuje (typicky nemovitost), do likvidního
+        //     majetku Pre-FI/RE NEZAHRNUJEME (nemůžeš ho rozprodat na měsíční rentu).
+        //     Symetricky pak ani protistranu (dluh) nezahrnujeme.
+        //  3) Když uživatel chce započítat hypotéku na byt, který plánuje
+        //     v důchodu prodat, měl by zároveň přidat hodnotu nemovitosti
+        //     do položky "Aktuální majetek" — to udělá ručně.
+        // Půjčky jen informativně oznámíme, ale neodečítáme.
         try {
             const raw = localStorage.getItem('pujcky_data_v1');
             if (raw) {
                 const loans = JSON.parse(raw);
-                if (Array.isArray(loans)) {
+                if (Array.isArray(loans) && loans.length) {
                     let outstanding = 0;
                     loans.forEach(l => {
                         const v = Number(l.outstanding ?? l.remainingPrincipal ?? l.principal ?? 0);
                         if (v > 0) outstanding += v;
                     });
                     if (outstanding > 0) {
-                        totalAssets -= outstanding;
-                        sources.push(`Půjčky (odečteno): −${fmtCZK(outstanding)}`);
+                        sources.push(`Půjčky (info, NEodečteno): ${fmtCZK(outstanding)} — splátky jsou v ročních výdajích`);
                     }
                 }
             }

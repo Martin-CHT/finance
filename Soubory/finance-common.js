@@ -173,6 +173,104 @@
         writeUnified(k, theme);
     });
 
+    /* ════════════ 1.5) AUTO-FORMAT NUMERIC INPUTS ═══════════════
+       Po DOMContentLoaded prochází všechna <input type="number"> + inputy
+       s atributem data-fc-numfmt a:
+         a) <input type="number"> převede na type="text" inputmode="decimal"
+            (jinak by browser blokoval mezery v hodnotě).
+         b) Po blur formátuje hodnotu jako "10 000" (s NBSP-like mezerou).
+         c) Po focus vrátí raw číslo bez mezer "10000" pro editaci.
+         d) Při formuláři submit / čtení hodnoty: parseNumber() odebere mezery.
+       Tím sjednotíme zápis čísel napříč všemi moduly bez nutnosti měnit jejich HTML. */
+    function _fcParseNumber(s) {
+        if (typeof s === 'number') return s;
+        if (s == null) return NaN;
+        var str = String(s).replace(/[\s  ]/g, '').replace(',', '.').trim();
+        if (!str) return NaN;
+        var n = Number(str);
+        return isFinite(n) ? n : NaN;
+    }
+    function _fcFormatNumber(n, maxFrac) {
+        if (n == null || n === '' || !isFinite(Number(n))) return '';
+        return new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: (maxFrac == null ? 2 : maxFrac) }).format(Number(n));
+    }
+    function _fcAttachNumFmt(inp, maxFrac) {
+        if (!inp || inp._fcNumFormat) return;
+        inp._fcNumFormat = true;
+        // type="number" by blokoval mezery — převedeme na text. Originální type
+        // si zapamatujeme, abychom při submit / form.checkValidity nevadili logice.
+        if (inp.type === 'number') {
+            inp.dataset.fcOrigType = 'number';
+            inp.type = 'text';
+            inp.inputMode = inp.inputMode || 'decimal';
+        }
+        inp.addEventListener('focus', function () {
+            var v = _fcParseNumber(inp.value);
+            inp.value = isFinite(v) ? String(v).replace('.', ',') : '';
+            // Vybrat vše pro pohodlnou editaci
+            try { inp.select(); } catch (e) {}
+        });
+        inp.addEventListener('blur', function () {
+            var v = _fcParseNumber(inp.value);
+            inp.value = isFinite(v) ? _fcFormatNumber(v, maxFrac) : '';
+        });
+        // Pokud má vstup hodnotu při inicializaci a NENÍ aktivní → naformátuj.
+        if (inp.value && document.activeElement !== inp) {
+            var v = _fcParseNumber(inp.value);
+            if (isFinite(v)) inp.value = _fcFormatNumber(v, maxFrac);
+        }
+        // Při form změně přes JS (setting value) dispatch input bude správně parsovat.
+    }
+
+    /* Sken inputů s atributem data-fc-numfmt (opt-in).
+       Důvod opt-in: type=number inputy obvykle čte modul přes Number(value)
+       nebo +value. Pokud globálně přepneme všechny na text + formátujeme,
+       moduly by četly "10 000" jako NaN. Bezpečnější je vyžadovat explicitní
+       data-fc-numfmt atribut na inputu, který má být formátován. */
+    function _fcAutoScanInputs(root) {
+        try {
+            var nodes = (root || document).querySelectorAll('input[data-fc-numfmt]');
+            nodes.forEach(function (inp) {
+                if (inp._fcNumFormat) return;
+                var fracAttr = inp.getAttribute('data-fc-frac');
+                var step = parseFloat(inp.step);
+                var maxFrac = 0;
+                if (fracAttr != null) maxFrac = Math.max(0, parseInt(fracAttr, 10) || 0);
+                else if (isFinite(step) && step > 0 && step < 1) {
+                    maxFrac = Math.max(0, Math.round(-Math.log10(step)));
+                }
+                _fcAttachNumFmt(inp, maxFrac);
+            });
+        } catch (e) {}
+    }
+
+    /* Auto-scan po DOMContentLoaded + observer pro dynamicky přidané inputy
+       (např. řádky tabulky generované JS po načtení dat). */
+    function _fcInitAutoNumFmt() {
+        _fcAutoScanInputs(document);
+        // MutationObserver pro nově přidané inputy
+        try {
+            var mo = new MutationObserver(function (records) {
+                records.forEach(function (r) {
+                    r.addedNodes && r.addedNodes.forEach(function (node) {
+                        if (node.nodeType !== 1) return;
+                        if (node.matches && node.matches('input[type="number"], input[data-fc-numfmt]')) {
+                            _fcAutoScanInputs(node.parentNode || document);
+                        } else {
+                            _fcAutoScanInputs(node);
+                        }
+                    });
+                });
+            });
+            mo.observe(document.body, { childList: true, subtree: true });
+        } catch (e) {}
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _fcInitAutoNumFmt);
+    } else {
+        _fcInitAutoNumFmt();
+    }
+
     /* ════════════  2) PLOVOUCÍ TLAČÍTKO "NASTAVENÍ"  ════════════ */
     function injectSettingsButton() {
         if (document.getElementById('fc-settings-fab')) return;

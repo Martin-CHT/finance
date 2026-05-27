@@ -240,7 +240,7 @@
             <div class="grid grid-cols-3 gap-3">
                 <div class="col-span-2">
                     <label class="fld">Cena *</label>
-                    <input id="fAmount" type="number" step="0.01" class="input font-mono" placeholder="269">
+                    <input id="fAmount" type="text" inputmode="decimal" data-fc-numfmt data-fc-frac="2" class="input font-mono" placeholder="269">
                 </div>
                 <div>
                     <label class="fld">Měna</label>
@@ -594,7 +594,8 @@
     }
     function saveCurrent() {
         const name = document.getElementById('fName').value.trim();
-        const amount = parseFloat(document.getElementById('fAmount').value);
+        const amount = window.FinanceCommon?.ui?.parseNumber?.(document.getElementById('fAmount').value)
+            ?? parseFloat(String(document.getElementById('fAmount').value).replace(/[\s ]/g, '').replace(',', '.'));
         const next = document.getElementById('fNext').value;
         if (!name || isNaN(amount) || !next) {
             toast('Vyplň název, cenu a datum příští platby', 'error');

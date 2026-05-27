@@ -418,14 +418,14 @@
 
             <div class="stat-card">
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Měsíční vklad (Kč)</label>
-                <input type="number" id="base-vklad" oninput="app.update()"
-                    class="config-input" style="color: #e2e8f0;" placeholder="5000">
+                <input type="text" inputmode="numeric" data-fc-numfmt id="base-vklad" oninput="app.update()"
+                    class="config-input" style="color: #e2e8f0;" placeholder="5 000">
             </div>
 
             <div class="stat-card">
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Plánovaná renta (Kč)</label>
-                <input type="number" id="base-renta-suma" oninput="app.update()"
-                    class="config-input" style="color: #fb923c;" placeholder="80000">
+                <input type="text" inputmode="numeric" data-fc-numfmt id="base-renta-suma" oninput="app.update()"
+                    class="config-input" style="color: #fb923c;" placeholder="80 000">
             </div>
 
             <div class="stat-card border-l-2 border-l-slate-600">
@@ -525,17 +525,17 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full table-fixed data-table text-left text-xs min-w-[1100px]">
+                <table class="w-full data-table text-left text-xs" style="min-width: 1280px; table-layout: auto;">
                     <colgroup>
+                        <col style="width:120px">
+                        <col style="width:90px">
                         <col style="width:140px">
-                        <col style="width:110px">
-                        <col style="width:160px">
-                        <col style="width:150px">
-                        <col style="width:110px">
+                        <col style="width:130px">
+                        <col style="width:100px">
+                        <col style="width:130px">
                         <col style="width:140px">
-                        <col style="width:160px">
-                        <col style="width:150px">
-                        <col style="width:65px">
+                        <col style="width:130px">
+                        <col style="width:60px">
                     </colgroup>
                     <thead>
                         <tr>
@@ -1038,16 +1038,27 @@ function doPost(e) {
         }
 
         const app = {
-            settings: JSON.parse(localStorage.getItem('pension_settings')) || {
-                age: 30,
-                startMonth: '',
-                sporeniRoky: 35,
-                rentaStart: 65,
-                vklad: 5000,
-                urok: 8.5,
-                rentaSuma: 80000
-            },
-            overrides: JSON.parse(localStorage.getItem('pension_overrides')) || {},
+            /* settings i overrides byly historicky odděleny do 2 storage klíčů,
+               ale auto-sync sledoval jen `pension_settings` → overrides se nikdy
+               nepushovaly do cloudu (ztráta dat po vymazání lokálních cookies).
+               Sjednoceno: overrides se nyní ukládají DOVNITŘ pension_settings
+               pod klíčem `_overrides`. Pro zpětnou kompatibilitu při loadu
+               čteme i starý `pension_overrides` klíč, pokud nový ještě neexistuje. */
+            settings: (function () {
+                const ps = JSON.parse(localStorage.getItem('pension_settings') || 'null') || {
+                    age: 30, startMonth: '', sporeniRoky: 35, rentaStart: 65,
+                    vklad: 5000, urok: 8.5, rentaSuma: 80000
+                };
+                if (!ps._overrides) ps._overrides = {};
+                return ps;
+            })(),
+            overrides: (function () {
+                // Pokud jsou overrides už uvnitř pension_settings, vezmi je odtamtud.
+                const ps = JSON.parse(localStorage.getItem('pension_settings') || 'null');
+                if (ps && ps._overrides && Object.keys(ps._overrides).length) return ps._overrides;
+                // Jinak migrace ze starého klíče
+                return JSON.parse(localStorage.getItem('pension_overrides') || '{}');
+            })(),
             expandedYears: new Set(),
             hasInitializedYearExpansion: false,
             aiForecastChart: null,
@@ -1083,13 +1094,18 @@ function doPost(e) {
             },
 
             update() {
+                // Parse přes FinanceCommon helper — toleruje mezery jako oddělovač tisíců.
+                const _p = (id) => {
+                    const v = document.getElementById(id)?.value;
+                    return window.FinanceCommon?.ui?.parseNumber?.(v) ?? parseFloat(String(v).replace(/[\s ]/g, '').replace(',', '.'));
+                };
                 this.settings.age = parseInt(document.getElementById('base-age').value) || 0;
                 this.settings.startMonth = document.getElementById('base-start-month').value || '';
                 this.settings.sporeniRoky = parseInt(document.getElementById('base-sporeni-roky').value) || 0;
                 this.settings.rentaStart = parseInt(document.getElementById('base-renta-start').value) || 0;
-                this.settings.vklad = parseFloat(document.getElementById('base-vklad').value) || 0;
+                this.settings.vklad = _p('base-vklad') || 0;
                 this.settings.urok = parseFloat(document.getElementById('base-urok').value) || 0;
-                this.settings.rentaSuma = parseFloat(document.getElementById('base-renta-suma').value) || 0;
+                this.settings.rentaSuma = _p('base-renta-suma') || 0;
 
                 this.calculate();
                 this.render();
@@ -1896,11 +1912,17 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
             },
 
             save() {
+                // Sjednocené ukládání: overrides JSOU součástí pension_settings,
+                // aby auto-sync (sledující jen `pension_settings`) je propsal do cloudu.
+                // Zachováváme i starý klíč pension_overrides pro zpětnou kompatibilitu.
+                this.settings._overrides = this.overrides;
                 localStorage.setItem('pension_settings', JSON.stringify(this.settings));
                 localStorage.setItem('pension_overrides', JSON.stringify(this.overrides));
                 const status = document.getElementById('sync-status');
-                status.style.opacity = '1';
-                setTimeout(() => status.style.opacity = '0', 2000);
+                if (status) {
+                    status.style.opacity = '1';
+                    setTimeout(() => status.style.opacity = '0', 2000);
+                }
                 if (!isApplyingSheetsData) triggerSheetsAutoSync();
             },
 

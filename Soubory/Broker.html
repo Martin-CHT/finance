@@ -751,57 +751,98 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
     function openModuleHelp() {
         if (!window.FinanceCommon || !window.FinanceCommon.help) { alert('Nápověda není k dispozici.'); return; }
         window.FinanceCommon.help.show({
-            title: 'Broker (Akcie / ETF / P2P)',
-            subtitle: 'Evidence pozic u brokerů + automatický pull cen + daňový pomocník + AI audit.',
+            title: 'Broker (Akcie / ETF / P2P / Krypto)',
+            subtitle: 'Evidence pozic napříč brokery + automatický pull cen (Stooq) + daňový pomocník + AI audit.',
             sections: [
                 { kind:'intro', heading:'🎯 K čemu modul slouží',
-                  body:'<p>Pokud máš účet u brokera (<b>Degiro, XTB, IBKR, Trading 212, Patria…</b>) nebo na <b>P2P</b> platformě (Mintos, Bondster), tenhle modul vede evidenci tvých pozic a transakcí.</p>'+
+                  body:'<p>Pokud máš účet u brokera (<b>Degiro, XTB, IBKR, Trading 212, Patria, Revolut, eToro…</b>), na <b>P2P</b> platformě (Mintos, Bondster) nebo držíš <b>kryptoměny</b>, tenhle modul vede evidenci pozic a transakcí.</p>'+
                        '<p>Spočítá aktuální hodnotu, nerealizovaný P&L, dividendy za rok a pomůže s daňovým přiznáním.</p>' },
-                { kind:'steps', heading:'📝 Postup',
+
+                { kind:'steps', heading:'📝 Postup krok za krokem',
                   body:'<ol>'+
-                        '<li><b>Záložka Účty</b> → přidej brokerský účet (Degiro CZK, IBKR USD…). Měna účtu je výchozí pro pozice na něm.</li>'+
-                        '<li><b>Záložka Pozice</b> → přidej co aktuálně držíš:'+
+                        '<li><b>Záložka Účty</b> → přidej každý reálný účet, který používáš. Měna účtu = výchozí měna pozic na něm.<br>'+
+                            '<i>Příklady:</i> „<b>Revolut – CZK</b>", „<b>Degiro – EUR</b>", „<b>IBKR – USD</b>", „<b>Trezor BTC</b>" pro krypto.</li>'+
+                        '<li><b>Záložka Pozice</b> → pro každý držený titul zadej:'+
                             '<ul>'+
-                                '<li><b>Ticker</b> — burzovní symbol (např. <code>VWCE.DE</code>, <code>AAPL</code>).</li>'+
-                                '<li><b>Typ</b> — akcie / ETF / dluhopis / P2P.</li>'+
-                                '<li><b>Počet</b> + <b>Průměrná cena</b> (kolik tě stál jeden kus).</li>'+
+                                '<li><b>Ticker</b> — burzovní symbol (např. <code>VWCE.DE</code>, <code>AAPL</code>, <code>BTC</code>).</li>'+
+                                '<li><b>Název</b> (volitelné) — popisek (např. „Vanguard FTSE All-World").</li>'+
+                                '<li><b>Typ</b> — ETF / Akcie / Dluhopis / P2P / <b>Krypto</b> / Jiné.</li>'+
+                                '<li><b>Účet</b> — který reálný účet to drží.</li>'+
+                                '<li><b>Počet</b> + <b>Prům. cena</b> + <b>Měna ceny</b> — kolik kusů držíš a za jakou průměrnou pořizovací cenu (v měně, ve které jsi nakupoval).</li>'+
+                                '<li><b>Akt. cena</b> (volitelné) — pokud nechceš Stooq pull, zadej ručně.</li>'+
                             '</ul>'+
-                        '</li>'+
-                        '<li><b>Záložka Transakce</b> → eviduj nákupy / prodeje / dividendy / poplatky. To je důležité pro daňové výpočty.</li>'+
-                        '<li><b>Ceny</b> (tlačítko nahoře) → modul stáhne aktuální ceny ze Stooq (free, bez klíče) a aktualizuje pozice.</li>'+
-                        '<li><b>Záložka Daně</b> → vyber rok, modul ukáže dividendy + realizované zisky + AI audit s konkrétními optimalizacemi.</li>'+
+                            '<i>Tip pro frakční nákupy</i>: pokud jsi koupil za částku v jiné měně (např. „1 000 Kč v BTC při ceně 77 000 USD/kus"), klikni na <b>„Dopočítat Počet z investované částky"</b>. Modul ti spočítá frakční množství.</li>'+
+                        '<li><b>Záložka Transakce</b> → eviduj každý nákup / prodej / dividendu / poplatek. To je důležité pro výpočet realizovaného P&L a daní.</li>'+
+                        '<li><b>Tlačítko „Ceny"</b> nahoře → stáhne aktuální ceny ze Stooq a aktualizuje pozice. Bez tlačítka modul počítá s ručně zadanou „Akt. cenou".</li>'+
+                        '<li><b>Záložka Daně</b> → vyber rok, modul ukáže dividendy + realizované zisky + AI audit.</li>'+
                       '</ol>' },
-                { kind:'features', heading:'✨ Vychytávky',
+
+                { kind:'features', heading:'✨ Praktické příklady použití',
+                  body:'<p><b>📱 Revolut — Bitcoin (krypto):</b></p>'+
+                       '<ul>'+
+                            '<li>Účet: „<b>Revolut</b>" – CZK</li>'+
+                            '<li>Pozice: Ticker <code>BTC</code>, Typ <b>Krypto</b>, Účet <b>Revolut</b>.</li>'+
+                            '<li>Koupil jsi za 1 000 Kč při ceně BTC ~77 000 USD/ks? Otevři detail „<i>Dopočítat Počet z investované částky</i>", zadej 1000 / CZK + 77000 / USD → modul napočítá 0,000565 BTC.</li>'+
+                            '<li><b>⚠ Stooq krypto NEPODPORUJE</b> (jen pro akcie a ETF). Aktuální cenu BTC zadej ručně do pole „Akt. cena" (např. <code>78000</code>) s měnou USD a periodicky ji aktualizuj.</li>'+
+                       '</ul>'+
+                       '<p style="margin-top:0.6rem"><b>📱 Revolut — ETF (Vanguard FTSE All-World):</b></p>'+
+                       '<ul>'+
+                            '<li>Účet: „<b>Revolut Stocks</b>" – USD (Revolut zobrazuje pozice v USD).</li>'+
+                            '<li>Pozice: Ticker <code>VWCE.DE</code> (Xetra Frankfurt, EUR), Typ <b>ETF</b>, Účet Revolut Stocks.</li>'+
+                            '<li>Počet 5 ks × Prům. cena 105 EUR.</li>'+
+                            '<li>Klikni „Ceny" → Stooq stáhne aktuální cenu z Frankfurtu.</li>'+
+                       '</ul>'+
+                       '<p style="margin-top:0.6rem"><b>💼 IBKR — Apple akcie:</b></p>'+
+                       '<ul>'+
+                            '<li>Účet: „<b>IBKR</b>" – USD.</li>'+
+                            '<li>Pozice: Ticker <code>AAPL</code>, Typ <b>Akcie</b>, Účet IBKR, 10 ks × 150 USD.</li>'+
+                            '<li>Stooq automaticky doplní suffix <code>.US</code>, aktuální cena se stáhne z NYSE/NASDAQ.</li>'+
+                       '</ul>'+
+                       '<p style="margin-top:0.6rem"><b>💰 Mintos — P2P úvěry:</b></p>'+
+                       '<ul>'+
+                            '<li>Účet: „<b>Mintos</b>" – EUR.</li>'+
+                            '<li>Pozice: Ticker <code>MINTOS</code> (jen interní označení), Typ <b>P2P</b>, Účet Mintos, Počet 1, Prům. cena = celkový investovaný kapitál v EUR.</li>'+
+                            '<li>„Akt. cenu" ručně aktualizuj podle reálné hodnoty Mintos účtu (zahrnuje úroky).</li>'+
+                       '</ul>' },
+
+                { kind:'features', heading:'✨ Stooq — automatické ceny (zdarma)',
                   body:'<ul>'+
-                        '<li><b>4 záložky</b>: Pozice / Transakce / Účty / Daně.</li>'+
-                        '<li><b>KPI nahoře</b>: Hodnota portfolia, Vložený kapitál, Nereal. P&L (% i absolutně), Dividendy tento rok.</li>'+
-                        '<li><b>Tlačítko „Ceny"</b> stáhne aktuální ceny ze <a href="https://stooq.com" target="_blank">Stooq</a> (free, žádný API klíč). Tickery rozpoznává podle suffixu:'+
+                        '<li><b>Funguje pro</b>: akcie a ETF na hlavních burzách. <b>Nefunguje pro</b>: krypto, P2P, exotické penny stocks.</li>'+
+                        '<li><b>Tickery — pravidla suffixů</b>:'+
                             '<ul>'+
-                                '<li><code>AAPL</code> bez suffixu → automaticky <code>AAPL.US</code></li>'+
-                                '<li><code>VWCE.DE</code> → Xetra Frankfurt</li>'+
-                                '<li><code>CEZ.PL</code> → Varšava</li>'+
-                                '<li><code>O2.CZ</code> → BCPP Praha</li>'+
+                                '<li><code>AAPL</code> bez suffixu → automaticky <code>AAPL.US</code> (NYSE/NASDAQ).</li>'+
+                                '<li><code>VWCE.DE</code> → Xetra Frankfurt.</li>'+
+                                '<li><code>VUAA.UK</code> → London Stock Exchange.</li>'+
+                                '<li><code>CEZ.PL</code> → Varšavská burza WSE.</li>'+
+                                '<li><code>VW.PA</code> → Paris Euronext.</li>'+
+                                '<li><code>O2.CZ</code> nebo <code>PHILIPM.CZ</code> → BCPP Praha.</li>'+
                             '</ul>'+
                         '</li>'+
-                        '<li><b>Daňový upozorňovač</b>:'+
-                            '<ul>'+
-                                '<li>3letý časový test — akcie/ETF držené >3 roky jsou osvobozeny.</li>'+
-                                '<li>USA dividendy 15% srážková — ČR pak doplňuje.</li>'+
-                                '<li>Limit 100 000 Kč příležitostných příjmů z prodeje.</li>'+
-                            '</ul>'+
-                        '</li>'+
-                        '<li><b>AI audit portfolia</b> — projde tvé pozice, najde koncentrační rizika, daňové optimalizace, diverzifikační mezery.</li>'+
-                      '</ul>' },
+                        '<li><b>Krypto</b>: Stooq nemá. Ručně zadej do „Akt. cena" + periodicky aktualizuj.</li>'+
+                       '</ul>' },
+
+                { kind:'features', heading:'✨ Daňový pomocník',
+                  body:'<ul>'+
+                        '<li><b>3letý časový test</b> — u akcií/ETF držených &gt;3 roky platíš 0% daň z prodejního zisku.</li>'+
+                        '<li><b>Drobné akcie pod 100 k Kč/rok</b> — pokud souhrn prodejů akcií za rok je pod 100 000 Kč, nemusíš podávat daňové přiznání pro tyto pohyby (osvobození malých částek).</li>'+
+                        '<li><b>USA dividendy 15 %</b> srážková daň — ČR podle smlouvy už nedoplňuje. (Bez formuláře W-8BEN by USA srážela 30 %.)</li>'+
+                        '<li><b>P2P úroky</b> jsou daňově horší — daní se 15 % ze všech úroků.</li>'+
+                        '<li><b>Krypto</b> — 3letý časový test funguje i pro kryptoměny (od 2025). Před tím byly krypto-zisky vždy zdaněny 15 %.</li>'+
+                        '<li><b>AI audit</b> — projde tvé pozice a najde koncentrační rizika, daňové optimalizace, diverzifikační mezery.</li>'+
+                       '</ul>' },
+
                 { kind:'tips', heading:'💡 Tipy & triky',
                   body:'<ul>'+
-                        '<li><b>Při nákupu</b> vždy zapiš transakci s typem „buy" — modul z toho automaticky neaktualizuje pozice (pozice je samostatná entita), ale potřebuješ to pro výpočet realizovaných zisků při budoucím prodeji.</li>'+
-                        '<li><b>Časový test 3 roky</b> = u akcií držených >3 roky platíš 0% daň z prodejního zisku. Jeden z nejvýhodnějších českých daňových bonusů.</li>'+
-                        '<li><b>Drobné akcie pod 100k</b> — pokud prodáš za rok všechny akcie souhrnně pod 100 000 Kč, nepodáváš ani daňové přiznání (osvobození malých částek).</li>'+
-                        '<li><b>P2P úroky</b> jsou daňově méně výhodné — daní se 15% ve výplatě. AI audit ti řekne, jestli ti P2P platí.</li>'+
-                        '<li><b>Tickery</b> — pokud Stooq nezná, zkus formát <code>SYMBOL.SUFFIX</code> (<code>.us</code>, <code>.de</code>, <code>.uk</code>, <code>.pl</code>). Některé exotické (LSE penny stocks) prostě nejsou.</li>'+
-                      '</ul>' },
+                        '<li><b>Pozice = aktuální stav držby</b>, <b>Transakce = historie pohybů</b>. Pozice neaktualizuju automaticky z transakcí — musíš to dělat ručně, protože frakční nákupy / DCA komplikují průměrnou cenu.</li>'+
+                        '<li><b>Měny v Brokeru</b>: pozice mohou být v různých měnách. KPI portfolia se přepočítává na CZK (orientačně přes pevné fallback kurzy 25 EUR / 23 USD; reálné kurzy načítej přes Stooq).</li>'+
+                        '<li><b>Při Force pull/push v Nastavení</b> — modul broker_v1 se synchronizuje do tvého Sheetu. Pozice / transakce / účty jsou v jednom JSON objektu.</li>'+
+                        '<li><b>Pro Revolut Stocks</b>: Revolut používá frakční ceny v USD. Když si koupíš za 100 Kč Apple za 200 USD/ks, je to ~0,021 AAPL. Použij „Dopočítat Počet" v dialogu pozice.</li>'+
+                        '<li><b>Pro Revolut Krypto</b>: Revolut nezveřejňuje wallet adresy — drží to za tebe. Pro evidenci zde použij ticker BTC/ETH/atd. a manuální „Akt. cenu".</li>'+
+                       '</ul>' },
+
                 { kind:'linked', heading:'🔗 Provázanost',
-                  body:'<p>Modul je <b>standalone</b>. Pre-FI/RE čte aktuální hodnotu portfolia (součet pozic × současná cena) pro výpočet celkového majetku.</p>' }
+                  body:'<p>Modul je <b>standalone</b>. <b>Pre-FI/RE</b> z něj čte aktuální hodnotu portfolia (součet hodnot všech pozic × kurz na CZK) pro výpočet celkového majetku.</p>'+
+                       '<p>Data jsou v localStorage pod klíčem <code>broker_v1</code> a synchronizují se přes auto-sync do tvého Sheetu (list <code>mod_broker</code>).</p>' }
             ]
         });
     }

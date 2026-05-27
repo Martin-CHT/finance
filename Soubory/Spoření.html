@@ -511,15 +511,15 @@
                                     ✨ AI Odhad
                                 </button>
                             </div>
-                            <input type="number" id="input-target" class="w-full px-3 py-2 text-sm" onchange="updateGoalSetting('target', this.value === '' ? '' : Number(this.value))">
+                            <input type="text" inputmode="numeric" data-fc-numfmt id="input-target" class="w-full px-3 py-2 text-sm" onchange="updateGoalSetting('target', this.value === '' ? '' : (window.FinanceCommon?.ui?.parseNumber?.(this.value) ?? Number(this.value)))">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500 mb-1.5">Měsíční úložka (Kč)</label>
-                            <input type="number" id="input-monthly" class="w-full px-3 py-2 text-sm" onchange="updateGoalSetting('monthly', this.value === '' ? '' : Number(this.value))">
+                            <input type="text" inputmode="numeric" data-fc-numfmt id="input-monthly" class="w-full px-3 py-2 text-sm" onchange="updateGoalSetting('monthly', this.value === '' ? '' : (window.FinanceCommon?.ui?.parseNumber?.(this.value) ?? Number(this.value)))">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500 mb-1.5">Počáteční stav (Kč)</label>
-                            <input type="number" id="input-initial" class="w-full px-3 py-2 text-sm" onchange="updateGoalSetting('initial', this.value === '' ? '' : Number(this.value))">
+                            <input type="text" inputmode="numeric" data-fc-numfmt id="input-initial" class="w-full px-3 py-2 text-sm" onchange="updateGoalSetting('initial', this.value === '' ? '' : (window.FinanceCommon?.ui?.parseNumber?.(this.value) ?? Number(this.value)))">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500 mb-1.5">Datum 1. vkladu</label>
@@ -1339,6 +1339,7 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
 
         function updateAIStatus() {
             const el = document.getElementById('ai-status');
+            if (!el) return; // status indikátor v DOM neexistuje — modul ho nyní nepoužívá
             const provider = getCookie('ai_provider') || 'groq';
             const key = provider === 'groq' ? getCookie('groq_api_key') : getCookie('gemini_api_key');
             if (key) {
@@ -1510,13 +1511,16 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
             let dateStr = goal.startDate || new Date().toISOString().split('T')[0];
             let date = new Date(dateStr); if (isNaN(date)) date = new Date();
 
-            const maxMonths = 240;
+            // Generujeme až 60 let dat — pokrývá běžné spořicí horizonty
+            // (penze, FIRE). Pokud cíl dosažitelný není ani za 60 let při
+            // dané úložce, vrátíme prázdný výsledek (ETA = Nikdy).
+            const maxMonths = 720;
 
             if (target === 0 && monthly === 0 && initial === 0) {
                 return [];
             }
 
-            while ((currentActual < target && monthIdx <= maxMonths) || monthIdx <= 12) {
+            while (monthIdx <= maxMonths) {
                 let regularDeposit = monthIdx === 1 ? 0 : monthly;
                 let expectedBase = monthIdx === 1 ? initial : (rows[rows.length-1].actual + regularDeposit);
                 let extra = Number(goal.extras[monthIdx]) || 0;
@@ -1532,7 +1536,24 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
                 });
 
                 date.setMonth(date.getMonth() + 1); monthIdx++;
-                if (currentActual >= target && target > 0 && monthIdx > 12) break;
+                // Pokud cíl dosažen a máme alespoň 12 měsíců dat → stop.
+                // Generujeme ještě 12 měsíců po dosažení, ať graf má hezký konec.
+                if (target > 0 && currentActual >= target && monthIdx > 12) {
+                    // Doplníme dalších 12 měsíců „přebytku" pro vizuální pohodu.
+                    for (let extra12 = 0; extra12 < 12 && monthIdx <= maxMonths; extra12++) {
+                        let base = rows[rows.length-1].actual + monthly;
+                        let extraVal = Number(goal.extras[monthIdx]) || 0;
+                        let act = base + extraVal;
+                        rows.push({
+                            yearNum: date.getFullYear(),
+                            monthIdx: monthIdx,
+                            dateStr: date.toISOString().split('T')[0],
+                            expectedBase: base, extra: extraVal, actual: act, remaining: 0, target: target
+                        });
+                        date.setMonth(date.getMonth() + 1); monthIdx++;
+                    }
+                    break;
+                }
             }
             return rows;
         }
@@ -1709,9 +1730,12 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
 
             document.getElementById('header-title').textContent = goal.name;
             document.getElementById('input-name').value = goal.name;
-            document.getElementById('input-target').value = goal.target !== undefined ? goal.target : '';
-            document.getElementById('input-monthly').value = goal.monthly !== undefined ? goal.monthly : '';
-            document.getElementById('input-initial').value = goal.initial !== undefined ? goal.initial : '';
+            // Hodnoty rozšiřujeme přes FinanceCommon formátovač (mezery jako oddělovač tisíců).
+            const _fmt = (v) => (v == null || v === '') ? '' :
+                (window.FinanceCommon?.ui?.formatNumber?.(v, 0) ?? String(v));
+            document.getElementById('input-target').value = _fmt(goal.target);
+            document.getElementById('input-monthly').value = _fmt(goal.monthly);
+            document.getElementById('input-initial').value = _fmt(goal.initial);
             document.getElementById('input-date').value = goal.startDate || '';
 
             const rows = calculateGoalData(goal);
