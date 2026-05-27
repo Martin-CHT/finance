@@ -170,7 +170,7 @@
     </section>
 
     <p class="text-[10px] text-slate-600 text-center font-mono py-4">
-        Data v localStorage <code>broker_v1</code> · ceny stahuje <a href="https://stooq.com" target="_blank" class="text-sky-400 hover:underline">Stooq</a> (zdarma, bez klíče, CORS povoleno)
+        Data v localStorage <code>broker_v1</code> · ceny stahuje <a href="https://stooq.com" target="_blank" class="text-sky-400 hover:underline">Stooq</a> (zdarma, bez klíče; přes veřejné CORS proxy). Pokud aktualizace selhává, otevři F12 konzoli pro detail. Krypto Stooq nepodporuje — aktualizuj „Akt. cenu" ručně.
     </p>
 </main>
 
@@ -858,39 +858,59 @@ Formátuj <b>tučně</b> klíčová slova. Žádný opis metrik výše.`;
         // Bez suffixu → defaultně .us (US burza)
         return t + '.us';
     }
-    /* Stooq vrací CSV. Pro řadu prohlížečů funguje CORS, pro některé ne — pokud
-       Stooq odmítne, zkusíme fallback přes všeobecný CORS proxy (corsproxy.io).
-       Vrátí { price, date } nebo throw Error s detailem (pro diagnostiku). */
+    /* Stooq CSV API vrací ceny zdarma. Z GitHub Pages se ale ze Stooq přímo
+       nedá fetchnout — Stooq neposílá CORS hlavičky. Proto MUSÍME jít přes
+       proxy. Zkoušíme řadu veřejných CORS proxies; alespoň jedna obvykle
+       odpoví. Vrátí { price, date } nebo throw Error s detailem. */
     async function fetchStooqPrice(ticker) {
         const sym = normalizeTickerForStooq(ticker);
         if (!sym) throw new Error('prázdný ticker');
-        const path = '/q/l/?s=' + encodeURIComponent(sym) + '&f=sd2t2ohlcv&h&e=csv';
-        const urls = [
-            'https://stooq.com' + path,
-            'https://corsproxy.io/?' + encodeURIComponent('https://stooq.com' + path)
+        const stooqUrl = 'https://stooq.com/q/l/?s=' + encodeURIComponent(sym) + '&f=sd2t2ohlcv&h&e=csv';
+
+        // Pole proxy obalů — zkusí se postupně, dokud některý neuspěje.
+        // - Přímý fetch funguje jen v některých prohlížečích / dev prostředích.
+        // - allorigins.win/raw nejvíc reliable, podporuje různé schéma.
+        // - corsproxy.io druhá volba.
+        // - codetabs jako třetí.
+        const proxies = [
+            stooqUrl, // přímo (pokud by Stooq vrátil CORS *)
+            'https://api.allorigins.win/raw?url=' + encodeURIComponent(stooqUrl),
+            'https://corsproxy.io/?' + encodeURIComponent(stooqUrl),
+            'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(stooqUrl)
         ];
+
         let lastErr = null;
-        for (const url of urls) {
+        for (let i = 0; i < proxies.length; i++) {
+            const url = proxies[i];
             try {
-                const r = await fetch(url, { redirect: 'follow' });
-                if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
+                // Krátký timeout — proxy nesmí blokovat celý refresh
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 8000);
+                const r = await fetch(url, { redirect: 'follow', signal: controller.signal });
+                clearTimeout(timer);
+                if (!r.ok) { lastErr = new Error('HTTP ' + r.status + ' (proxy ' + (i + 1) + ')'); continue; }
                 const csv = await r.text();
+                if (!csv || csv.length < 10) { lastErr = new Error('prázdná odpověď (proxy ' + (i + 1) + ')'); continue; }
                 const lines = csv.trim().split('\n');
-                if (lines.length < 2) { lastErr = new Error('prázdná odpověď'); continue; }
+                if (lines.length < 2) { lastErr = new Error('chybný CSV formát (proxy ' + (i + 1) + ')'); continue; }
                 const cols = lines[1].split(',');
-                // Symbol, Date, Time, Open, High, Low, Close, Volume
+                // CSV: Symbol, Date, Time, Open, High, Low, Close, Volume
                 const close = parseFloat(cols[6]);
                 const date = cols[1];
                 if (cols[6] === 'N/D' || !isFinite(close) || close <= 0) {
-                    lastErr = new Error('Stooq nezná ticker ' + sym);
-                    continue;
+                    // Stooq vrátil "N/D" — ticker neexistuje. Žádná proxy už nepomůže.
+                    throw new Error('Stooq nezná ticker ' + sym + ' (zkus formát SYMBOL.US / .DE / .UK)');
                 }
+                try { console.info('[Broker] Stooq OK pro', sym, '@', date, '=', close, 'přes', i === 0 ? 'přímý' : ('proxy ' + i)); } catch (_) {}
                 return { price: close, date: date };
             } catch (e) {
+                // AbortError → timeout, jiné → CORS/network — zkusíme další proxy
+                if (e && e.message && e.message.indexOf('Stooq nezná') !== -1) throw e; // fail-fast
                 lastErr = e;
+                try { console.warn('[Broker] Stooq fetch fail (' + (i === 0 ? 'přímý' : 'proxy ' + i) + ') pro', sym, ':', e.message || e); } catch (_) {}
             }
         }
-        throw lastErr || new Error('nepodařilo se získat cenu');
+        throw lastErr || new Error('všechny proxy selhaly');
     }
     async function refreshAllPrices() {
         const btn = document.getElementById('btnRefreshPrices');
