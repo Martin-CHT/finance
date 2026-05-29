@@ -1203,12 +1203,13 @@ function log(user, action, ok, note) {
             investice:   { label: 'Investice & Penze',        file: 'Investice-penze.html',  icon: 'trending-up',  color: 'text-violet-400',  defaultGroup: 'Investice' },
             fondy:       { label: 'Fondy Conseq',             file: 'Fondy.html',            icon: 'activity',     color: 'text-amber-400',   defaultGroup: 'Investice' },
             btc:         { label: 'BTC Investice',            file: '../BTC/index.html',     icon: 'bitcoin',      color: 'text-orange-400',  defaultGroup: 'Investice' },
-            broker:      { label: 'Broker (Akcie / ETF / P2P)', file: 'Broker.html',         icon: 'line-chart',   color: 'text-sky-400',     defaultGroup: 'Investice' },
+            /* broker modul odstraněn z UI — viz index.html. Pro návrat odkomentuj. */
+            /* broker:      { label: 'Broker (Akcie / ETF / P2P)', file: 'Broker.html',         icon: 'line-chart',   color: 'text-sky-400',     defaultGroup: 'Investice' }, */
             pujcky:      { label: 'Půjčky & Splátky',         file: 'Půjčky.html',           icon: 'credit-card',  color: 'text-rose-400',    defaultGroup: 'Závazky' },
             majetek:     { label: 'Majetek & Odpisy',         file: 'Majetek-odpisy.html',   icon: 'package',      color: 'text-teal-400',    defaultGroup: 'Majetek & Náklady' },
             energie:     { label: 'Energie',                  file: 'Energie.html',          icon: 'plug-zap',     color: 'text-amber-400',   defaultGroup: 'Majetek & Náklady' }
         };
-        const DEFAULT_ORDER = ['prijmy','predplatna','sporeni','pre-fi-re','investice','fondy','btc','broker','pujcky','majetek','energie'];
+        const DEFAULT_ORDER = ['prijmy','predplatna','sporeni','pre-fi-re','investice','fondy','btc','pujcky','majetek','energie'];
         const SUGGESTED_GROUPS = ['Denní','Cíle & Plánování','Investice','Závazky','Majetek & Náklady','Ostatní'];
 
         const VIS_KEY = 'fc_module_visibility';

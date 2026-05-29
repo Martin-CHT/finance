@@ -407,8 +407,46 @@
         </div>
     </nav>
 
-    <!-- ═══════════════════════ MAIN ═══════════════════════ -->
-    <main class="max-w-7xl mx-auto px-4 py-5 flex flex-col gap-5 w-full">
+    <!-- ═══════════════════════ MAIN (sidebar + obsah) ═══════════════════════ -->
+    <div class="max-w-7xl mx-auto w-full flex items-start gap-0">
+
+      <!-- ── SIDEBAR: portfolia ── -->
+      <aside id="pf-sidebar" class="flex-shrink-0 w-44 border-r border-slate-800 bg-slate-900/30 py-4 px-2 self-stretch min-h-[calc(100vh-3rem)]">
+        <div class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 px-2.5 mb-2">Portfolia</div>
+        <div id="pf-sidebar-list" class="space-y-0.5"></div>
+        <button onclick="app.addPortfolio()" class="w-full mt-3 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded text-xs font-medium text-sky-400 border border-dashed border-slate-700 hover:border-sky-500/50 hover:bg-sky-500/5 transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Portfolio
+        </button>
+      </aside>
+
+      <main class="flex-1 min-w-0 px-4 py-5 flex flex-col gap-5">
+
+        <!-- ── SOUHRNNÝ POHLED (zobrazen když activeId === 'summary') ── -->
+        <div id="pf-summary-view" class="hidden">
+            <div class="flex items-center gap-2 mb-4">
+                <i data-lucide="layout-grid" class="w-5 h-5 text-violet-400"></i>
+                <h2 class="text-base font-bold text-slate-100">Souhrn všech portfolií</h2>
+            </div>
+            <div id="pf-summary-content"></div>
+        </div>
+
+        <!-- ── DETAIL PORTFOLIA (zobrazen když je vybráno konkrétní portfolio) ── -->
+        <div id="pf-detail-view" class="flex flex-col gap-5">
+
+        <!-- ── PORTFOLIO HLAVIČKA: název + společnost + smazat ── -->
+        <div class="panel p-4 flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[12rem]">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Název portfolia</label>
+                <input type="text" id="pf-name" class="config-input" placeholder="Conseq" onchange="app.renamePortfolioField('name', this.value)">
+            </div>
+            <div class="flex-1 min-w-[12rem]">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Společnost / poznámka</label>
+                <input type="text" id="pf-provider" class="config-input" placeholder="Conseq Investiční společnost" onchange="app.renamePortfolioField('provider', this.value)">
+            </div>
+            <button onclick="app.deleteActivePortfolio()" class="px-3 py-2 text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded border border-transparent hover:border-rose-500/20 transition-colors flex items-center gap-1.5">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Smazat portfolio
+            </button>
+        </div>
 
         <!-- ── CONFIG ROW 1: 6 cards ── -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -450,7 +488,13 @@
         </div>
 
         <!-- ── CONFIG ROW 2 + KPI cards ── -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+
+            <div class="stat-card">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Počáteční stav (Kč)</label>
+                <input type="text" inputmode="numeric" data-fc-numfmt id="base-initial" oninput="app.update()"
+                    class="config-input" style="color: #e2e8f0;" placeholder="0">
+            </div>
 
             <div class="stat-card">
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Měsíční vklad (Kč)</label>
@@ -566,15 +610,15 @@
             <div class="pension-table-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table class="data-table text-left text-xs" style="width: max-content; min-width: 100%; table-layout: fixed;">
                     <colgroup>
-                        <col style="width:110px">
-                        <col style="width:85px">
-                        <col style="width:120px">
-                        <col style="width:110px">
-                        <col style="width:95px">
-                        <col style="width:115px">
-                        <col style="width:125px">
-                        <col style="width:115px">
-                        <col style="width:55px">
+                        <col style="width:92px">
+                        <col style="width:78px">
+                        <col style="width:108px">
+                        <col style="width:92px">
+                        <col style="width:84px">
+                        <col style="width:104px">
+                        <col style="width:112px">
+                        <col style="width:104px">
+                        <col style="width:48px">
                     </colgroup>
                     <thead>
                         <tr>
@@ -597,7 +641,9 @@
             </div>
         </div>
 
-        <!-- ── GOOGLE SHEETS SYNC ── -->
+        </div><!-- /#pf-detail-view -->
+
+        <!-- ── GOOGLE SHEETS SYNC (společné pro oba pohledy) ── -->
         <div class="panel">
             <div class="p-4">
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -842,6 +888,10 @@ function doPost(e) {
             document.cookie = name + "=" + encodeURIComponent(value) + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
         }
 
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        }
+
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
@@ -1077,51 +1127,570 @@ function doPost(e) {
         }
 
         const app = {
-            /* settings i overrides byly historicky odděleny do 2 storage klíčů,
-               ale auto-sync sledoval jen `pension_settings` → overrides se nikdy
-               nepushovaly do cloudu (ztráta dat po vymazání lokálních cookies).
-               Sjednoceno: overrides se nyní ukládají DOVNITŘ pension_settings
-               pod klíčem `_overrides`. Pro zpětnou kompatibilitu při loadu
-               čteme i starý `pension_overrides` klíč, pokud nový ještě neexistuje. */
-            settings: (function () {
-                const ps = JSON.parse(localStorage.getItem('pension_settings') || 'null') || {
-                    age: 30, startMonth: '', sporeniRoky: 35, rentaStart: 65,
-                    vklad: 5000, urok: 8.5, rentaSuma: 80000
-                };
-                if (!ps._overrides) ps._overrides = {};
-                return ps;
-            })(),
-            overrides: (function () {
-                // Pokud jsou overrides už uvnitř pension_settings, vezmi je odtamtud.
-                const ps = JSON.parse(localStorage.getItem('pension_settings') || 'null');
-                if (ps && ps._overrides && Object.keys(ps._overrides).length) return ps._overrides;
-                // Jinak migrace ze starého klíče
-                return JSON.parse(localStorage.getItem('pension_overrides') || '{}');
-            })(),
+            /* ════════════════════════════════════════════════════════════
+               MULTI-PORTFOLIO MODEL (v2)
+               ────────────────────────────────────────────────────────────
+               pension_settings nově drží:
+                 { _version:2, global:{age,rentaStart,rentaSuma,showDrawdown,metric},
+                   portfolios:[{id,name,provider,startMonth,initial,vklad,urok,
+                                sporeniRoky,overrides,color,active}] }
+               `this.settings`/`this.overrides` zůstávají jako "kontext aktivního
+               portfolia" — výpočetní engine (calculate/render/chart) je čte beze
+               změny. Při výběru portfolia se do nich nahraje jeho data; při save()
+               se zapíšou zpět do modelu.
+               ════════════════════════════════════════════════════════════ */
+            model: null,          // v2 struktura
+            activeId: null,       // 'summary' | id portfolia
+            settings: { age: 30, startMonth: '', sporeniRoky: 35, rentaStart: 65, vklad: 5000, urok: 8.5, rentaSuma: 80000, initial: 0 },
+            overrides: {},
             expandedYears: new Set(),
             hasInitializedYearExpansion: false,
             aiForecastChart: null,
             chart: null,
+            summaryChart: null,
             data: [],
+
+            PALETTE: ['#0ea5e9', '#a855f7', '#10b981', '#f59e0b', '#ec4899', '#14b8a6', '#f43f5e', '#6366f1', '#eab308', '#22c55e'],
+
+            blankPortfolio(name) {
+                const idx = (this.model && this.model.portfolios) ? this.model.portfolios.length : 0;
+                return {
+                    id: 'pf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                    name: name || 'Nové portfolio',
+                    provider: '',
+                    startMonth: '',
+                    initial: 0,
+                    vklad: 5000,
+                    urok: 8,
+                    sporeniRoky: (this.model ? (this.model.global.rentaStart - this.model.global.age) : 35),
+                    overrides: {},
+                    color: this.PALETTE[idx % this.PALETTE.length],
+                    active: true
+                };
+            },
+
+            /* Načte model v2 z localStorage, případně zmigruje starý formát. */
+            loadModel() {
+                let raw = null;
+                try { raw = JSON.parse(localStorage.getItem('pension_settings') || 'null'); } catch (e) {}
+
+                if (raw && raw._version === 2 && Array.isArray(raw.portfolios)) {
+                    this.model = raw;
+                } else {
+                    // ── Migrace ze starého (jednoportfoliového) formátu ──
+                    const old = raw || { age: 30, startMonth: '', sporeniRoky: 35, rentaStart: 65, vklad: 5000, urok: 8.5, rentaSuma: 80000 };
+                    let oldOverrides = {};
+                    if (old._overrides && Object.keys(old._overrides).length) oldOverrides = old._overrides;
+                    else { try { oldOverrides = JSON.parse(localStorage.getItem('pension_overrides') || '{}'); } catch (e) {} }
+                    this.model = {
+                        _version: 2,
+                        global: {
+                            age: Number(old.age) || 30,
+                            rentaStart: Number(old.rentaStart) || 65,
+                            rentaSuma: Number(old.rentaSuma) || 80000,
+                            showDrawdown: true,
+                            metric: 'weighted'
+                        },
+                        portfolios: [{
+                            id: 'pf_conseq_' + Date.now().toString(36),
+                            name: 'Conseq',
+                            provider: 'Conseq',
+                            startMonth: old.startMonth || '',
+                            initial: 0,
+                            vklad: Number(old.vklad) || 5000,
+                            urok: Number(old.urok) || 8,
+                            sporeniRoky: Number(old.sporeniRoky) || 35,
+                            overrides: oldOverrides,
+                            color: '#0ea5e9',
+                            active: true
+                        }]
+                    };
+                }
+                if (!this.model.global) this.model.global = { age: 30, rentaStart: 65, rentaSuma: 80000, showDrawdown: true, metric: 'weighted' };
+                if (this.model.global.showDrawdown === undefined) this.model.global.showDrawdown = true;
+                if (!this.model.global.metric) this.model.global.metric = 'weighted';
+                if (!Array.isArray(this.model.portfolios) || !this.model.portfolios.length) {
+                    this.model.portfolios = [this.blankPortfolio('Conseq')];
+                }
+
+                // ── RECOVERY ručních úprav (overrides) ──
+                // Stará verze ukládala overrides do samostatného klíče `pension_overrides`,
+                // který se NEsynchronizoval do cloudu. Pokud první (Conseq) portfolio nemá
+                // žádné overrides, ale `pension_overrides` v localStorage existuje, doplníme je.
+                // Provedeme jen JEDNOU (flag _recoveredOverrides), ať smazané úpravy nevracíme.
+                if (!this.model._recoveredOverrides) {
+                    try {
+                        const legacy = JSON.parse(localStorage.getItem('pension_overrides') || '{}');
+                        if (legacy && Object.keys(legacy).length) {
+                            const first = this.model.portfolios[0];
+                            if (first && (!first.overrides || !Object.keys(first.overrides).length)) {
+                                first.overrides = legacy;
+                            }
+                        }
+                    } catch (e) {}
+                    this.model._recoveredOverrides = true;
+                }
+
+                // Výchozí pohled = první portfolio
+                this.activeId = this.model.portfolios[0].id;
+            },
+
+            /* Naplní this.settings/this.overrides z aktivního portfolia + globálu,
+               aby výpočetní engine pracoval s daty vybraného portfolia. */
+            loadActiveContext() {
+                if (this.activeId === 'summary') return;
+                const pf = this.model.portfolios.find(p => p.id === this.activeId);
+                if (!pf) { this.activeId = this.model.portfolios[0]?.id || 'summary'; return this.loadActiveContext(); }
+                const g = this.model.global;
+                this.settings = {
+                    age: g.age,
+                    startMonth: pf.startMonth || '',
+                    sporeniRoky: pf.sporeniRoky || (g.rentaStart - g.age),
+                    rentaStart: g.rentaStart,
+                    vklad: Number(pf.vklad) || 0,
+                    urok: Number(pf.urok) || 0,
+                    rentaSuma: g.rentaSuma,
+                    initial: Number(pf.initial) || 0
+                };
+                this.overrides = pf.overrides || {};
+            },
+
+            /* Zapíše this.settings/this.overrides zpět do aktivního portfolia + globálu. */
+            commitActiveContext() {
+                if (this.activeId === 'summary') return;
+                const pf = this.model.portfolios.find(p => p.id === this.activeId);
+                if (!pf) return;
+                pf.startMonth = this.settings.startMonth || '';
+                pf.sporeniRoky = this.settings.sporeniRoky;
+                pf.vklad = this.settings.vklad;
+                pf.urok = this.settings.urok;
+                pf.initial = Number(this.settings.initial) || 0;
+                pf.overrides = this.overrides;
+                // Globální pole
+                this.model.global.age = this.settings.age;
+                this.model.global.rentaStart = this.settings.rentaStart;
+                this.model.global.rentaSuma = this.settings.rentaSuma;
+            },
 
             init() {
                 this.applyTheme(getCookie('finance_theme') || getCookie('pension_theme') || localStorage.getItem('pension_theme') || localStorage.getItem('finance_theme') || 'dark');
-                document.getElementById('base-age').value = this.settings.age;
-                document.getElementById('base-start-month').value = this.settings.startMonth || '';
-                document.getElementById('base-sporeni-roky').value = this.settings.sporeniRoky;
-                document.getElementById('base-renta-start').value = this.settings.rentaStart;
-                document.getElementById('base-vklad').value = this.settings.vklad;
-                document.getElementById('base-urok').value = this.settings.urok;
-                document.getElementById('base-renta-suma').value = this.settings.rentaSuma;
+
+                this.loadModel();
+                this.loadActiveContext();
+                this.fillConfigInputs();
+                this.renderSidebar();
 
                 const savedSheetsUrl = getCookie('google_sync_pension');
-                if (savedSheetsUrl) document.getElementById('api-url-input').value = savedSheetsUrl;
+                if (savedSheetsUrl) { const el = document.getElementById('api-url-input'); if (el) el.value = savedSheetsUrl; }
                 sheetsSyncReady = !savedSheetsUrl;
                 updateSheetsSyncStatus();
 
-                this.update();
+                this.refreshView();
                 if (savedSheetsUrl) loadSheetsPlan();
                 lucide.createIcons();
+            },
+
+            /* Naplní konfigurační inputy z this.settings (aktivního portfolia). */
+            fillConfigInputs() {
+                const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+                set('base-age', this.settings.age);
+                set('base-start-month', this.settings.startMonth || '');
+                set('base-sporeni-roky', this.settings.sporeniRoky);
+                set('base-renta-start', this.settings.rentaStart);
+                set('base-renta-suma', this.settings.rentaSuma);
+                // Per-portfolio pole
+                set('base-vklad', this.settings.vklad);
+                set('base-urok', this.settings.urok);
+                set('base-initial', this.settings.initial || 0);
+                const pf = this.model.portfolios.find(p => p.id === this.activeId);
+                set('pf-name', pf ? pf.name : '');
+                set('pf-provider', pf ? (pf.provider || '') : '');
+                // Přeformátuj číselné inputy
+                try { if (window.FinanceCommon?.ui?.attachNumberFormat) window.FinanceCommon.ui.attachNumberFormat('input[data-fc-numfmt]', { maxFrac: 0 }); } catch (e) {}
+            },
+
+            /* Rozhodne, zda zobrazit detail portfolia nebo souhrn. */
+            refreshView() {
+                const isSummary = this.activeId === 'summary';
+                const detailView = document.getElementById('pf-detail-view');
+                const summaryView = document.getElementById('pf-summary-view');
+                if (detailView) detailView.classList.toggle('hidden', isSummary);
+                if (summaryView) summaryView.classList.toggle('hidden', !isSummary);
+                this.renderSidebar();
+                if (isSummary) {
+                    this.renderSummary();
+                } else {
+                    this.loadActiveContext();
+                    this.fillConfigInputs();
+                    this.update();
+                }
+            },
+
+            /* ── Sidebar: seznam portfolií + Souhrn ── */
+            renderSidebar() {
+                const el = document.getElementById('pf-sidebar-list');
+                if (!el || !this.model) return;
+                const items = this.model.portfolios.map(pf => {
+                    const isActive = pf.id === this.activeId;
+                    return `<button onclick="app.selectPortfolio('${pf.id}')"
+                        class="w-full flex items-center gap-2 px-2.5 py-2 rounded text-left transition-colors ${isActive ? 'bg-sky-500/15 border border-sky-500/30' : 'hover:bg-slate-800 border border-transparent'}">
+                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${pf.color || '#0ea5e9'}"></span>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-xs font-medium truncate ${isActive ? 'text-sky-300' : 'text-slate-300'}">${escapeHtml(pf.name)}</span>
+                            ${pf.provider ? `<span class="block text-[9px] text-slate-600 truncate">${escapeHtml(pf.provider)}</span>` : ''}
+                        </span>
+                    </button>`;
+                }).join('');
+                const summaryActive = this.activeId === 'summary';
+                el.innerHTML =
+                    `<button onclick="app.selectPortfolio('summary')"
+                        class="w-full flex items-center gap-2 px-2.5 py-2 rounded text-left mb-1 transition-colors ${summaryActive ? 'bg-violet-500/15 border border-violet-500/30' : 'hover:bg-slate-800 border border-transparent'}">
+                        <i data-lucide="layout-grid" class="w-3.5 h-3.5 ${summaryActive ? 'text-violet-300' : 'text-slate-400'}"></i>
+                        <span class="text-xs font-semibold ${summaryActive ? 'text-violet-300' : 'text-slate-300'}">Souhrn</span>
+                    </button>
+                    <div class="h-px bg-slate-800 my-2"></div>` + items;
+                lucide.createIcons();
+            },
+
+            selectPortfolio(id) {
+                // Před přepnutím ulož aktuální kontext
+                this.commitActiveContext();
+                this.save();
+                this.activeId = id;
+                this.refreshView();
+            },
+
+            addPortfolio() {
+                this.commitActiveContext();
+                const pf = this.blankPortfolio('Nové portfolio');
+                this.model.portfolios.push(pf);
+                this.activeId = pf.id;
+                this.save();
+                this.refreshView();
+            },
+
+            deleteActivePortfolio() {
+                if (this.activeId === 'summary') return;
+                if (this.model.portfolios.length <= 1) { alert('Nelze smazat poslední portfolio.'); return; }
+                const pf = this.model.portfolios.find(p => p.id === this.activeId);
+                if (!pf) return;
+                if (!confirm('Opravdu smazat portfolio "' + pf.name + '" včetně jeho deníku?')) return;
+                this.model.portfolios = this.model.portfolios.filter(p => p.id !== this.activeId);
+                this.activeId = this.model.portfolios[0].id;
+                this.save();
+                this.refreshView();
+            },
+
+            renamePortfolioField(field, value) {
+                const pf = this.model.portfolios.find(p => p.id === this.activeId);
+                if (!pf) return;
+                if (field === 'name') pf.name = value || 'Portfolio';
+                if (field === 'provider') pf.provider = value || '';
+                this.renderSidebar();
+                this.save();
+            },
+
+            /* ── Per-portfolio výpočet bez vedlejších efektů (pro souhrn) ──
+               Vrátí pole měsíčních řádků pro dané portfolio (jen akumulace),
+               aniž by měnil this.settings/this.data. */
+            computePortfolioRows(pf, accumulationOnly) {
+                const g = this.model.global;
+                const ctx = {
+                    age: g.age,
+                    startMonth: pf.startMonth || '',
+                    sporeniRoky: pf.sporeniRoky || (g.rentaStart - g.age),
+                    rentaStart: g.rentaStart,
+                    vklad: Number(pf.vklad) || 0,
+                    urok: Number(pf.urok) || 0,
+                    // accumulationOnly = nulová renta → portfolio jen akumuluje a po
+                    // konci vkládání roste úrokem (žádné čerpání). Použito v souhrnu,
+                    // kde se čerpá až z CELKU všech portfolií.
+                    rentaSuma: accumulationOnly ? 0 : g.rentaSuma,
+                    initial: Number(pf.initial) || 0
+                };
+                // Dočasně přepneme kontext, spočítáme, vrátíme zpět.
+                const savedSettings = this.settings;
+                const savedOverrides = this.overrides;
+                const savedData = this.data;
+                this.settings = ctx;
+                this.overrides = pf.overrides || {};
+                this._silentCalc = true; // nepřepisuj DOM staty aktivního portfolia
+                this.calculate();
+                this._silentCalc = false;
+                const rows = this.data;
+                this.settings = savedSettings;
+                this.overrides = savedOverrides;
+                this.data = savedData;
+                return rows;
+            },
+
+            /* Datum 1. vkladu portfolia jako Date (1. den měsíce). */
+            portfolioStartDate(pf) {
+                const raw = pf.startMonth || '';
+                if (/^\d{4}-\d{2}$/.test(raw)) { const [y, m] = raw.split('-').map(Number); return new Date(y, m - 1, 1); }
+                const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1);
+            },
+
+            /* XIRR — vnitřní výnosové procento z peněžních toků.
+               cashflows: [{date:Date, amount:Number}] (záporné = vklad, kladné = hodnota).
+               Newtonova metoda s bisekčním fallbackem. Vrací % p.a. nebo null. */
+            calcXIRR(cashflows) {
+                const cf = cashflows.filter(c => isFinite(c.amount) && c.date instanceof Date && !isNaN(c.date));
+                if (cf.length < 2) return null;
+                const hasNeg = cf.some(c => c.amount < 0), hasPos = cf.some(c => c.amount > 0);
+                if (!hasNeg || !hasPos) return null;
+                const d0 = cf[0].date.getTime();
+                const yrs = c => (c.date.getTime() - d0) / (365 * 86400000);
+                const npv = r => cf.reduce((s, c) => s + c.amount / Math.pow(1 + r, yrs(c)), 0);
+                let r = 0.1, ok = false;
+                for (let i = 0; i < 80; i++) {
+                    const f = npv(r);
+                    const dr = 1e-5;
+                    const df = (npv(r + dr) - f) / dr;
+                    if (Math.abs(df) < 1e-12) break;
+                    const rn = r - f / df;
+                    if (!isFinite(rn)) break;
+                    if (Math.abs(rn - r) < 1e-7) { r = rn; ok = true; break; }
+                    r = rn;
+                    if (r <= -0.9999) r = -0.99;
+                }
+                if (!ok || !isFinite(r) || r < -0.99 || r > 20) {
+                    // bisekce -0.9..10
+                    let lo = -0.9, hi = 10, flo = npv(lo);
+                    if (!(isFinite(flo))) return null;
+                    for (let i = 0; i < 300; i++) {
+                        const mid = (lo + hi) / 2, fm = npv(mid);
+                        if (Math.abs(fm) < 0.5) { return mid * 100; }
+                        if ((flo < 0) !== (fm < 0)) hi = mid; else { lo = mid; flo = fm; }
+                    }
+                    r = (lo + hi) / 2;
+                }
+                return r * 100;
+            },
+
+            /* Spočítá kompletní souhrnná data napříč portfolii. */
+            computeSummaryData() {
+                const g = this.model.global;
+                const today = new Date(); today.setHours(23, 59, 59, 999);
+                const perPf = [];
+                const cashflows = [];
+                // Retirement (real-world): za (rentaStart − age) let od dneška.
+                const retDate = new Date(today.getFullYear() + (g.rentaStart - g.age), today.getMonth(), 1);
+
+                this.model.portfolios.forEach(pf => {
+                    const rows = this.computePortfolioRows(pf, true); // accumulation-only
+                    const startD = this.portfolioStartDate(pf);
+                    let val = Number(pf.initial) || 0, inv = Number(pf.initial) || 0;
+                    let valAtRet = Number(pf.initial) || 0;
+                    if ((Number(pf.initial) || 0) > 0) cashflows.push({ date: startD, amount: -(Number(pf.initial) || 0) });
+                    rows.forEach(r => {
+                        const rd = new Date(r.periodEnd);
+                        if (rd <= today) {
+                            val = r.zustatek; inv = r.cumulativeDeposits;
+                            if (r.flow && r.flow !== 0) cashflows.push({ date: rd, amount: -r.flow });
+                        }
+                        if (rd <= retDate) valAtRet = r.zustatek;
+                    });
+                    perPf.push({ pf, val, inv, urok: Number(pf.urok) || 0, rows, valAtRet });
+                });
+
+                const totalInvested = perPf.reduce((s, x) => s + x.inv, 0);
+                const totalValue = perPf.reduce((s, x) => s + x.val, 0);
+                const totalYield = totalValue - totalInvested;
+                const weighted = totalValue > 0 ? perPf.reduce((s, x) => s + x.urok * x.val, 0) / totalValue : 0;
+                const rentaStartBalance = perPf.reduce((s, x) => s + x.valAtRet, 0);
+
+                // XIRR z kombinovaných toků + dnešní hodnota
+                cashflows.push({ date: today, amount: totalValue });
+                cashflows.sort((a, b) => a.date - b.date);
+                const xirr = this.calcXIRR(cashflows);
+
+                // ── Fáze čerpání nad CELKEM ──
+                const mRate = (weighted / 100) / 12;
+                const rentaSuma = Number(g.rentaSuma) || 0;
+                let bal = rentaStartBalance, monthsLasting = 0;
+                const drawSeries = [];
+                if (g.showDrawdown && rentaSuma > 0) {
+                    let guard = 0;
+                    while (bal > 0 && guard < 1200) { // max 100 let
+                        bal = bal * (1 + mRate) - rentaSuma;
+                        monthsLasting++; guard++;
+                        if (monthsLasting % 12 === 0) drawSeries.push({ year: retDate.getFullYear() + monthsLasting / 12, value: Math.max(0, bal) });
+                        if (bal <= 0) break;
+                    }
+                }
+                // „věčná renta" — pokud výnos pokryje rentu, vydrží navždy
+                const eternalMonthly = rentaStartBalance * mRate;
+                const lastsForever = eternalMonthly >= rentaSuma && rentaSuma > 0;
+
+                // ── Akumulační křivka (yearly) sečtená přes portfolia podle kalendáře ──
+                const valByYear = {}; // calYear → suma hodnot portfolií na konci roku
+                let minYear = retDate.getFullYear(), maxAccYear = retDate.getFullYear();
+                perPf.forEach(x => {
+                    // index řádku podle kalendáře: poslední řádek roku Y
+                    const byYear = {};
+                    x.rows.forEach(r => { const y = new Date(r.periodEnd).getFullYear(); byYear[y] = r.zustatek; });
+                    const years = Object.keys(byYear).map(Number);
+                    if (years.length) { minYear = Math.min(minYear, Math.min(...years)); }
+                    // carry-forward: pro každý rok od startu portfolia do retirementu
+                    let last = Number(x.pf.initial) || 0;
+                    for (let y = (years.length ? Math.min(...years) : retDate.getFullYear()); y <= retDate.getFullYear(); y++) {
+                        if (byYear[y] !== undefined) last = byYear[y];
+                        valByYear[y] = (valByYear[y] || 0) + last;
+                    }
+                });
+                const accSeries = [];
+                for (let y = minYear; y <= retDate.getFullYear(); y++) {
+                    accSeries.push({ year: y, value: valByYear[y] || 0 });
+                }
+
+                return { perPf, totalInvested, totalValue, totalYield, weighted, xirr, rentaStartBalance, monthsLasting, lastsForever, accSeries, drawSeries, retYear: retDate.getFullYear() };
+            },
+
+            /* Přepnutí metriky souhrnu (weighted ↔ xirr). */
+            setSummaryMetric(m) {
+                this.model.global.metric = (m === 'xirr') ? 'xirr' : 'weighted';
+                this.save();
+                this.renderSummary();
+            },
+            toggleDrawdown(on) {
+                this.model.global.showDrawdown = !!on;
+                this.save();
+                this.renderSummary();
+            },
+
+            renderSummary() {
+                const host = document.getElementById('pf-summary-content');
+                if (!host || !this.model) return;
+                const g = this.model.global;
+                const d = this.computeSummaryData();
+                const fmt = (v) => Math.round(v).toLocaleString('cs-CZ') + ' Kč';
+                const metric = g.metric === 'xirr' ? 'xirr' : 'weighted';
+                const metricVal = metric === 'xirr'
+                    ? (d.xirr != null ? d.xirr.toFixed(2) + ' %' : '—')
+                    : d.weighted.toFixed(2) + ' %';
+                const yearsLast = d.lastsForever ? '∞ (věčná renta)' :
+                    (d.monthsLasting > 0 ? `${Math.floor(d.monthsLasting / 12)} r ${d.monthsLasting % 12} m` : '—');
+
+                host.innerHTML = `
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                        <div class="stat-card"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Celkem vloženo</div><div class="font-mono text-lg font-bold text-slate-100">${fmt(d.totalInvested)}</div></div>
+                        <div class="stat-card"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Hodnota dnes</div><div class="font-mono text-lg font-bold text-sky-400">${fmt(d.totalValue)}</div></div>
+                        <div class="stat-card"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Výnos</div><div class="font-mono text-lg font-bold ${d.totalYield >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${d.totalYield >= 0 ? '+ ' : '- '}${fmt(Math.abs(d.totalYield))}</div></div>
+                        <div class="stat-card">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] uppercase tracking-wider text-slate-500">Celkový výnos</span>
+                                <span class="inline-flex rounded overflow-hidden border border-slate-700 text-[9px]">
+                                    <button onclick="app.setSummaryMetric('weighted')" class="px-1.5 py-0.5 ${metric === 'weighted' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'}">Vážený</button>
+                                    <button onclick="app.setSummaryMetric('xirr')" class="px-1.5 py-0.5 ${metric === 'xirr' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'}">XIRR</button>
+                                </span>
+                            </div>
+                            <div class="font-mono text-lg font-bold text-emerald-400">${metricVal}</div>
+                            <div class="text-[9px] text-slate-600 mt-0.5">${metric === 'xirr' ? 'časově vážený (zohledňuje data vkladů)' : 'kapitálově vážený průměr RPSN'}</div>
+                        </div>
+                    </div>
+
+                    <!-- KPI čerpání -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div class="stat-card border-l-2 border-l-slate-600"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Naspořeno k rentě (${d.retYear})</div><div class="font-mono text-lg font-bold text-slate-100">${fmt(d.rentaStartBalance)}</div></div>
+                        <div class="stat-card border-l-2 border-l-amber-500"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Měsíční renta</div><div class="font-mono text-lg font-bold text-amber-400">${fmt(g.rentaSuma)}</div></div>
+                        <div class="stat-card border-l-2 border-l-sky-500"><div class="text-[10px] uppercase tracking-wider text-sky-600 mb-1">Renta vydrží</div><div class="font-mono text-lg font-bold text-sky-400">${yearsLast}</div></div>
+                    </div>
+
+                    <!-- Graf -->
+                    <div class="panel mb-4">
+                        <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+                            <h3 class="text-sm font-semibold flex items-center gap-2 text-slate-200"><i data-lucide="area-chart" class="w-4 h-4 text-sky-400"></i> Vývoj celkového kapitálu</h3>
+                            <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none">
+                                <input type="checkbox" ${g.showDrawdown ? 'checked' : ''} onchange="app.toggleDrawdown(this.checked)"> Zobrazit fázi čerpání
+                            </label>
+                        </div>
+                        <div class="p-4 h-72"><canvas id="summaryChart"></canvas></div>
+                    </div>
+
+                    <!-- Tabulka portfolií -->
+                    <div class="panel p-4">
+                        <div class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Portfolia</div>
+                        <table class="w-full text-xs">
+                            <thead><tr class="text-slate-500 text-[10px] uppercase tracking-wider">
+                                <th class="text-left py-1.5">Portfolio</th><th class="text-right">Vloženo</th><th class="text-right">Hodnota</th><th class="text-right">Výnos</th><th class="text-right">RPSN</th><th class="text-right">Podíl</th>
+                            </tr></thead>
+                            <tbody>${d.perPf.map(x => {
+                                const y = x.val - x.inv;
+                                const share = d.totalValue > 0 ? (x.val / d.totalValue * 100) : 0;
+                                return `<tr class="border-t border-slate-800/60 cursor-pointer hover:bg-slate-800/40" onclick="app.selectPortfolio('${x.pf.id}')">
+                                    <td class="py-1.5"><span class="inline-block w-2 h-2 rounded-full mr-2" style="background:${x.pf.color}"></span>${escapeHtml(x.pf.name)}</td>
+                                    <td class="text-right font-mono text-slate-300">${fmt(x.inv)}</td>
+                                    <td class="text-right font-mono text-slate-100">${fmt(x.val)}</td>
+                                    <td class="text-right font-mono ${y >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${y >= 0 ? '+' : '−'}${fmt(Math.abs(y))}</td>
+                                    <td class="text-right font-mono text-emerald-400">${x.urok.toFixed(2)} %</td>
+                                    <td class="text-right font-mono text-slate-400">${share.toFixed(0)} %</td>
+                                </tr>`;
+                            }).join('')}</tbody>
+                        </table>
+                    </div>`;
+
+                lucide.createIcons();
+                this.renderSummaryChart(d);
+                this.persistSummarySnapshot(d);
+            },
+
+            /* Uloží lehký souhrn (pension_summary_v1) pro Pre-FI/RE Net Worth.
+               Volá se z renderSummary i z save(), aby byl snapshot vždy aktuální
+               i bez otevření souhrnného pohledu. */
+            persistSummarySnapshot(d) {
+                try {
+                    const s = d || this.computeSummaryData();
+                    localStorage.setItem('pension_summary_v1', JSON.stringify({
+                        totalValue: s.totalValue, totalInvested: s.totalInvested,
+                        weighted: s.weighted, xirr: s.xirr, rentaStartBalance: s.rentaStartBalance,
+                        portfolios: (s.perPf || []).map(x => ({ name: x.pf.name, provider: x.pf.provider || '', value: x.val, invested: x.inv })),
+                        ts: Date.now()
+                    }));
+                } catch (e) {}
+            },
+
+            renderSummaryChart(d) {
+                const canvas = document.getElementById('summaryChart');
+                if (!canvas) return;
+                const isLight = document.documentElement.classList.contains('light');
+                const chartText = isLight ? '#475569' : '#64748b';
+                const chartGrid = isLight ? '#e2e8f0' : '#1e293b';
+                if (this.summaryChart) { this.summaryChart.destroy(); this.summaryChart = null; }
+
+                const accLabels = d.accSeries.map(p => String(p.year));
+                const accData = d.accSeries.map(p => p.value);
+                // drawdown navazuje za posledním akumulačním bodem
+                const drawLabels = d.drawSeries.map(p => String(p.year));
+                const labels = accLabels.concat(drawLabels);
+                // akumulace: hodnoty + null pro drawdown část; čerpání: null pro akum část + hodnoty
+                const accSet = accData.concat(d.drawSeries.map(() => null));
+                const drawSet = accData.map(() => null);
+                if (d.drawSeries.length && accData.length) drawSet[accData.length - 1] = accData[accData.length - 1];
+                d.drawSeries.forEach(p => drawSet.push(p.value));
+
+                this.summaryChart = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Akumulace', data: accSet, borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.08)', borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0, spanGaps: false },
+                            { label: 'Čerpání', data: drawSet, borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.08)', borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0, spanGaps: false }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, color: chartText, font: { size: 11 } } },
+                            tooltip: { callbacks: { label: c => c.parsed.y != null ? (c.dataset.label + ': ' + new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 }).format(c.parsed.y) + ' Kč') : null } }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: chartGrid }, ticks: { color: chartText, callback: v => (v / 1e6).toFixed(1) + 'M', font: { size: 11 } } },
+                            x: { grid: { display: false }, ticks: { color: chartText, maxTicksLimit: 14, font: { size: 11 } } }
+                        }
+                    }
+                });
             },
 
             syncDuration() {
@@ -1133,6 +1702,8 @@ function doPost(e) {
             },
 
             update() {
+                // V souhrnném pohledu se per-portfolio engine nespouští.
+                if (this.activeId === 'summary') { this.renderSummary(); this.save(); return; }
                 // Parse přes FinanceCommon helper — toleruje mezery jako oddělovač tisíců.
                 const _p = (id) => {
                     const v = document.getElementById(id)?.value;
@@ -1145,7 +1716,10 @@ function doPost(e) {
                 this.settings.vklad = _p('base-vklad') || 0;
                 this.settings.urok = parseFloat(document.getElementById('base-urok').value) || 0;
                 this.settings.rentaSuma = _p('base-renta-suma') || 0;
+                const initEl = document.getElementById('base-initial');
+                if (initEl) this.settings.initial = _p('base-initial') || 0;
 
+                this.commitActiveContext();
                 this.calculate();
                 this.render();
                 this.renderChart();
@@ -1288,8 +1862,9 @@ function doPost(e) {
 
             calculate() {
                 this.data = [];
-                let currentZustatek = 0;
-                let cumulativeDeposits = 0;
+                // Počáteční stav portfolia (initial) = výchozí zůstatek i vložená částka.
+                let currentZustatek = Number(this.settings.initial) || 0;
+                let cumulativeDeposits = Number(this.settings.initial) || 0;
                 const mStartRenta = (this.settings.rentaStart - this.settings.age) * 12;
                 const mEndSporeni = this.settings.sporeniRoky * 12;
                 const today = new Date();
@@ -1389,6 +1964,10 @@ function doPost(e) {
                         phase: (m <= mEndSporeni) ? 'VKLAD' : (m <= mStartRenta ? 'ČEKÁNÍ' : 'RENTA')
                     });
                 }
+
+                // V „tichém" režimu (souhrnný přepočet portfolií) nepřepisujeme
+                // DOM staty aktivního portfolia ani strom rozbalených roků.
+                if (this._silentCalc) return;
 
                 this.syncExpandedYears([...calendarYears]);
 
@@ -1951,12 +2530,12 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
             },
 
             save() {
-                // Sjednocené ukládání: overrides JSOU součástí pension_settings,
-                // aby auto-sync (sledující jen `pension_settings`) je propsal do cloudu.
-                // Zachováváme i starý klíč pension_overrides pro zpětnou kompatibilitu.
-                this.settings._overrides = this.overrides;
-                localStorage.setItem('pension_settings', JSON.stringify(this.settings));
-                localStorage.setItem('pension_overrides', JSON.stringify(this.overrides));
+                // Ukládá CELÝ multi-portfolio model v2 do pension_settings.
+                // Auto-sync (fc-storage-key=pension_settings) ho propíše do cloudu.
+                this.commitActiveContext();
+                if (this.model) localStorage.setItem('pension_settings', JSON.stringify(this.model));
+                // Drž snapshot pro Net Worth v Pre-FI/RE aktuální i bez otevření Souhrnu.
+                this.persistSummarySnapshot();
                 const status = document.getElementById('sync-status');
                 if (status) {
                     status.style.opacity = '1';
@@ -1966,21 +2545,22 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
             },
 
             applySheetsPlan(plan) {
+                // Legacy per-modulový Sheets plán (google_sync_pension) — naloadujeme
+                // do AKTIVNÍHO portfolia. Hlavní sync běží přes fc-storage-key model.
                 const normalized = normalizePensionPlan(plan);
-                this.settings = normalized.settings;
-                this.overrides = normalized.overrides;
-                document.getElementById('base-age').value = this.settings.age;
-                document.getElementById('base-start-month').value = this.settings.startMonth || '';
-                document.getElementById('base-sporeni-roky').value = this.settings.sporeniRoky;
-                document.getElementById('base-renta-start').value = this.settings.rentaStart;
-                document.getElementById('base-vklad').value = this.settings.vklad;
-                document.getElementById('base-urok').value = this.settings.urok;
-                document.getElementById('base-renta-suma').value = this.settings.rentaSuma;
+                if (this.activeId === 'summary' && this.model.portfolios.length) this.activeId = this.model.portfolios[0].id;
+                this.settings = Object.assign({}, this.settings, normalized.settings || {});
+                this.overrides = normalized.overrides || {};
+                this.commitActiveContext();
+                this.fillConfigInputs();
                 this.update();
             },
 
             exportData() {
-                const blob = new Blob([JSON.stringify({ settings: this.settings, overrides: this.overrides }, null, 2)], { type: 'application/json' });
+                // Zajisti, že rozdělané změny aktivního portfolia jsou v modelu.
+                this.commitActiveContext();
+                // Exportuje CELÝ multi-portfolio model (vč. overrides všech portfolií).
+                const blob = new Blob([JSON.stringify(this.model, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -1995,10 +2575,24 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
                 reader.onload = (e) => {
                     try {
                         const data = JSON.parse(e.target.result);
-                        if (data.settings) this.settings = data.settings;
-                        if (data.overrides) this.overrides = data.overrides;
-                        this.init();
-                    } catch (err) { alert('Chyba importu.'); }
+                        if (data && data._version === 2 && Array.isArray(data.portfolios)) {
+                            // Nový multi-portfolio formát
+                            localStorage.setItem('pension_settings', JSON.stringify(data));
+                        } else if (data && data.settings) {
+                            // Starý jednoportfoliový formát → necháme loadModel zmigrovat
+                            const old = Object.assign({}, data.settings, { _overrides: data.overrides || {} });
+                            localStorage.setItem('pension_settings', JSON.stringify(old));
+                            localStorage.removeItem('pension_overrides');
+                        } else {
+                            alert('Neznámý formát souboru.'); return;
+                        }
+                        this.loadModel();
+                        this.loadActiveContext();
+                        this.fillConfigInputs();
+                        this.renderSidebar();
+                        this.refreshView();
+                        this.save();
+                    } catch (err) { alert('Chyba importu: ' + err.message); }
                 };
                 reader.readAsText(file);
             }
@@ -2017,14 +2611,15 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
             if (e.data?.type === 'finance-theme') app.applyTheme(e.data.theme);
         });
 
-        // Cloud sync re-render bez reloadu
+        // Cloud sync nahrál čerstvý model — překreslíme bez reloadu.
         window.addEventListener('fc-module-data-updated', e => {
             if (!e.detail || e.detail.module !== 'investice') return;
             try {
-                app.settings = JSON.parse(localStorage.getItem('pension_settings')) || app.settings;
-                app.overrides = JSON.parse(localStorage.getItem('pension_overrides')) || app.overrides;
-                if (typeof app.applySettingsToForm === 'function') app.applySettingsToForm();
-                if (typeof app.calculate === 'function') app.calculate();
+                app.loadModel();
+                app.loadActiveContext();
+                app.fillConfigInputs();
+                app.renderSidebar();
+                app.refreshView();
             } catch (err) { console.warn('Investice re-render fail', err); }
         });
 
@@ -2057,6 +2652,31 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
                             '<li><b>AI Analýza plánu</b> — strukturovaný výstup: stojí plán? kde je páka? riziko? akce do měsíce?</li>'+
                             '<li><b>AI Tržní výhled</b> — scénáře inflace 3/5/8%, ČNB výhled, dopad na tvůj výnos.</li>'+
                           '</ul>' },
+                    { kind:'features', heading:'📊 Více portfolií & Souhrn',
+                      body:'<p>Modul umí vést <b>víc portfolií najednou</b> (např. Conseq, Amundi, Generali, vlastní ETF). V levém panelu je <b>seznam portfolií</b> + tlačítko <b>+ Portfolio</b>.</p>'+
+                           '<ul>'+
+                                '<li><b>Každé portfolio</b> má vlastní název, poskytovatele, počáteční stav, měsíční vklad, výnos (RPSN), délku spoření i ruční úpravy řádků tabulky.</li>'+
+                                '<li><b>Globální nastavení</b> (věk, začátek renty, cílová renta) je společné pro všechna portfolia — renta se totiž čerpá z <b>celkového</b> kapitálu.</li>'+
+                                '<li><b>Záložka „Souhrn"</b> (první v seznamu) sečte všechna portfolia: celkem vloženo, hodnota dnes, výnos, podíl jednotlivých portfolií, graf vývoje celkového kapitálu a fáze čerpání renty <b>nad celkem</b>.</li>'+
+                                '<li>Souhrn se ukládá i pro modul <b>Pre-FI/RE</b> (Přehled majetku / čisté jmění) — proto ho po větší změně jednou otevři, ať má Pre-FI/RE čerstvá čísla.</li>'+
+                           '</ul>' },
+                    { kind:'tips', heading:'📐 Jak číst výnos — vážený průměr vs XIRR',
+                      body:'<p>V Souhrnu přepínáš mezi dvěma způsoby, jak vyjádřit „celkový výnos" napříč portfolii. Každý odpovídá na jinou otázku:</p>'+
+                           '<p><b>① Kapitálově vážený průměr RPSN</b></p>'+
+                           '<ul>'+
+                                '<li><b>Co to je:</b> průměr nastavených výnosů jednotlivých portfolií, vážený jejich <b>dnešní hodnotou</b> (velké portfolio táhne průměr víc než malé).</li>'+
+                                '<li><b>Výhoda:</b> jednoduché, okamžitě srozumitelné, nezávisí na datech vkladů.</li>'+
+                                '<li><b>Nevýhoda:</b> ignoruje <b>časování</b> peněz — nerozliší, jestli jsi velký vklad poslal před 10 lety, nebo loni.</li>'+
+                                '<li><b>Použij když:</b> chceš rychlý odhad „jak rychle mi to v průměru roste".</li>'+
+                           '</ul>'+
+                           '<p><b>② XIRR (vnitřní výnosové procento)</b></p>'+
+                           '<ul>'+
+                                '<li><b>Co to je:</b> jedno roční % p.a., které sedí na <b>všechny tvé skutečné vklady a jejich data</b> + dnešní hodnotu. Stejný princip jako u funkce <code>XIRR</code> v Excelu.</li>'+
+                                '<li><b>Výhoda:</b> zohledňuje <b>kdy</b> peníze přišly — je to skutečný výnos tvých peněz (money-weighted). Nejpoctivější číslo pro porovnání „vyplatilo se mi to?".</li>'+
+                                '<li><b>Nevýhoda:</b> potřebuje rozumná data vkladů; u čerstvého nebo nepravidelného portfolia může vyjít zvláštně či nedostupně (—).</li>'+
+                                '<li><b>Použij když:</b> chceš poctivě srovnat reálný výnos s benchmarkem (např. „bral bych víc v indexovém ETF?").</li>'+
+                           '</ul>'+
+                           '<p><b>Proč se liší:</b> vážený průměr je „výnos portfolia", XIRR je „výnos tvých peněz". Když jsi nejvíc peněz vložil nedávno, XIRR bývá nižší (peníze ještě neměly čas růst), i když vážený výnos vypadá hezky.</p>' },
                     { kind:'tips', heading:'💡 Tipy & triky',
                       body:'<ul>'+
                             '<li><b>Nominální vs. reálný výnos</b> — 7% nominálně při 3% inflaci = 4% reálně. Tabulka ukazuje nominální čísla, ale za 30 let bude 1 milion mít kupní sílu dnešních ~400 tisíc.</li>'+
@@ -2066,8 +2686,8 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
                             '<li><b>4% rule není zákon</b> — pro velmi dlouhý horizont (40+ let) je opatrnější použít 3.5%.</li>'+
                           '</ul>' },
                     { kind:'linked', heading:'🔗 Provázanost s ostatními moduly',
-                      body:'<p>Modul je <b>standalone kalkulačka</b> — neimportuje data z Příjmů ani Spoření (zatím). Modul <b>Pre-FI/RE</b> využívá podobné výpočty pro scénář předčasné penze.</p>'+
-                           '<p>Pro <b>celkový majetek</b> (penze + spoření + investice + nemovitosti) použij <b>Pre-FI/RE</b> modul, který kombinuje data z víc zdrojů.</p>' }
+                      body:'<p>Souhrn všech portfolií se ukládá do snapshotu, který čte modul <b>Pre-FI/RE</b> v sekci <b>Přehled majetku (čisté jmění)</b> a v tlačítku <b>Auto-vyplnit z modulů</b> — počítá s <b>hodnotou dnes</b> napříč všemi portfolii.</p>'+
+                           '<p>Pro <b>celkový majetek</b> (penze + spoření + investice + nemovitosti) použij <b>Pre-FI/RE</b>, který kombinuje data z víc zdrojů (Spoření, Investice & Penze, BTC, Majetek, Půjčky).</p>' }
                 ]
             });
         }

@@ -162,6 +162,17 @@
         </p>
     </section>
 
+    <!-- Net Worth / Přehled majetku -->
+    <section class="panel">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                <i data-lucide="wallet" class="w-4 h-4 text-emerald-400"></i> Přehled majetku (čisté jmění)
+            </h2>
+            <button class="btn btn-secondary" onclick="renderNetWorth()" title="Načíst aktuální majetek napříč moduly"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Načíst přehled</button>
+        </div>
+        <div id="netWorthBody"></div>
+    </section>
+
     <!-- AI advice -->
     <section class="panel" style="border-color:rgba(16,185,129,0.25);">
         <h2 class="text-sm font-semibold text-emerald-300 flex items-center gap-2 mb-3">
@@ -325,13 +336,19 @@
         });
     }
 
-    function autofill() {
-        // Posbírá majetek + měsíční úspory + roční výdaje z modulů a vyplní formulář.
-        // Storage klíče se přesně shodují s FinanceCommon.cloud.moduleRegistry.
-        let totalAssets = 0;
+    // Posbírá majetek + měsíční úspory + roční výdaje + dluhy ze všech modulů.
+    // Sdílené mezi autofill() (vyplní formulář) a renderNetWorth() (přehled majetku).
+    // Storage klíče se přesně shodují s FinanceCommon.cloud.moduleRegistry.
+    // Vrací: { assets:[{key,label,value}], totalAssets, monthlyExpenses,
+    //          monthlySavings, planSavings, loans:[{label,value}], totalDebt, sources:[] }
+    function gatherModuleData() {
+        const assets = [];                 // likvidní/investiční majetek pro FIRE
+        const loans = [];                  // dluhy (jen informativně, neodečítají se)
         let monthlyExpenses = 0;
         let monthlySavings = 0;
+        let planSavings = 0;               // plánované spoření ze Spoření & Cíle
         const sources = [];
+        const addAsset = (key, label, value) => { if (value > 0) { assets.push({ key, label, value }); } };
 
         // ── Spoření & Cíle ──
         // POZOR: pole `initial` v datech znamená POČÁTEČNÍ vklad cíle (např. 6 000 Kč
@@ -381,21 +398,46 @@
                     sumSav += calcSaved(g);
                     planMth += Number(g.monthly) || 0;
                 });
-                if (sumSav) { totalAssets += sumSav; sources.push(`Spoření & Cíle: ${fmtCZK(sumSav)} (${flat.length} cílů, aktuální naspořeno)`); }
-                if (planMth) { monthlySavings += planMth; sources.push(`└ Měsíční plán Spoření: ${fmtCZK(planMth)}`); }
+                if (sumSav) { addAsset('sporeni', 'Spoření & Cíle', sumSav); sources.push(`Spoření & Cíle: ${fmtCZK(sumSav)} (${flat.length} cílů, aktuální naspořeno)`); }
+                if (planMth) { planSavings = planMth; monthlySavings += planMth; sources.push(`└ Měsíční plán Spoření: ${fmtCZK(planMth)}`); }
             }
         } catch (e) {}
 
-        // ── Investice & Penze — pension_settings ──
+        // ── Investice & Penze ──
+        // Modul Investice & Penze je multi-portfolio (v2). Aktuální hodnotu napříč
+        // portfolii drží snapshot `pension_summary_v1` (zapisuje se při každém uložení
+        // i při zobrazení Souhrnu). Pokud existuje, použijeme `totalValue` = skutečná
+        // hodnota dnes. Fallback: starý formát `pension_settings` se známými klíči.
         try {
-            const raw = localStorage.getItem('pension_settings');
-            if (raw) {
-                const ip = JSON.parse(raw);
-                // V různých verzích modulu se majetek uchovává různě — zkusíme známé klíče
-                const candidates = [ip.currentValue, ip.current, ip.totalCurrent, ip.actualValue, ip.lastValue];
-                const v = candidates.find(x => typeof x === 'number' && x > 0);
-                if (v) { totalAssets += v; sources.push(`Investice & Penze: ${fmtCZK(v)}`); }
+            let invValue = 0, invLabel = '';
+            const snapRaw = localStorage.getItem('pension_summary_v1');
+            if (snapRaw) {
+                const snap = JSON.parse(snapRaw);
+                if (snap && typeof snap.totalValue === 'number' && snap.totalValue > 0) {
+                    invValue = snap.totalValue;
+                    const n = Array.isArray(snap.portfolios) ? snap.portfolios.length : 0;
+                    invLabel = `Investice & Penze: ${fmtCZK(invValue)}${n ? ` (${n} portfolií, hodnota dnes)` : ' (hodnota dnes)'}`;
+                }
             }
+            if (!invValue) {
+                const raw = localStorage.getItem('pension_settings');
+                if (raw) {
+                    const ip = JSON.parse(raw);
+                    if (ip && ip._version === 2 && Array.isArray(ip.portfolios)) {
+                        // Snapshot ještě neexistuje (Souhrn nikdy neotevřen) — hrubý odhad
+                        // ze součtu počátečních stavů portfolií. Pro přesnou hodnotu
+                        // stačí jednou otevřít záložku Souhrn v Investice & Penze.
+                        const sumInit = ip.portfolios.reduce((s, p) => s + (Number(p.initial) || 0), 0);
+                        if (sumInit > 0) { invValue = sumInit; invLabel = `Investice & Penze: ${fmtCZK(sumInit)} (počáteční stavy — otevři Souhrn pro přesnou hodnotu)`; }
+                    } else {
+                        // Nejstarší jednoportfoliový formát se známými klíči.
+                        const candidates = [ip.currentValue, ip.current, ip.totalCurrent, ip.actualValue, ip.lastValue];
+                        const v = candidates.find(x => typeof x === 'number' && x > 0);
+                        if (v) { invValue = v; invLabel = `Investice & Penze: ${fmtCZK(v)}`; }
+                    }
+                }
+            }
+            if (invValue > 0) { addAsset('investice', 'Investice & Penze', invValue); sources.push(invLabel); }
         } catch (e) {}
 
         // ── BTC Investice — btc-invest:v1 (struktura: { strategies: [{ history: [...], plan: {...} }] }) ──
@@ -414,11 +456,11 @@
                 } else if (Array.isArray(btc?.investments)) {
                     btc.investments.forEach(i => { btcInvested += Number(i.amount || 0); });
                 }
-                if (btcInvested > 0) { totalAssets += btcInvested; sources.push(`BTC (vklady): ${fmtCZK(btcInvested)}`); }
+                if (btcInvested > 0) { addAsset('btc', 'BTC (vklady)', btcInvested); sources.push(`BTC (vklady): ${fmtCZK(btcInvested)}`); }
             }
         } catch (e) {}
 
-        // ── Broker — broker_v1 (akcie / ETF / P2P pozice) ──
+        // ── Broker — broker_v1 (legacy data; modul byl odebrán, ale pozice se počítají) ──
         try {
             const raw = localStorage.getItem('broker_v1');
             if (raw) {
@@ -431,7 +473,7 @@
                     else if (typeof p.qty === 'number' && typeof p.priceCzk === 'number') brokerValue += p.qty * p.priceCzk;
                     else if (typeof p.invested === 'number') brokerValue += p.invested;
                 });
-                if (brokerValue > 0) { totalAssets += brokerValue; sources.push(`Broker: ${fmtCZK(brokerValue)}`); }
+                if (brokerValue > 0) { addAsset('broker', 'Broker (pozice)', brokerValue); sources.push(`Broker: ${fmtCZK(brokerValue)}`); }
             }
         } catch (e) {}
 
@@ -446,7 +488,7 @@
                         const v = Number(it.residualValue ?? it.currentValue ?? it.purchasePrice ?? 0);
                         if (v > 0) majetek += v;
                     });
-                    if (majetek > 0) { totalAssets += majetek; sources.push(`Majetek (zůstatková h.): ${fmtCZK(majetek)}`); }
+                    if (majetek > 0) { addAsset('majetek', 'Majetek (zůstatková h.)', majetek); sources.push(`Majetek (zůstatková h.): ${fmtCZK(majetek)}`); }
                 }
             }
         } catch (e) {}
@@ -499,19 +541,32 @@
         try {
             const raw = localStorage.getItem('pujcky_data_v1');
             if (raw) {
-                const loans = JSON.parse(raw);
-                if (Array.isArray(loans) && loans.length) {
+                const loanArr = JSON.parse(raw);
+                if (Array.isArray(loanArr) && loanArr.length) {
                     let outstanding = 0;
-                    loans.forEach(l => {
+                    loanArr.forEach(l => {
                         const v = Number(l.outstanding ?? l.remainingPrincipal ?? l.principal ?? 0);
                         if (v > 0) outstanding += v;
                     });
                     if (outstanding > 0) {
+                        loans.push({ label: 'Půjčky (zbývající jistina)', value: outstanding });
                         sources.push(`Půjčky (info, NEodečteno): ${fmtCZK(outstanding)} — splátky jsou v ročních výdajích`);
                     }
                 }
             }
         } catch (e) {}
+
+        const totalAssets = assets.reduce((s, a) => s + a.value, 0);
+        const totalDebt = loans.reduce((s, l) => s + l.value, 0);
+        return { assets, totalAssets, monthlyExpenses, monthlySavings, planSavings, loans, totalDebt, sources };
+    }
+
+    function autofill() {
+        const d = gatherModuleData();
+        const totalAssets = d.totalAssets;
+        const monthlyExpenses = d.monthlyExpenses;
+        const monthlySavings = d.monthlySavings;
+        const sources = d.sources;
 
         let summary = [];
         if (totalAssets) {
@@ -529,6 +584,7 @@
         }
 
         compute();
+        renderNetWorth();
 
         if (sources.length || summary.length) {
             const head = summary.length ? 'Auto-vyplněno:\n' + summary.join('\n') : 'Nepodařilo se nic vyplnit';
@@ -537,6 +593,51 @@
         } else {
             alert('V ostatních modulech nejsou data k vyplnění.\nVyplň ručně, nebo nejdřív přidej data v Příjmy & Výdaje, Spoření a Investice.');
         }
+    }
+
+    // ─── Přehled majetku (Net Worth) ───
+    // Read-only souhrn, kde má uživatel majetek napříč moduly. Čistá hodnota
+    // (net worth) = majetek − dluhy. Pozn.: dluhy se do FIRE výpočtu NEodečítají
+    // (viz autofill), zde je ukazujeme jen pro úplný obrázek čistého jmění.
+    const NW_COLORS = {
+        sporeni: '#10b981', investice: '#0ea5e9', btc: '#f59e0b',
+        broker: '#a78bfa', majetek: '#f43f5e'
+    };
+    function renderNetWorth() {
+        const host = document.getElementById('netWorthBody');
+        if (!host) return;
+        const d = gatherModuleData();
+        if (!d.assets.length && !d.loans.length) {
+            host.innerHTML = '<p class="text-xs text-slate-500">Zatím nemáš v ostatních modulech žádný majetek. Přidej data v Spoření, Investice & Penze, BTC nebo Majetek & Odpisy a klikni na „Načíst přehled".</p>';
+            return;
+        }
+        const netWorth = d.totalAssets - d.totalDebt;
+        const rows = d.assets.map(a => {
+            const pct = d.totalAssets > 0 ? (a.value / d.totalAssets * 100) : 0;
+            const color = NW_COLORS[a.key] || '#64748b';
+            return `<div class="flex items-center gap-3 py-1.5">
+                <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background:${color}"></span>
+                <span class="text-xs text-slate-300 flex-1 truncate">${a.label}</span>
+                <span class="text-[10px] text-slate-500 font-mono w-10 text-right">${pct.toFixed(0)}%</span>
+                <span class="text-xs font-mono text-slate-100 w-28 text-right">${fmtCZK(a.value)}</span>
+            </div>
+            <div class="h-1 rounded bg-slate-800 overflow-hidden mb-1"><div class="h-full rounded" style="width:${pct}%;background:${color}"></div></div>`;
+        }).join('');
+        const loanRows = d.loans.map(l => `<div class="flex items-center gap-3 py-1.5">
+                <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0 bg-rose-500/60"></span>
+                <span class="text-xs text-slate-400 flex-1 truncate">${l.label}</span>
+                <span class="text-xs font-mono text-rose-400 w-28 text-right">− ${fmtCZK(l.value)}</span>
+            </div>`).join('');
+
+        host.innerHTML = `
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Majetek celkem</div><div class="font-mono text-lg font-bold text-emerald-400">${fmtCZK(d.totalAssets)}</div></div>
+                <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-3"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Dluhy</div><div class="font-mono text-lg font-bold text-rose-400">${d.totalDebt > 0 ? '− ' + fmtCZK(d.totalDebt) : fmtCZK(0)}</div></div>
+                <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Čisté jmění</div><div class="font-mono text-lg font-bold ${netWorth >= 0 ? 'text-slate-100' : 'text-rose-400'}">${fmtCZK(netWorth)}</div></div>
+            </div>
+            <div>${rows}</div>
+            ${loanRows ? `<div class="mt-3 pt-3 border-t border-slate-800"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Dluhy (do FIRE se neodečítají)</div>${loanRows}</div>` : ''}
+            <p class="text-[10px] text-slate-600 mt-3">Hodnoty se čtou z ostatních modulů. „Aktuální majetek" ve výpočtu nahoře vyplníš tlačítkem <b>Auto-vyplnit z modulů</b> = Majetek celkem (${fmtCZK(d.totalAssets)}).</p>`;
     }
 
     // ─── AI ───
@@ -631,6 +732,8 @@ Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni
 
     // Cloud sync re-render bez reloadu
     window.addEventListener('fc-module-data-updated', e => {
+        // Net Worth čte z ostatních modulů → překresli i na jejich update (ne jen vlastní).
+        try { renderNetWorth(); } catch (err) {}
         if (!e.detail || e.detail.module !== 'pre-fi-re') return;
         try { load(); compute(); }
         catch (err) { console.warn('Pre-FI/RE re-render fail', err); }
@@ -732,13 +835,14 @@ Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni
                   body:'<p><b>Auto-vyplnit z modulů</b> čte tyto storage klíče (pouze čte, nezapisuje):</p>'+
                        '<ul>'+
                             '<li><b>Spoření & Cíle</b> (<code>sporici_data_ai_tree</code>) — součet <code>initial</code> všech listových cílů (= aktuálně naspořeno) + součet <code>monthly</code> (= plánovaná měsíční úložka).</li>'+
-                            '<li><b>Investice & Penze</b> (<code>pension_settings</code>) — aktuální hodnota portfolia.</li>'+
+                            '<li><b>Investice & Penze</b> (<code>pension_summary_v1</code>) — hodnota dnes napříč <b>všemi portfolii</b> (souhrnný snapshot). Když ho ještě nemáš, otevři jednou záložku <b>Souhrn</b> v Investice & Penze; do té doby se použije součet počátečních stavů.</li>'+
                             '<li><b>BTC Investice</b> (<code>btc-invest:v1</code>) — součet všech vkladů ze všech strategií.</li>'+
-                            '<li><b>Broker</b> (<code>broker_v1</code>) — součet hodnot pozic (qty × cena CZK).</li>'+
+                            '<li><b>Broker</b> (<code>broker_v1</code>) — součet hodnot pozic (qty × cena CZK), pokud máš ještě legacy data.</li>'+
                             '<li><b>Majetek &amp; Odpisy</b> (<code>majetek_odpisy_items</code>) — součet zůstatkových hodnot.</li>'+
                             '<li><b>Příjmy &amp; Výdaje</b> (<code>FinanceAI_data</code>) — měsíční výdaje (× 12 = roční) a měsíční spoření jako fallback.</li>'+
-                            '<li><b>Půjčky &amp; Splátky</b> (<code>pujcky_data_v1</code>) — součet zbývajících jistin se odečítá od majetku.</li>'+
+                            '<li><b>Půjčky &amp; Splátky</b> (<code>pujcky_data_v1</code>) — zbývající jistiny jen <b>informativně</b>; <b>NEodečítají</b> se od majetku (splátky už jsou v ročních výdajích — viz níže).</li>'+
                        '</ul>'+
+                       '<p style="margin-top:0.6rem"><b>Přehled majetku (čisté jmění)</b> — sekce dole čte tytéž zdroje a ukazuje rozpad majetku po modulech + čisté jmění (majetek − dluhy). Aktualizuješ ji tlačítkem <b>Načíst přehled</b> nebo se obnoví sama při cloud-syncu.</p>'+
                        '<p style="margin-top:0.6rem">Modul <b>nezapisuje</b> nic do ostatních modulů — je čistě výpočetní nástroj.</p>' }
             ]
         });
@@ -749,6 +853,7 @@ Nepřevyprávěj data — uživatel je vidí. Žádný úvod ani závěr. Začni
         document.documentElement.classList.toggle('light', theme === 'light');
         load();
         compute();
+        renderNetWorth();
         lucide.createIcons();
         // Připoj formátovač "10 000" na všechna číselná pole označená data-fc-numfmt
         try {
