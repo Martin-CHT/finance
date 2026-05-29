@@ -557,7 +557,12 @@
                 tags: ['AI', 'DCA', 'Crypto'],
                 defaultGroup: 'Investice'
             },
-            broker: {
+            /* Broker modul odstraněn z UI (uživatel obchoduje výhradně přes Revolut,
+               kde má vlastní přehled; Stooq auto-ceny nespolehlivé). Soubor
+               Soubory/Broker.html zůstává na disku pro případný návrat.
+               Pro znovuzapnutí stačí odkomentovat tento blok a přidat 'broker'
+               zpět do DEFAULT_ORDER. */
+            /* broker: {
                 label: 'Broker (Akcie / ETF / P2P)',
                 shortBadge: 'BR',
                 icon: 'line-chart',
@@ -566,7 +571,7 @@
                 desc: 'Evidence pozic u brokera (Degiro, XTB, IBKR) nebo P2P (Mintos), výnos TWR / XIRR, daňový pomocník pro dividendy a 3letý časový test.',
                 tags: ['Stocks', 'P&L', 'Tax'],
                 defaultGroup: 'Investice'
-            },
+            }, */
             'pre-fi-re': {
                 label: 'Pre-FI/RE',
                 shortBadge: 'FI',
@@ -602,7 +607,7 @@
             }
         };
 
-        const DEFAULT_ORDER = ['prijmy', 'predplatna', 'sporeni', 'pre-fi-re', 'investice', 'fondy', 'btc', 'broker', 'pujcky', 'majetek', 'energie'];
+        const DEFAULT_ORDER = ['prijmy', 'predplatna', 'sporeni', 'pre-fi-re', 'investice', 'fondy', 'btc', 'pujcky', 'majetek', 'energie'];
         const GROUP_ORDER = ['Denní', 'Cíle & Plánování', 'Investice', 'Závazky', 'Majetek & Náklady', 'Ostatní'];
 
         /* Barevné mapy pro Tailwind (musíme je psát staticky, jinak by je tw purge odstranil – při CDN se to nestává, ale pro jistotu necháme přímo třídy) */
