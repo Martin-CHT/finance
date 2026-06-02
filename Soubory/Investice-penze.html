@@ -1709,8 +1709,20 @@ function doPost(e) {
                 const age = parseInt(document.getElementById('base-age').value) || 0;
                 const retirementAge = parseInt(document.getElementById('base-renta-start').value) || 0;
                 const durationInput = document.getElementById('base-sporeni-roky');
-                const calculatedDuration = Math.max(0, retirementAge - age);
-                durationInput.value = calculatedDuration;
+                // Doba vkládání = roky od počátku investice do renty.
+                // = (startMonth → dnes) + (dnes → rentaStart).
+                const startRaw = document.getElementById('base-start-month')?.value || '';
+                let elapsedYears = 0;
+                if (/^\d{4}-\d{2}$/.test(startRaw)) {
+                    const [y, m] = startRaw.split('-').map(Number);
+                    const start = new Date(y, m - 1, 1);
+                    const today = new Date();
+                    const elapsedMonths = (today.getFullYear() - start.getFullYear()) * 12
+                                        + (today.getMonth() - start.getMonth());
+                    elapsedYears = Math.max(0, elapsedMonths / 12);
+                }
+                const remainingYears = Math.max(0, retirementAge - age);
+                durationInput.value = Math.round(elapsedYears + remainingYears);
             },
 
             update() {
@@ -1877,13 +1889,25 @@ function doPost(e) {
                 // Počáteční stav portfolia (initial) = výchozí zůstatek i vložená částka.
                 let currentZustatek = Number(this.settings.initial) || 0;
                 let cumulativeDeposits = Number(this.settings.initial) || 0;
-                const mStartRenta = (this.settings.rentaStart - this.settings.age) * 12;
-                const mEndSporeni = this.settings.sporeniRoky * 12;
                 const today = new Date();
                 today.setHours(23, 59, 59, 999);
+
+                // ── „Váš věk" = věk DNES ──
+                // Pokud startMonth leží v minulosti, dopočítáme věk v okamžiku
+                // počátku investice (ageAtStart). Tím se chart, mStartRenta i totalMonths
+                // posunou tak, aby renta začínala, když uživatel dosáhne nastaveného věku,
+                // a kalendářní rok m=N odpovídal jeho skutečnému věku v tom roce.
+                const startDate = this.getStartDate();
+                const monthsToToday = (today.getFullYear() - startDate.getFullYear()) * 12
+                                    + (today.getMonth() - startDate.getMonth());
+                const ageToday = Number(this.settings.age) || 0;
+                const ageAtStart = ageToday - monthsToToday / 12;
+
+                const mStartRenta = Math.round((Number(this.settings.rentaStart) - ageAtStart) * 12);
+                const mEndSporeni = (Number(this.settings.sporeniRoky) || 0) * 12;
                 const calendarYears = new Set();
 
-                const totalMonths = (100 - this.settings.age) * 12;
+                const totalMonths = Math.max(12, Math.round((100 - ageAtStart) * 12));
                 let rentaStartBalance = 0;
                 const rateHistory = [];
 
@@ -1893,7 +1917,7 @@ function doPost(e) {
                     const calendarYear = periodEnd.getFullYear();
                     calendarYears.add(calendarYear);
                     const monthInYear = periodEnd.getMonth() + 1;
-                    const currentAgeExact = this.settings.age + (m / 12);
+                    const currentAgeExact = ageAtStart + (m / 12);
                     const currentYearOfInv = Math.ceil(m / 12);
 
                     let flow = 0;
