@@ -1854,10 +1854,14 @@ function doPost(e) {
                 // rentaSuma per-portfolio: prázdný input = '' (explicitně nevyplněno, dopočet ze souhrnu).
                 const rsRaw = (document.getElementById('base-renta-suma')?.value || '').trim();
                 const newRenta = rsRaw === '' ? '' : (_p('base-renta-suma') || 0);
-                // Detekce uživatelské změny renty: pokud se nová hodnota liší od aktuální
-                // pf.rentaSuma, znamená to, že uživatel ručně zasáhl → smaž flag _rentaAutoFilled
-                // (od teď je hodnota ručně zadaná a nepřepíše ji další úprava globální renty).
-                const activePf = this.model.portfolios.find(p => p.id === this.activeId);
+                // Najdi aktivní portfolio jednou (potřebujeme pro 1) detekci uživ. změny renty,
+                // 2) výpočet effective renty pro per-portfolio drawdown).
+                const activePf = this.model && this.model.portfolios
+                    ? this.model.portfolios.find(p => p.id === this.activeId) : null;
+                // 1) Detekce uživatelské změny renty: pokud se nová hodnota liší od aktuální
+                //    pf.rentaSuma, znamená to, že uživatel ručně zasáhl → smaž flag
+                //    _rentaAutoFilled (od teď je hodnota ručně zadaná a nepřepíše ji
+                //    další úprava globální renty).
                 if (activePf) {
                     const oldRenta = (activePf.rentaSuma == null || activePf.rentaSuma === '') ? '' : Number(activePf.rentaSuma);
                     const cmpNew = newRenta === '' ? '' : Number(newRenta);
@@ -1869,11 +1873,10 @@ function doPost(e) {
 
                 this.commitActiveContext();
 
-                // ── Per-portfolio drawdown: použij EFFECTIVE rentu, ne raw settings.rentaSuma ──
-                // Pokud má portfolio vlastní pf.rentaSuma, použije se; jinak se rozdělí podíl
-                // z globální renty proporcionálně k dnešní hodnotě portfolia. Bez tohoto by
-                // graf v důchodové fázi rostl do nekonečna (renta = 0).
-                const activePf = this.model.portfolios.find(p => p.id === this.activeId);
+                // 2) Per-portfolio drawdown: použij EFFECTIVE rentu, ne raw settings.rentaSuma.
+                //    Pokud má portfolio vlastní pf.rentaSuma, použije se; jinak se rozdělí podíl
+                //    z globální renty proporcionálně k dnešní hodnotě portfolia. Bez tohoto by
+                //    graf v důchodové fázi rostl do nekonečna (renta = 0).
                 const origRenta = this.settings.rentaSuma;
                 if (activePf) {
                     const todayValues = this._computeTodayValuesAll();
