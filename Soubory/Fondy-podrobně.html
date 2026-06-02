@@ -560,7 +560,7 @@
             </div>
 
             <div class="p-3 border-b border-slate-800/60 bg-slate-950/40 flex-shrink-0">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
                     <div class="flex gap-1 bg-slate-800 p-1 rounded text-xs">
                         <button id="btnAiGroq" onclick="switchAiProvider('groq')"
                             class="px-2 py-1 rounded bg-purple-600 text-white font-medium transition-colors">Groq
@@ -568,9 +568,14 @@
                         <button id="btnAiGemini" onclick="switchAiProvider('gemini')"
                             class="px-2 py-1 rounded text-slate-400 hover:text-white transition-colors">Gemini</button>
                     </div>
-                    <div class="mt-2 flex items-center gap-2">
-                        <input type="password" id="groqApiKey" placeholder="Vložte Groq API klíč..." class="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" onchange="document.cookie='groq_api_key='+this.value+';path=/;max-age=31536000'">
-                    </div>
+                    <a href="Nastavení.html" target="_top" class="text-[10px] text-sky-400 hover:underline" title="API klíče se nastavují centrálně v modulu Nastavení">
+                        API klíče → Nastavení
+                    </a>
+                </div>
+                <!-- Skryté pole, aby existující JS (openAIModal / runAIAnalysis) mohlo
+                     číst/zapisovat cookie. UI segment pro ruční vkládání už není potřeba —
+                     klíče se nastavují v Nastavení a sdílejí napříč moduly. -->
+                <input type="hidden" id="groqApiKey">
             </div>
 
             <!-- AI Phases -->
@@ -638,14 +643,25 @@
 
         // ── Inicializace ─────────────────────────────────────────
         function init() {
-            activeFondy = DENNI_FONDY_CONFIG.fondy.filter(f => f.active && f.slug);
+            // Defenzivní kontrola: pokud `fondy-podrobně-config.js` selhal načtení
+            // (404 na GitHub Pages, syntax error, atd.), `DENNI_FONDY_CONFIG` neexistuje
+            // a my bez ošetření spadneme na první řádku. Vytvoříme prázdný fallback,
+            // ať se aspoň vykreslí UI a uživatel uvidí instrukce.
+            if (typeof DENNI_FONDY_CONFIG === 'undefined') {
+                window.DENNI_FONDY_CONFIG = { gasUrl: '', maxDays: 365, fondy: [] };
+                showToast('⚠️ Chybí fondy-podrobně-config.js. Otevři Nápovědu → Nastavení.', 'error', 10000);
+                renderEmptyState('Nepodařilo se načíst konfiguraci. Soubor `Soubory/fondy-podrobně-config.js` chybí nebo je rozbitý. Otevři Nápovědu pro postup nastavení.');
+                return;
+            }
+
+            activeFondy = (DENNI_FONDY_CONFIG.fondy || []).filter(f => f.active && f.slug);
             renderTableHead();
             renderSyncModal();
 
             const gasUrl = DENNI_FONDY_CONFIG.gasUrl;
             if (!gasUrl || gasUrl.includes('SEM_VLOZ') || gasUrl.length < 20) {
                 showToast('⚠️ Vložte URL Google Apps Script do fondy-podrobně-config.js', 'warn', 8000);
-                renderEmptyState('Nejprve nastavte gasUrl v souboru fondy-podrobně-config.js, pak zahajte Správu portfolia.');
+                renderEmptyState('Nejprve nastavte gasUrl v souboru fondy-podrobně-config.js, pak otevři "Správa fondů" a "Načíst historii". Postup viz Nápověda.');
                 return;
             }
             loadAllData();

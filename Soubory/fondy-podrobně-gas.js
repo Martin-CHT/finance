@@ -38,7 +38,9 @@ const SHEET_FX        = 'DenniFX';
 // ── Konstanty ────────────────────────────────────────────────────────────
 const CONSEQ_BASE = 'https://www.conseq.cz';
 const CNB_FX_URL  = 'https://www.cnb.cz/cs/financni-trhy/devizovy-trh/kurzy-devizoveho-trhu/kurzy-devizoveho-trhu/denni_kurz.txt';
-const CSU_INF_URL = 'https://data.csu.gov.cz/datastat/data/VYBER/CEN0101HT02?vSel=1';
+// Oficiální JSON-STAT API ČSÚ (CEN0101HT02 = "Indexy spotřebitelských cen,
+// p.a. — všechny domácnosti"). Vrací JSON-STAT 2.0 strukturu.
+const CSU_INF_URL = 'https://data.csu.gov.cz/api/dotaz/v1/data/vybery/CEN0101HT02?format=JSON_STAT';
 
 // Maximální počet dní historických dat (backfill + zobrazení)
 const MAX_HISTORY_DAYS = 400;
@@ -516,45 +518,114 @@ function toCZK(price, currency, fxRates) {
 }
 
 // ════════════════════════════════════════════════════════════════════════
-// INFLACE ČSÚ
+// INFLACE ČSÚ — oficiální JSON-STAT 2.0 API
 // ════════════════════════════════════════════════════════════════════════
+// Endpoint vrací dataset CEN0101HT02 (Index spotř. cen, meziroční změna p.a.).
+// JSON-STAT struktura: { dataset: { value: [], dimension: { ... } } }, kde
+// pole `value` je linearizováno přes všechny dimenze. Z dimenze CASOVA_OBDOBI
+// získáme řady měsíčních ymStringů; index v poli = pozice v dimenze.
 function fetchAndSaveInflation() {
   try {
-    var resp = UrlFetchApp.fetch('https://www.kurzy.cz/makroekonomika/inflace/', { muteHttpExceptions: true });
-    if (resp.getResponseCode() !== 200) return;
-    
-    var html = resp.getContentText('windows-1250');
+    var resp = UrlFetchApp.fetch(CSU_INF_URL, {
+      muteHttpExceptions: true,
+      headers: { 'Accept': 'application/json' }
+    });
+    if (resp.getResponseCode() !== 200) {
+      Logger.log('CSU API HTTP ' + resp.getResponseCode());
+      return;
+    }
+    var json = JSON.parse(resp.getContentText('UTF-8'));
+
+    // JSON-STAT může být zabalený v 'dataset' nebo přímo. Zkusíme obě varianty.
+    var ds = json.dataset || json;
+    if (!ds || !ds.value || !ds.dimension) {
+      Logger.log('CSU API: neočekávaná struktura ' + Object.keys(json).join(','));
+      return;
+    }
+    var values = ds.value;
+    if (Array.isArray(values)) {
+      // OK
+    } else if (typeof values === 'object') {
+      // Sparse: { "0": x, "5": y }. Převedeme na husté pole.
+      var dense = [];
+      Object.keys(values).forEach(function(k) { dense[Number(k)] = values[k]; });
+      values = dense;
+    }
+
+    // Najdeme dimenzi pro čas (nejčastěji "obdobi", "Časové období", "CASOVE_OBDOBI").
+    var dimKey = null;
+    Object.keys(ds.dimension).forEach(function(k) {
+      if (/obdob|period|time|cas/i.test(k)) dimKey = k;
+    });
+    if (!dimKey) dimKey = ds.id && ds.id[ds.id.length - 1]; // často poslední ID je čas
+    if (!dimKey) { Logger.log('CSU API: nelze najít časovou dimenzi'); return; }
+
+    var dim = ds.dimension[dimKey];
+    var index = dim.category && dim.category.index;
+    var labels = dim.category && dim.category.label;
+    if (!index) { Logger.log('CSU API: chybí category.index'); return; }
+
+    // Převod kódů (např. "M202604") → "YYYY-MM"
+    var entries = []; // {pos, ym}
+    Object.keys(index).forEach(function(code) {
+      var pos = (typeof index[code] === 'number') ? index[code] : Number(index[code]);
+      var ym = csuCodeToYearMonth(code, labels ? labels[code] : null);
+      if (ym) entries.push({ pos: pos, ym: ym });
+    });
+
+    // Vytáhneme hodnoty na příslušných pozicích.
+    var records = entries
+      .map(function(e) { return { yearMonth: e.ym, inflation_pa: Number(values[e.pos]) }; })
+      .filter(function(r) { return r.yearMonth && !isNaN(r.inflation_pa); });
+
+    if (!records.length) { Logger.log('CSU API: žádné záznamy'); return; }
+
     var sheet = getOrCreateSheet(SHEET_INFLATION);
-    var headers = getOrSetHeaders(sheet, ['yearMonth', 'inflation_pa']);
+    getOrSetHeaders(sheet, ['yearMonth', 'inflation_pa']);
     var data = sheet.getDataRange().getValues();
-
     var existing = {};
-    for (var i = 1; i < data.length; i++) {
-      existing[data[i][0]] = i + 1;
-    }
+    for (var i = 1; i < data.length; i++) existing[data[i][0]] = i + 1;
 
-    var regex = /<td>(\d{1,2})\.\s*(\d{4})<\/td>[\s\S]*?<td>([0-9,]+)\s*%<\/td>/g;
-    var match;
-    var records = [];
-    
-    while ((match = regex.exec(html)) !== null) {
-      var m = match[1].padStart(2, '0');
-      var y = match[2];
-      var val = parseFloat(match[3].replace(',', '.'));
-      records.push({ yearMonth: y + '-' + m, inflation_pa: val });
-    }
-
-    for (var j = 0; j < records.length; j++) {
-      var rec = records[j];
+    records.forEach(function(rec) {
       if (existing[rec.yearMonth]) {
         sheet.getRange(existing[rec.yearMonth], 2).setValue(rec.inflation_pa);
       } else {
         sheet.appendRow([rec.yearMonth, rec.inflation_pa]);
       }
-    }
+    });
+    Logger.log('CSU API: uloženo ' + records.length + ' záznamů');
   } catch (err) {
     Logger.log('fetchAndSaveInflation error: ' + err.message);
   }
+}
+
+// Převod CSU časového kódu na YYYY-MM.
+// Časté formáty:
+//   - "M202604" (měsíční)
+//   - "2026-04"
+//   - label string "duben 2026" / "Apr 2026" — pokud kód není parsovatelný.
+function csuCodeToYearMonth(code, label) {
+  if (!code) return null;
+  var s = String(code);
+  var m;
+  // M202604
+  m = s.match(/^M(\d{4})(\d{2})$/);
+  if (m) return m[1] + '-' + m[2];
+  // 2026-04 / 2026M04
+  m = s.match(/^(\d{4})[-M](\d{2})$/);
+  if (m) return m[1] + '-' + m[2];
+  // 202604
+  m = s.match(/^(\d{4})(\d{2})$/);
+  if (m) return m[1] + '-' + m[2];
+  // Fallback: parsovat label
+  if (label) {
+    var months = { 'leden':'01','únor':'02','březen':'03','duben':'04','květen':'05','červen':'06','červenec':'07','srpen':'08','září':'09','říjen':'10','listopad':'11','prosinec':'12' };
+    var lbl = String(label).toLowerCase();
+    var monthName = Object.keys(months).find(function(n) { return lbl.indexOf(n) !== -1; });
+    var yearM = lbl.match(/(20\d{2})/);
+    if (monthName && yearM) return yearM[1] + '-' + months[monthName];
+  }
+  return null;
 }
 
 // ════════════════════════════════════════════════════════════════════════

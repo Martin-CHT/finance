@@ -1196,20 +1196,21 @@ function log(user, action, ok, note) {
         /* ── UI: Pořadí modulů ──
            Musí být v souladu s MODULES v index.html (vč. defaultGroup). */
         const MODULE_META = {
-            prijmy:      { label: 'Příjmy & Výdaje',          file: 'Příjmy-Výdaje.html',    icon: 'bar-chart-2',  color: 'text-sky-400',     defaultGroup: 'Denní' },
-            predplatna:  { label: 'Předplatná',               file: 'Předplatná.html',       icon: 'repeat',       color: 'text-fuchsia-400', defaultGroup: 'Denní' },
-            sporeni:     { label: 'Spoření & Cíle',           file: 'Spoření.html',          icon: 'piggy-bank',   color: 'text-emerald-400', defaultGroup: 'Cíle & Plánování' },
-            'pre-fi-re': { label: 'Pre-FI/RE',                file: 'Pre-FI-RE.html',        icon: 'mountain',     color: 'text-emerald-400', defaultGroup: 'Cíle & Plánování' },
-            investice:   { label: 'Investice & Penze',        file: 'Investice-penze.html',  icon: 'trending-up',  color: 'text-violet-400',  defaultGroup: 'Investice' },
-            fondy:       { label: 'Fondy Conseq',             file: 'Fondy.html',            icon: 'activity',     color: 'text-amber-400',   defaultGroup: 'Investice' },
-            btc:         { label: 'BTC Investice',            file: '../BTC/index.html',     icon: 'bitcoin',      color: 'text-orange-400',  defaultGroup: 'Investice' },
+            prijmy:           { label: 'Příjmy & Výdaje',          file: 'Příjmy-Výdaje.html',    icon: 'bar-chart-2',  color: 'text-sky-400',     defaultGroup: 'Denní' },
+            predplatna:       { label: 'Předplatná',               file: 'Předplatná.html',       icon: 'repeat',       color: 'text-fuchsia-400', defaultGroup: 'Denní' },
+            sporeni:          { label: 'Spoření & Cíle',           file: 'Spoření.html',          icon: 'piggy-bank',   color: 'text-emerald-400', defaultGroup: 'Cíle & Plánování' },
+            investice:        { label: 'Investice & Penze',        file: 'Investice-penze.html',  icon: 'trending-up',  color: 'text-violet-400',  defaultGroup: 'Cíle & Plánování' },
+            'pre-fi-re':      { label: 'Pre-FI/RE',                file: 'Pre-FI-RE.html',        icon: 'mountain',     color: 'text-emerald-400', defaultGroup: 'Cíle & Plánování' },
+            fondy:            { label: 'Fondy Conseq',             file: 'Fondy.html',            icon: 'activity',     color: 'text-amber-400',   defaultGroup: 'Investice' },
+            'fondy-podrobne': { label: 'Fondy podrobně',           file: 'Fondy-podrobně.html',   icon: 'line-chart',   color: 'text-amber-400',   defaultGroup: 'Investice' },
+            btc:              { label: 'BTC Investice',            file: '../BTC/index.html',     icon: 'bitcoin',      color: 'text-orange-400',  defaultGroup: 'Investice' },
             /* broker modul odstraněn z UI — viz index.html. Pro návrat odkomentuj. */
-            /* broker:      { label: 'Broker (Akcie / ETF / P2P)', file: 'Broker.html',         icon: 'line-chart',   color: 'text-sky-400',     defaultGroup: 'Investice' }, */
-            pujcky:      { label: 'Půjčky & Splátky',         file: 'Půjčky.html',           icon: 'credit-card',  color: 'text-rose-400',    defaultGroup: 'Závazky' },
-            majetek:     { label: 'Majetek & Odpisy',         file: 'Majetek-odpisy.html',   icon: 'package',      color: 'text-teal-400',    defaultGroup: 'Majetek & Náklady' },
-            energie:     { label: 'Energie',                  file: 'Energie.html',          icon: 'plug-zap',     color: 'text-amber-400',   defaultGroup: 'Majetek & Náklady' }
+            /* broker:        { label: 'Broker (Akcie / ETF / P2P)', file: 'Broker.html',         icon: 'line-chart',   color: 'text-sky-400',     defaultGroup: 'Investice' }, */
+            pujcky:           { label: 'Půjčky & Splátky',         file: 'Půjčky.html',           icon: 'credit-card',  color: 'text-rose-400',    defaultGroup: 'Závazky' },
+            majetek:          { label: 'Majetek & Odpisy',         file: 'Majetek-odpisy.html',   icon: 'package',      color: 'text-teal-400',    defaultGroup: 'Majetek & Náklady' },
+            energie:          { label: 'Energie',                  file: 'Energie.html',          icon: 'plug-zap',     color: 'text-amber-400',   defaultGroup: 'Majetek & Náklady' }
         };
-        const DEFAULT_ORDER = ['prijmy','predplatna','sporeni','pre-fi-re','investice','fondy','btc','pujcky','majetek','energie'];
+        const DEFAULT_ORDER = ['prijmy','predplatna','sporeni','investice','pre-fi-re','fondy','fondy-podrobne','btc','pujcky','majetek','energie'];
         const SUGGESTED_GROUPS = ['Denní','Cíle & Plánování','Investice','Závazky','Majetek & Náklady','Ostatní'];
 
         const VIS_KEY = 'fc_module_visibility';

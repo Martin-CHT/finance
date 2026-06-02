@@ -502,10 +502,10 @@
                     class="config-input" style="color: #e2e8f0;" placeholder="5 000">
             </div>
 
-            <div class="stat-card">
+            <div class="stat-card" title="Měsíční renta pro toto portfolio. Pokud necháš prázdné, dopočítá se podíl ze souhrnu (proporcionálně podle dnešní hodnoty portfolia).">
                 <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Plánovaná renta (Kč)</label>
                 <input type="text" inputmode="numeric" data-fc-numfmt id="base-renta-suma" oninput="app.update()"
-                    class="config-input" style="color: #fb923c;" placeholder="80 000">
+                    class="config-input" style="color: #fb923c;" placeholder="prázdné = dle souhrnu">
             </div>
 
             <div class="stat-card border-l-2 border-l-slate-600">
@@ -607,22 +607,12 @@
                 </div>
             </div>
 
-            <!-- Vodorovné scrollování je opt-in pomocí třídy `pension-table-scroll`,
-                 která je definovaná v CSS s vlastní stylizací scrollbaru (viditelným i v dark theme).
-                 Tabulka má pevné minimální šířky sloupců, takže se vždy vejde nebo se dá rolovat. -->
+            <!-- Vodorovné scrollování je opt-in pomocí třídy `pension-table-scroll`.
+                 Tabulka má fluidní šířky sloupců (sčítají se na 100% kontejneru), aby
+                 se VŽDY vešla na šířku bez vodorovného posuvníku. table-layout:auto
+                 dovoluje krátkým labelům dynamicky narůst, dlouhým se zalomit. -->
             <div class="pension-table-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <table class="data-table text-left text-xs" style="width: max-content; min-width: 100%; table-layout: fixed;">
-                    <colgroup>
-                        <col style="width:92px">
-                        <col style="width:78px">
-                        <col style="width:108px">
-                        <col style="width:92px">
-                        <col style="width:84px">
-                        <col style="width:104px">
-                        <col style="width:112px">
-                        <col style="width:104px">
-                        <col style="width:48px">
-                    </colgroup>
+                <table class="data-table text-left text-xs" style="width: 100%; min-width: 720px; table-layout: auto;">
                     <thead>
                         <tr>
                             <th class="text-center">
@@ -630,13 +620,13 @@
                                 <div class="normal-case text-[9px] font-normal text-slate-600 mt-0.5">konec měsíce</div>
                             </th>
                             <th class="text-center">Stav</th>
-                            <th class="text-right">Vloženo celkem</th>
+                            <th class="text-right">Vloženo</th>
                             <th class="text-right">Vklad / Výběr</th>
                             <th class="text-right">RPSN</th>
-                            <th class="text-right">Měsíční zisk</th>
-                            <th class="text-right">Zůstatek (Kč)</th>
+                            <th class="text-right">Zisk</th>
+                            <th class="text-right">Zůstatek</th>
                             <th class="text-right" title="Kumulativní výnos = zůstatek − vloženo">Výnos</th>
-                            <th class="text-center">Akce</th>
+                            <th class="text-center w-8">Akce</th>
                         </tr>
                     </thead>
                     <tbody id="table-body"></tbody>
@@ -646,29 +636,8 @@
 
         </div><!-- /#pf-detail-view -->
 
-        <!-- ── GOOGLE SHEETS SYNC (společné pro oba pohledy) ── -->
-        <div class="panel">
-            <div class="p-4">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <button onclick="openApiHelpModal()" class="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-sky-400 transition-colors focus:outline-none">
-                        <i data-lucide="sheet" class="w-4 h-4 text-emerald-500"></i>
-                        Google Sheets API
-                        <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <div id="sheets-sync-status" class="sync-pill bg-slate-800 text-slate-500 border-slate-700">
-                        <i data-lucide="cloud-off" class="w-3 h-3"></i> Nepropojeno
-                    </div>
-                </div>
-                <input type="url" id="api-url-input"
-                    class="w-full px-3 py-2 text-xs rounded border"
-                    placeholder="https://script.google.com/macros/s/.../exec"
-                    onchange="handleApiUrlChange(this.value)">
-                <p class="text-[11px] text-slate-600 mt-2">
-                    Vložte URL z Google Apps Script — data se po každé změně automaticky zazálohují.
-                    <button onclick="openApiHelpModal()" class="text-sky-500 hover:underline font-semibold">Návod →</button>
-                </p>
-            </div>
-        </div>
+        <!-- Per-modul Sheets API segment odstraněn — synchronizace probíhá globálně
+             přes Nastavení (finance-common.js, fc-storage-key=pension_settings). -->
 
     </main>
 
@@ -1260,6 +1229,10 @@ function doPost(e) {
                 const pf = this.model.portfolios.find(p => p.id === this.activeId);
                 if (!pf) { this.activeId = this.model.portfolios[0]?.id || 'summary'; return this.loadActiveContext(); }
                 const g = this.model.global;
+                // Per-portfolio rentaSuma: pf.rentaSuma má přednost. Pokud chybí,
+                // dopočítáme proporcionální podíl z g.rentaSuma podle dnešní hodnoty
+                // portfolia (viz `effectiveRentaFor` níže). Tady jen vytáhneme uložený
+                // override (nebo prázdno → 0, dopočet se aplikuje v compute funkcích).
                 this.settings = {
                     age: g.age,
                     startMonth: pf.startMonth || '',
@@ -1267,13 +1240,16 @@ function doPost(e) {
                     rentaStart: g.rentaStart,
                     vklad: Number(pf.vklad) || 0,
                     urok: Number(pf.urok) || 0,
-                    rentaSuma: g.rentaSuma,
+                    rentaSuma: (pf.rentaSuma != null && pf.rentaSuma !== '') ? Number(pf.rentaSuma) : '',
                     initial: Number(pf.initial) || 0
                 };
                 this.overrides = pf.overrides || {};
             },
 
-            /* Zapíše this.settings/this.overrides zpět do aktivního portfolia + globálu. */
+            /* Zapíše this.settings/this.overrides zpět do aktivního portfolia + globálu.
+               POZN.: rentaSuma se ZAPISUJE per-portfolio do pf.rentaSuma (ne do global),
+               aby každé portfolio mohlo mít vlastní rentu. Hodnota '' = "prázdno" → použije
+               se dopočet ze sumy. */
             commitActiveContext() {
                 if (this.activeId === 'summary') return;
                 const pf = this.model.portfolios.find(p => p.id === this.activeId);
@@ -1284,10 +1260,46 @@ function doPost(e) {
                 pf.urok = this.settings.urok;
                 pf.initial = Number(this.settings.initial) || 0;
                 pf.overrides = this.overrides;
-                // Globální pole
+                // Per-portfolio renta. '' = explicitně prázdné (dopočet); jinak číslo.
+                if (this.settings.rentaSuma === '' || this.settings.rentaSuma == null) {
+                    delete pf.rentaSuma;
+                } else {
+                    pf.rentaSuma = Number(this.settings.rentaSuma) || 0;
+                }
+                // Globální pole (kromě rentaSuma — to už není sdílené napříč portfolii)
                 this.model.global.age = this.settings.age;
                 this.model.global.rentaStart = this.settings.rentaStart;
-                this.model.global.rentaSuma = this.settings.rentaSuma;
+            },
+
+            /* Vrátí efektivní rentu pro dané portfolio:
+               - Pokud má pf.rentaSuma nastavenou, vrátí ji.
+               - Jinak rozdělí "zbytek" z g.rentaSuma (po odečtení vyplněných portfolií)
+                 proporcionálně podle dnešní hodnoty každého prázdného portfolia.
+               Volá se z computePortfolioRows (per-portfolio drawdown) a renderSummary. */
+            effectiveRentaFor(pf, portfolioValues) {
+                if (pf.rentaSuma != null && pf.rentaSuma !== '') return Number(pf.rentaSuma) || 0;
+                const g = this.model.global;
+                const globalRenta = Number(g.rentaSuma) || 0;
+                if (globalRenta <= 0) return 0;
+                // Rozděl zbytek mezi portfolia bez vlastní renty proporcionálně.
+                const portfolios = this.model.portfolios;
+                let usedRenta = 0;
+                let emptyValueSum = 0;
+                portfolios.forEach(p => {
+                    if (p.rentaSuma != null && p.rentaSuma !== '') {
+                        usedRenta += Number(p.rentaSuma) || 0;
+                    } else {
+                        emptyValueSum += (portfolioValues?.[p.id] || 0);
+                    }
+                });
+                const remaining = Math.max(0, globalRenta - usedRenta);
+                if (emptyValueSum <= 0) {
+                    // Žádné portfolio s hodnotou (nebo všechny vyplněny) — rozděl rovnoměrně.
+                    const emptyCount = portfolios.filter(p => p.rentaSuma == null || p.rentaSuma === '').length;
+                    return emptyCount > 0 ? remaining / emptyCount : 0;
+                }
+                const pfVal = portfolioValues?.[pf.id] || 0;
+                return remaining * (pfVal / emptyValueSum);
             },
 
             init() {
@@ -1315,7 +1327,8 @@ function doPost(e) {
                 set('base-start-month', this.settings.startMonth || '');
                 set('base-sporeni-roky', this.settings.sporeniRoky);
                 set('base-renta-start', this.settings.rentaStart);
-                set('base-renta-suma', this.settings.rentaSuma);
+                // Per-portfolio renta — prázdná hodnota se ZACHOVÁ jako '' (placeholder UI).
+                set('base-renta-suma', (this.settings.rentaSuma === '' || this.settings.rentaSuma == null) ? '' : this.settings.rentaSuma);
                 // Per-portfolio pole
                 set('base-vklad', this.settings.vklad);
                 set('base-urok', this.settings.urok);
@@ -1523,15 +1536,26 @@ function doPost(e) {
                 cashflows.sort((a, b) => a.date - b.date);
                 const xirr = this.calcXIRR(cashflows);
 
+                // ── Souhrnná renta ──
+                // summedPfRenta = součet vyplněných pf.rentaSuma (placeholder pro summary
+                // input, když je globální prázdná).
+                // effectiveRenta = aktuální celková renta čerpaná měsíčně:
+                //   - pokud g.rentaSuma nastavena: použij ji
+                //   - jinak: součet pf.rentaSuma (portfolia bez vlastní renty = 0)
+                const summedPfRenta = this.model.portfolios.reduce((s, p) => {
+                    return s + ((p.rentaSuma != null && p.rentaSuma !== '') ? Number(p.rentaSuma) || 0 : 0);
+                }, 0);
+                const hasGlobalRenta = (g.rentaSuma != null && g.rentaSuma !== '');
+                const effectiveRenta = hasGlobalRenta ? (Number(g.rentaSuma) || 0) : summedPfRenta;
+
                 // ── Fáze čerpání nad CELKEM ──
                 const mRate = (weighted / 100) / 12;
-                const rentaSuma = Number(g.rentaSuma) || 0;
                 let bal = rentaStartBalance, monthsLasting = 0;
                 const drawSeries = [];
-                if (g.showDrawdown && rentaSuma > 0) {
+                if (g.showDrawdown && effectiveRenta > 0) {
                     let guard = 0;
                     while (bal > 0 && guard < 1200) { // max 100 let
-                        bal = bal * (1 + mRate) - rentaSuma;
+                        bal = bal * (1 + mRate) - effectiveRenta;
                         monthsLasting++; guard++;
                         if (monthsLasting % 12 === 0) drawSeries.push({ year: retDate.getFullYear() + monthsLasting / 12, value: Math.max(0, bal) });
                         if (bal <= 0) break;
@@ -1539,7 +1563,7 @@ function doPost(e) {
                 }
                 // „věčná renta" — pokud výnos pokryje rentu, vydrží navždy
                 const eternalMonthly = rentaStartBalance * mRate;
-                const lastsForever = eternalMonthly >= rentaSuma && rentaSuma > 0;
+                const lastsForever = eternalMonthly >= effectiveRenta && effectiveRenta > 0;
 
                 // ── Akumulační křivka (yearly) sečtená přes portfolia podle kalendáře ──
                 const valByYear = {}; // calYear → suma hodnot portfolií na konci roku
@@ -1562,12 +1586,33 @@ function doPost(e) {
                     accSeries.push({ year: y, value: valByYear[y] || 0 });
                 }
 
-                return { perPf, totalInvested, totalValue, totalYield, weighted, xirr, rentaStartBalance, monthsLasting, lastsForever, accSeries, drawSeries, retYear: retDate.getFullYear() };
+                return { perPf, totalInvested, totalValue, totalYield, weighted, xirr, rentaStartBalance, monthsLasting, lastsForever, accSeries, drawSeries, retYear: retDate.getFullYear(), summedPfRenta, effectiveRenta };
             },
 
             /* Přepnutí metriky souhrnu (weighted ↔ xirr). */
             setSummaryMetric(m) {
                 this.model.global.metric = (m === 'xirr') ? 'xirr' : 'weighted';
+                this.save();
+                this.renderSummary();
+            },
+
+            /* Editovatelná souhrnná měsíční renta.
+               - Prázdná hodnota = "není nastavena globální renta" → souhrn ukáže
+                 součet jednotlivých pf.rentaSuma. Portfolia bez vlastní renty
+                 mají renta = 0.
+               - Vyplněná hodnota = "globální target". Portfolia s pf.rentaSuma
+                 si nechají svou hodnotu, prázdná dostanou poměrný díl ze
+                 zbytku (global − sum_filled) dle své dnešní hodnoty.  */
+            updateSummaryRenta(value) {
+                const trimmed = String(value ?? '').trim();
+                if (trimmed === '') {
+                    delete this.model.global.rentaSuma;
+                } else {
+                    const parsed = window.FinanceCommon?.ui?.parseNumber?.(trimmed)
+                        ?? parseFloat(String(trimmed).replace(/[\s ]/g, '').replace(',', '.'));
+                    if (!Number.isFinite(parsed)) return;
+                    this.model.global.rentaSuma = parsed;
+                }
                 this.save();
                 this.renderSummary();
             },
@@ -1628,7 +1673,17 @@ function doPost(e) {
                     <!-- KPI čerpání -->
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                         <div class="stat-card border-l-2 border-l-slate-600"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Naspořeno k rentě (${d.retYear})</div><div class="font-mono text-lg font-bold text-slate-100">${fmt(d.rentaStartBalance)}</div></div>
-                        <div class="stat-card border-l-2 border-l-amber-500"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Měsíční renta</div><div class="font-mono text-lg font-bold text-amber-400">${fmt(g.rentaSuma)}</div></div>
+                        <div class="stat-card border-l-2 border-l-amber-500"
+                             title="Měsíční renta napříč všemi portfolii. Pokud necháš prázdné, ukáže se SOUČET z 'Plánovaná renta (Kč)' jednotlivých portfolií. Pokud vyplníš, portfolia s prázdnou rentou dostanou poměrný díl podle své dnešní hodnoty.">
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Měsíční renta (souhrn)</div>
+                            <input type="text" inputmode="numeric" data-fc-numfmt id="summary-renta-suma"
+                                   value="${(g.rentaSuma != null && g.rentaSuma !== '') ? Number(g.rentaSuma) : ''}"
+                                   placeholder="${fmt(d.summedPfRenta)}"
+                                   onchange="app.updateSummaryRenta(this.value)"
+                                   class="config-input w-full font-mono text-lg font-bold text-amber-400 bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                                   style="color: #fbbf24;">
+                            <div class="text-[9px] text-slate-600 mt-0.5">${(g.rentaSuma != null && g.rentaSuma !== '') ? 'globální (rozdělí se mezi portfolia)' : 'součet z portfolií'}</div>
+                        </div>
                         <div class="stat-card border-l-2 border-l-sky-500"><div class="text-[10px] uppercase tracking-wider text-sky-600 mb-1">Renta vydrží</div><div class="font-mono text-lg font-bold text-sky-400">${yearsLast}</div></div>
                     </div>
 
@@ -1762,7 +1817,9 @@ function doPost(e) {
                 this.settings.rentaStart = parseInt(document.getElementById('base-renta-start').value) || 0;
                 this.settings.vklad = _p('base-vklad') || 0;
                 this.settings.urok = parseFloat(document.getElementById('base-urok').value) || 0;
-                this.settings.rentaSuma = _p('base-renta-suma') || 0;
+                // rentaSuma per-portfolio: prázdný input = '' (explicitně nevyplněno, dopočet ze souhrnu).
+                const rsRaw = (document.getElementById('base-renta-suma')?.value || '').trim();
+                this.settings.rentaSuma = rsRaw === '' ? '' : (_p('base-renta-suma') || 0);
                 const initEl = document.getElementById('base-initial');
                 if (initEl) this.settings.initial = _p('base-initial') || 0;
 
@@ -1947,7 +2004,10 @@ function doPost(e) {
                     if (override.flow !== undefined) flow = override.flow;
                     else {
                         if (m <= mEndSporeni) flow = this.settings.vklad;
-                        else if (m > mStartRenta) flow = -this.settings.rentaSuma;
+                        // settings.rentaSuma může být '' (prázdné = "dle souhrnu") nebo číslo.
+                        // Tady v per-portfolio enginu používáme číslo přímo. Prázdná = 0
+                        // (dopočet ze souhrnu se aplikuje až v computeSummaryData).
+                        else if (m > mStartRenta) flow = -(Number(this.settings.rentaSuma) || 0);
                         else flow = 0;
                     }
 
@@ -2203,10 +2263,19 @@ function doPost(e) {
                 if (checkbox) checkbox.checked = showDrawdown;
 
                 if (this.chart) this.chart.destroy();
+                // Když je čerpání skryto, oříznout celý dataset (labels, Akumulace, Vloženo)
+                // jen do konce akumulační fáze — graf se vizuálně "roztáhne" do celé osy
+                // namísto velkého prázdného prostoru napravo.
+                const lastIdx = showDrawdown ? labels.length : Math.min(labels.length, lastAccIndex + 1);
+                const trim = (arr) => arr.slice(0, lastIdx);
+                const trimmedLabels   = trim(labels);
+                const trimmedValues   = trim(values);
+                const trimmedDeposits = trim(deposits);
+
                 const datasets = [
                     {
                         label: 'Akumulace',
-                        data: values.map((v, i) => (i <= lastAccIndex) ? v : null),
+                        data: trimmedValues.map((v, i) => (i <= lastAccIndex) ? v : null),
                         borderColor: '#0ea5e9',
                         backgroundColor: 'rgba(14,165,233,0.07)',
                         fill: true,
@@ -2218,7 +2287,7 @@ function doPost(e) {
                 ];
                 if (showDrawdown) datasets.push({
                     label: 'Čerpání',
-                    data: values.map((v, i) => (i >= lastAccIndex) ? v : null),
+                    data: trimmedValues.map((v, i) => (i >= lastAccIndex) ? v : null),
                     borderColor: '#fb923c',
                     backgroundColor: 'rgba(251,146,60,0.06)',
                     fill: true,
@@ -2230,12 +2299,12 @@ function doPost(e) {
                 this.chart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: labels,
+                        labels: trimmedLabels,
                         datasets: [
                             ...datasets,
                             {
                                 label: 'Vloženo',
-                                data: deposits,
+                                data: trimmedDeposits,
                                 borderColor: '#475569',
                                 backgroundColor: 'rgba(71,85,105,0.04)',
                                 borderDash: [5, 5],
@@ -2597,7 +2666,21 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
                     if (key === 'urok') delete this.overrides[month].zustatek;
                 }
                 if (Object.keys(this.overrides[month]).length === 0) delete this.overrides[month];
+                // Sjednoť reference: pf.overrides MUSÍ ukazovat na stejný objekt jako
+                // this.overrides, aby commitActiveContext jen znovuzapsal reference.
+                const pf = this.model?.portfolios?.find(p => p.id === this.activeId);
+                if (pf) pf.overrides = this.overrides;
                 this.update();
+                // EXPLICITNÍ FORCE PUSH: i kdyby FC hook na localStorage.setItem
+                // z nějakého důvodu neproběhl (race, jiný iframe, atd.), pošleme
+                // ručně data celého modulu do cloudu. pushModule je debounced/retry
+                // safe → idempotentní volání.
+                try {
+                    const FC = window.FinanceCommon;
+                    if (FC?.cloud?.pushModule && this.model) {
+                        FC.cloud.pushModule('investice', this.model);
+                    }
+                } catch (e) { console.warn('[Investice] sync push failed:', e); }
             },
 
             clearOverride(month) {
