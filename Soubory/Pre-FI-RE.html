@@ -373,26 +373,57 @@
                 walk(Array.isArray(tree) ? tree : []);
 
                 const today = new Date(); today.setHours(0, 0, 0, 0);
-                // Replikuje matematiku z modulu Spoření (calculateGoalData → goalSaved
-                // = actual při posledním řádku ≤ today). Neaplikuje cap na target,
-                // protože ani modul Spoření necapuje — řádky pokračují nad target.
+                // Replikujeme PŘESNĚ algoritmus z modulu Spoření (calculateGoalData +
+                // calculateGlobalTotals → goalSaved). Klíčový detail: Spoření generuje
+                // řádky jen do dosažení cíle + 12 měsíců přebytku, pak `break`. Když je
+                // tedy cíl už dosažen a `today` je mnohem dál v budoucnu, Spoření zobrazí
+                // hodnotu na konci toho 12-měs. přebytku, ne na dnešek. Bez stejného capu
+                // by Pre-FI-RE počítal víc (proto uživatel viděl + ~9 550 Kč).
                 const calcSaved = (goal) => {
                     const initial = Number(goal.initial) || 0;
                     const monthly = Number(goal.monthly) || 0;
+                    const target  = Number(goal.target) || 0;
                     const extras = goal.extras && typeof goal.extras === 'object' ? goal.extras : {};
                     let startDate = goal.startDate ? new Date(goal.startDate) : new Date();
                     if (isNaN(startDate)) startDate = new Date();
                     startDate.setHours(0, 0, 0, 0);
                     if (startDate > today) return initial; // ještě nezačal
-                    let monthsElapsed = (today.getFullYear() - startDate.getFullYear()) * 12
-                                       + (today.getMonth() - startDate.getMonth()) + 1;
-                    if (monthsElapsed < 1) monthsElapsed = 1;
-                    let saved = initial + (Number(extras[1]) || 0);
-                    for (let m = 2; m <= monthsElapsed; m++) {
-                        saved += monthly;
-                        saved += Number(extras[m]) || 0;
+
+                    // Generujeme řádky stejně jako Spoření, ukládáme {dateStr, actual}.
+                    const rows = [];
+                    const maxMonths = 720; // shodné se Spoření
+                    let monthIdx = 1;
+                    let date = new Date(startDate);
+                    let actual = initial;
+                    let stopped = false;
+                    while (monthIdx <= maxMonths) {
+                        const regularDeposit = monthIdx === 1 ? 0 : monthly;
+                        const base = monthIdx === 1 ? initial : (rows[rows.length - 1].actual + regularDeposit);
+                        actual = base + (Number(extras[monthIdx]) || 0);
+                        rows.push({ dateStr: date.toISOString().slice(0, 10), actual });
+                        date.setMonth(date.getMonth() + 1);
+                        monthIdx++;
+                        // Cap: cíl dosažen → ještě 12 měsíců "přebytku" a stop.
+                        if (target > 0 && actual >= target && monthIdx > 12 && !stopped) {
+                            for (let k = 0; k < 12 && monthIdx <= maxMonths; k++) {
+                                const base2 = rows[rows.length - 1].actual + monthly;
+                                const act2 = base2 + (Number(extras[monthIdx]) || 0);
+                                rows.push({ dateStr: date.toISOString().slice(0, 10), actual: act2 });
+                                date.setMonth(date.getMonth() + 1);
+                                monthIdx++;
+                            }
+                            stopped = true;
+                            break;
+                        }
                     }
-                    return Math.max(0, saved);
+
+                    // Vezmeme actual posledního řádku, jehož dateStr ≤ today.
+                    let goalSaved = 0;
+                    for (let i = 0; i < rows.length; i++) {
+                        if (new Date(rows[i].dateStr) <= today) goalSaved = rows[i].actual;
+                        else break;
+                    }
+                    return Math.max(0, goalSaved);
                 };
 
                 let sumSav = 0, planMth = 0;
@@ -578,14 +609,59 @@
         //     v důchodu prodat, měl by zároveň přidat hodnotu nemovitosti
         //     do položky "Aktuální majetek" — to udělá ručně.
         // Půjčky jen informativně oznámíme, ale neodečítáme.
+        // Stejně jako modul Půjčky počítáme AKTUÁLNÍ ZŮSTATEK z amortizačního
+        // plánu (jistina + úrok + ruční mimořádné splátky), ne původní jistinu.
+        // Tím se hodnota přesně shoduje s "Celkový dluh" v modulu Půjčky.
         try {
             const raw = localStorage.getItem('pujcky_data_v1');
             if (raw) {
                 const loanArr = JSON.parse(raw);
                 if (Array.isArray(loanArr) && loanArr.length) {
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
+                    const currentBalanceFor = (loan) => {
+                        const principal = Number(loan.principal) || 0;
+                        const annualRate = Number(loan.rate) || 0;
+                        const termMonths = Number(loan.termMonths) || 0;
+                        const monthlyRate = (annualRate / 100) / 12;
+                        const extras = (loan.extras && typeof loan.extras === 'object') ? loan.extras : {};
+                        if (principal <= 0 || termMonths <= 0) return principal;
+
+                        const manualMonthly = Number(loan.manualMonthly);
+                        let monthlyPayment;
+                        if (Number.isFinite(manualMonthly) && manualMonthly > 0) {
+                            monthlyPayment = manualMonthly;
+                        } else if (monthlyRate === 0) {
+                            monthlyPayment = principal / termMonths;
+                        } else {
+                            const f = Math.pow(1 + monthlyRate, termMonths);
+                            monthlyPayment = principal * (monthlyRate * f) / (f - 1);
+                        }
+
+                        const startDate = new Date(loan.startDate || new Date().toISOString().slice(0, 10));
+                        if (isNaN(startDate)) return principal;
+                        let balance = principal;
+                        let monthIdx = 1;
+                        let date = new Date(startDate);
+                        let currentBalance = balance;
+                        const maxMonths = Math.max(termMonths * 2, 600);
+                        while (balance > 0.005 && monthIdx <= maxMonths) {
+                            const interest = balance * monthlyRate;
+                            const extra = Number(extras[monthIdx]) || 0;
+                            let totalPayment = monthlyPayment + extra;
+                            if (totalPayment > balance + interest) totalPayment = balance + interest;
+                            const principalPaid = Math.max(0, totalPayment - interest);
+                            balance = Math.max(0, balance - principalPaid);
+                            if (date <= today) currentBalance = balance;
+                            else break;
+                            date.setMonth(date.getMonth() + 1);
+                            monthIdx++;
+                        }
+                        return currentBalance;
+                    };
+
                     let outstanding = 0;
                     loanArr.forEach(l => {
-                        const v = Number(l.outstanding ?? l.remainingPrincipal ?? l.principal ?? 0);
+                        const v = currentBalanceFor(l);
                         if (v > 0) outstanding += v;
                     });
                     if (outstanding > 0) {

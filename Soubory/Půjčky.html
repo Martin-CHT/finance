@@ -252,15 +252,6 @@
                 </div>
             </div>
 
-            <!-- Sync status (URL, AI klíče i téma se nastavují v globálním Nastavení) -->
-            <div>
-                <div id="sync-status" class="mt-1.5 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold" style="background:#1e293b;border:1px solid #334155;color:#64748b;">
-                    <i data-lucide="cloud-off" class="w-3 h-3"></i> Nepropojeno
-                </div>
-                <p class="text-[10px] text-slate-600 leading-relaxed mt-2">
-                    AI klíče, Google Sheets URL a téma se nastavují v <a href="Nastavení.html" target="_top" style="color:#38bdf8; text-decoration:underline;">globálním Nastavení</a>.
-                </p>
-            </div>
         </div>
     </aside>
 
@@ -832,34 +823,8 @@ function doPost(e) {
             else { cloudSyncReady = true; updateSyncUIStatus('idle'); }
         }
 
-        function updateSyncUIStatus(state = 'idle') {
-            const el = document.getElementById('sync-status');
-            const url = getCookie('google_sync_pujcky');
-            if (!url) {
-                el.style.cssText = 'background:#1e293b;border:1px solid #334155;color:#64748b;';
-                el.innerHTML = '<i data-lucide="cloud-off" class="w-3 h-3"></i> Nepropojeno';
-                lucide.createIcons(); return;
-            }
-            switch (state) {
-                case 'loading':
-                    el.style.cssText = 'background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.3);color:#38bdf8;';
-                    el.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Načítám…'; break;
-                case 'saving':
-                    el.style.cssText = 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;';
-                    el.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Ukládám…'; break;
-                case 'success':
-                    el.style.cssText = 'background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);color:#34d399;';
-                    el.innerHTML = '<i data-lucide="check-circle" class="w-3 h-3"></i> Synchronizováno'; break;
-                case 'error':
-                    el.style.cssText = 'background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.3);color:#fb7185;';
-                    el.innerHTML = '<i data-lucide="cloud-lightning" class="w-3 h-3"></i> Chyba spojení'; break;
-                default:
-                    el.style.cssText = 'background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);color:#6ee7b7;opacity:0.8;';
-                    el.innerHTML = '<i data-lucide="cloud" class="w-3 h-3"></i> Připraveno'; break;
-            }
-            el.className = 'flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[11px] font-semibold';
-            lucide.createIcons();
-        }
+        // updateSyncUIStatus: status indikátor odstraněn z UI; ponechán jako no-op.
+        function updateSyncUIStatus(state = 'idle') { /* no-op */ }
 
         function triggerAutoSync() {
             const url = getCookie('google_sync_pujcky');

@@ -472,13 +472,7 @@
                             <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)" style="background:none;border:none;">
                         </label>
                     </div>
-                    <div id="sync-status" class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold sync-disconnected">
-                        <i data-lucide="cloud-off" class="w-3.5 h-3.5"></i> Nepropojeno
-                    </div>
                 </div>
-                <p class="text-[10px] text-slate-600 leading-relaxed">
-                    AI klíče a Google Sheets URL se nastavují v <a href="Nastavení.html" target="_top" class="text-sky-400 hover:underline">globálním Nastavení</a>.
-                </p>
             </div>
         </aside>
 
@@ -1280,33 +1274,9 @@ Formátuj <b>tučně</b> klíčová slova, použij <ul><li> pro výčty. Max 180
             else { cloudSyncReady = true; updateSyncUIStatus('idle'); }
         }
 
-        function updateSyncUIStatus(state = 'idle') {
-            const statusEl = document.getElementById('sync-status');
-            const url = getCookie('google_sync_api');
-            if (!url) {
-                statusEl.className = 'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold sync-disconnected';
-                statusEl.innerHTML = `<i data-lucide="cloud-off" class="w-3.5 h-3.5"></i> Nepropojeno`;
-                lucide.createIcons(); return;
-            }
-            switch(state) {
-                case 'loading':
-                    statusEl.className = 'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold sync-loading';
-                    statusEl.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Načítám...`; break;
-                case 'saving':
-                    statusEl.className = 'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold sync-saving';
-                    statusEl.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Ukládám...`; break;
-                case 'success':
-                    statusEl.className = 'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold sync-success';
-                    statusEl.innerHTML = `<i data-lucide="check-cloud" class="w-3.5 h-3.5"></i> Synchronizováno`; break;
-                case 'error':
-                    statusEl.className = 'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold sync-error';
-                    statusEl.innerHTML = `<i data-lucide="cloud-lightning" class="w-3.5 h-3.5"></i> Chyba spojení`; break;
-                default:
-                    statusEl.className = 'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold sync-idle';
-                    statusEl.innerHTML = `<i data-lucide="cloud" class="w-3.5 h-3.5"></i> Připraveno`; break;
-            }
-            lucide.createIcons();
-        }
+        // updateSyncUIStatus: status indikátor byl odstraněn z UI (zbytečný v sidebaru);
+        // ponechán jako no-op, ať volání z fetch-handlers nepadají.
+        function updateSyncUIStatus(state = 'idle') { /* no-op */ }
 
         function setAIProvider(provider) {
             setCookie('ai_provider', provider, 365);

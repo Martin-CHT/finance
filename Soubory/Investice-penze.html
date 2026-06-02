@@ -524,12 +524,12 @@
 
             <!-- Chart -->
             <div class="panel lg:col-span-8">
-                <div class="px-4 py-3 border-b border-slate-800 flex justify-between items-center">
+                <div class="px-4 py-3 border-b border-slate-800 flex justify-between items-center flex-wrap gap-2">
                     <h3 class="text-sm font-semibold flex items-center gap-2 text-slate-200">
                         <i data-lucide="area-chart" class="w-4 h-4 text-sky-400"></i>
                         Vývoj majetku
                     </h3>
-                    <div class="flex items-center gap-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                    <div class="flex items-center gap-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex-wrap">
                         <span class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full" style="background:#0ea5e9"></span> Akumulace
                         </span>
@@ -539,6 +539,9 @@
                         <span class="flex items-center gap-1.5 border-l border-slate-700 pl-3">
                             <span class="w-2 h-2 rounded-full" style="background:#f87171"></span> 65 let
                         </span>
+                        <label class="flex items-center gap-1.5 text-[11px] normal-case tracking-normal text-slate-400 cursor-pointer select-none border-l border-slate-700 pl-3">
+                            <input type="checkbox" id="detail-show-drawdown" onchange="app.toggleDetailDrawdown(this.checked)"> Zobrazit fázi čerpání
+                        </label>
                     </div>
                 </div>
                 <div class="p-4 h-80">
@@ -1608,10 +1611,13 @@ function doPost(e) {
                         <div class="stat-card"><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Výnos</div><div class="font-mono text-lg font-bold ${d.totalYield >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${d.totalYield >= 0 ? '+ ' : '- '}${fmt(Math.abs(d.totalYield))}</div></div>
                         <div class="stat-card">
                             <div class="flex items-center justify-between mb-1">
-                                <span class="text-[10px] uppercase tracking-wider text-slate-500">Celkový výnos</span>
+                                <span class="text-[10px] uppercase tracking-wider text-slate-500 inline-flex items-center gap-1">
+                                    Celkový výnos
+                                    <i data-lucide="info" class="w-3 h-3 text-slate-600 cursor-help" title="Vážený = průměrné RPSN portfolií vážené jejich dnešní hodnotou (ignoruje časování vkladů).&#10;XIRR = vnitřní výnosové procento ze všech vkladů a dat (zohledňuje, kdy peníze přišly).&#10;Detail viz Nápověda → 'Jak číst výnos'."></i>
+                                </span>
                                 <span class="inline-flex rounded overflow-hidden border border-slate-700 text-[9px]">
-                                    <button onclick="app.setSummaryMetric('weighted')" class="px-1.5 py-0.5 ${metric === 'weighted' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'}">Vážený</button>
-                                    <button onclick="app.setSummaryMetric('xirr')" class="px-1.5 py-0.5 ${metric === 'xirr' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'}">XIRR</button>
+                                    <button onclick="app.setSummaryMetric('weighted')" title="Kapitálově vážený průměr RPSN — průměr výnosů portfolií vážený jejich hodnotou." class="px-1.5 py-0.5 ${metric === 'weighted' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'}">Vážený</button>
+                                    <button onclick="app.setSummaryMetric('xirr')" title="XIRR — vnitřní výnosové procento. Zohledňuje, KDY jsi peníze vkládal (money-weighted)." class="px-1.5 py-0.5 ${metric === 'xirr' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 hover:text-slate-300'}">XIRR</button>
                                 </span>
                             </div>
                             <div class="font-mono text-lg font-bold text-emerald-400">${metricVal}</div>
@@ -1634,7 +1640,7 @@ function doPost(e) {
                                 <input type="checkbox" ${g.showDrawdown ? 'checked' : ''} onchange="app.toggleDrawdown(this.checked)"> Zobrazit fázi čerpání
                             </label>
                         </div>
-                        <div class="p-4 h-72"><canvas id="summaryChart"></canvas></div>
+                        <div class="h-72"><canvas id="summaryChart"></canvas></div>
                     </div>
 
                     <!-- Tabulka portfolií -->
@@ -2169,6 +2175,17 @@ function doPost(e) {
                 lucide.createIcons();
             },
 
+            /* Per-portfolio přepínač zobrazení fáze čerpání. Hodnota se ukládá
+               přímo do aktivního portfolia (pf.showDrawdown). Default = true,
+               aby existující portfolia chovala stejně jako dřív. */
+            toggleDetailDrawdown(on) {
+                const pf = this.model?.portfolios?.find(p => p.id === this.activeId);
+                if (!pf) return;
+                pf.showDrawdown = !!on;
+                this.save();
+                this.renderChart();
+            },
+
             renderChart() {
                 const ctx = document.getElementById('mainChart').getContext('2d');
                 const yearlyPoints = this.data.filter((d, idx) => d.monthInYear === 12 || idx === this.data.length - 1);
@@ -2178,34 +2195,44 @@ function doPost(e) {
 
                 const lastAccIndex = yearlyPoints.findLastIndex(d => d.phase === 'VKLAD' || d.phase === 'ČEKÁNÍ');
 
+                // Per-portfolio přepínač čerpání (default true). Pokud aktivní portfolio
+                // má pf.showDrawdown === false, fáze čerpání se nezobrazí v grafu.
+                const activePf = this.model?.portfolios?.find(p => p.id === this.activeId);
+                const showDrawdown = activePf ? (activePf.showDrawdown !== false) : true;
+                const checkbox = document.getElementById('detail-show-drawdown');
+                if (checkbox) checkbox.checked = showDrawdown;
+
                 if (this.chart) this.chart.destroy();
+                const datasets = [
+                    {
+                        label: 'Akumulace',
+                        data: values.map((v, i) => (i <= lastAccIndex) ? v : null),
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14,165,233,0.07)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? 6 : 1,
+                        pointBackgroundColor: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? '#f87171' : '#0ea5e9'
+                    }
+                ];
+                if (showDrawdown) datasets.push({
+                    label: 'Čerpání',
+                    data: values.map((v, i) => (i >= lastAccIndex) ? v : null),
+                    borderColor: '#fb923c',
+                    backgroundColor: 'rgba(251,146,60,0.06)',
+                    fill: true,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? 6 : 1,
+                    pointBackgroundColor: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? '#f87171' : '#fb923c'
+                });
                 this.chart = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: labels,
                         datasets: [
-                            {
-                                label: 'Akumulace',
-                                data: values.map((v, i) => (i <= lastAccIndex) ? v : null),
-                                borderColor: '#0ea5e9',
-                                backgroundColor: 'rgba(14,165,233,0.07)',
-                                fill: true,
-                                tension: 0.3,
-                                borderWidth: 2,
-                                pointRadius: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? 6 : 1,
-                                pointBackgroundColor: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? '#f87171' : '#0ea5e9'
-                            },
-                            {
-                                label: 'Čerpání',
-                                data: values.map((v, i) => (i >= lastAccIndex) ? v : null),
-                                borderColor: '#fb923c',
-                                backgroundColor: 'rgba(251,146,60,0.06)',
-                                fill: true,
-                                tension: 0.3,
-                                borderWidth: 2,
-                                pointRadius: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? 6 : 1,
-                                pointBackgroundColor: (c) => yearlyPoints[c.dataIndex]?.actualAge === 65 ? '#f87171' : '#fb923c'
-                            },
+                            ...datasets,
                             {
                                 label: 'Vloženo',
                                 data: deposits,

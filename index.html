@@ -515,7 +515,7 @@
                 file: 'Soubory/Investice-penze.html',
                 desc: 'Plánování penze a investic, složený úrok, prognóza kapitálu, AI poradce a synchronizace s Google Sheets.',
                 tags: ['AI', 'Sheets', 'Forecast'],
-                defaultGroup: 'Investice'
+                defaultGroup: 'Cíle & Plánování'
             },
             pujcky: {
                 label: 'Půjčky & Splátky',
@@ -535,6 +535,16 @@
                 file: 'Soubory/Fondy.html',
                 desc: 'Sledování vývoje fondů Conseq vs. inflace ČNB, historická data, AI analýza a Tampermonkey skript.',
                 tags: ['AI', 'ČNB', 'Conseq'],
+                defaultGroup: 'Investice'
+            },
+            'fondy-podrobne': {
+                label: 'Fondy podrobně',
+                shortBadge: 'FP',
+                icon: 'line-chart',
+                color: 'amber',
+                file: 'Soubory/Fondy-podrobně.html',
+                desc: 'Denní kurzy vybraných fondů Conseq (scraping přes vlastní Google Apps Script), historická data, FX z ČNB, inflace z ČSÚ.',
+                tags: ['Daily', 'GAS', 'Conseq'],
                 defaultGroup: 'Investice'
             },
             majetek: {
@@ -607,7 +617,10 @@
             }
         };
 
-        const DEFAULT_ORDER = ['prijmy', 'predplatna', 'sporeni', 'pre-fi-re', 'investice', 'fondy', 'btc', 'pujcky', 'majetek', 'energie'];
+        // Defaultní pořadí: Denní (Příjmy, Předplatná); Cíle & Plánování
+        // (Spoření, Investice & Penze, Pre-FI/RE); Investice (Fondy, Fondy podrobně, BTC);
+        // Závazky (Půjčky); Majetek & Náklady (Majetek, Energie).
+        const DEFAULT_ORDER = ['prijmy', 'predplatna', 'sporeni', 'investice', 'pre-fi-re', 'fondy', 'fondy-podrobne', 'btc', 'pujcky', 'majetek', 'energie'];
         const GROUP_ORDER = ['Denní', 'Cíle & Plánování', 'Investice', 'Závazky', 'Majetek & Náklady', 'Ostatní'];
 
         /* Barevné mapy pro Tailwind (musíme je psát staticky, jinak by je tw purge odstranil – při CDN se to nestává, ale pro jistotu necháme přímo třídy) */
