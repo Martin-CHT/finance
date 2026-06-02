@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Martin-CHT Finance Automator
 // @namespace    http://conseq.cz/
-// @version      4.2
+// @version      4.3
 // @description  Verze 4.0 rozšířená o bleskové stahování inflace z ČSÚ přímo přes oficiální JSON-stat API s vylepšeným parserem.
 // @author       Martin
 // @copyright    2026, Martin
@@ -11,9 +11,9 @@
 // @supportURL   https://github.com/Martin-CHT/web/issues
 // @icon         https://ftp.conseq.cz/images/logo/conseq-ftp.png
 // @icon64       https://ftp.conseq.cz/images/logo/conseq-ftp.png
-// @updateURL    https://github.com/Martin-CHT/web/raw/refs/heads/main/finance/Conseq.fondy.github.user.js
-// @downloadURL  https://github.com/Martin-CHT/web/raw/refs/heads/main/finance/Conseq.fondy.github.user.js
-// @match        https://martin-cht.github.io/web/finance/Fondy.html*
+// @updateURL    https://github.com/Martin-CHT/finance/raw/refs/heads/main/Conseq.fondy.github.user.js
+// @downloadURL  https://github.com/Martin-CHT/finance/raw/refs/heads/main/Conseq.fondy.github.user.js
+// @match        https://martin-cht.github.io/finance/Soubory/Fondy.html*
 // @match        https://www.conseq.cz/investice/prehled-fondu/*
 // @grant        GM_openInTab
 // @grant        GM_setValue
