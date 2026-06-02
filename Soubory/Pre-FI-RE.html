@@ -360,36 +360,38 @@
             if (raw) {
                 const tree = JSON.parse(raw);
                 const flat = [];
+                // Striktně bereme jen item.type === 'goal' (stejně jako modul Spoření).
+                // Items bez type ignorujeme — modul Spoření je také nezobrazuje a vyhnem
+                // se tak nadhodnocení (uživatel viděl 29 800, ale Pre-FI/RE počítal 39 350).
                 const walk = (arr) => {
                     (arr || []).forEach(n => {
                         if (!n) return;
                         if (n.type === 'folder' && Array.isArray(n.children)) walk(n.children);
-                        else if (n.type === 'goal' || !n.type) flat.push(n);
+                        else if (n.type === 'goal') flat.push(n);
                     });
                 };
                 walk(Array.isArray(tree) ? tree : []);
 
                 const today = new Date(); today.setHours(0, 0, 0, 0);
+                // Replikuje matematiku z modulu Spoření (calculateGoalData → goalSaved
+                // = actual při posledním řádku ≤ today). Neaplikuje cap na target,
+                // protože ani modul Spoření necapuje — řádky pokračují nad target.
                 const calcSaved = (goal) => {
                     const initial = Number(goal.initial) || 0;
                     const monthly = Number(goal.monthly) || 0;
                     const extras = goal.extras && typeof goal.extras === 'object' ? goal.extras : {};
-                    const target  = Number(goal.target) || 0;
                     let startDate = goal.startDate ? new Date(goal.startDate) : new Date();
                     if (isNaN(startDate)) startDate = new Date();
                     startDate.setHours(0, 0, 0, 0);
-                    if (startDate > today) return initial; // ještě nezačal, naspořeno = initial
-                    // Spočítej kolik měsíců uběhlo od startu (včetně startovního měsíce)
+                    if (startDate > today) return initial; // ještě nezačal
                     let monthsElapsed = (today.getFullYear() - startDate.getFullYear()) * 12
                                        + (today.getMonth() - startDate.getMonth()) + 1;
                     if (monthsElapsed < 1) monthsElapsed = 1;
-                    let saved = initial;
+                    let saved = initial + (Number(extras[1]) || 0);
                     for (let m = 2; m <= monthsElapsed; m++) {
                         saved += monthly;
                         saved += Number(extras[m]) || 0;
                     }
-                    // Cíl už dosažen? Cap na target.
-                    if (target > 0 && saved > target) saved = target;
                     return Math.max(0, saved);
                 };
 
@@ -424,11 +426,49 @@
                 if (raw) {
                     const ip = JSON.parse(raw);
                     if (ip && ip._version === 2 && Array.isArray(ip.portfolios)) {
-                        // Snapshot ještě neexistuje (Souhrn nikdy neotevřen) — hrubý odhad
-                        // ze součtu počátečních stavů portfolií. Pro přesnou hodnotu
-                        // stačí jednou otevřít záložku Souhrn v Investice & Penze.
-                        const sumInit = ip.portfolios.reduce((s, p) => s + (Number(p.initial) || 0), 0);
-                        if (sumInit > 0) { invValue = sumInit; invLabel = `Investice & Penze: ${fmtCZK(sumInit)} (počáteční stavy — otevři Souhrn pro přesnou hodnotu)`; }
+                        // Snapshot chybí (Souhrn nikdy neotevřen) — spočítáme hodnotu
+                        // sami z každého portfolia: initial + Σ(měsíční vklad) × měsíce,
+                        // úročené ročně. Respektuje ruční overrides na konkrétní měsíce.
+                        const today = new Date(); today.setHours(0, 0, 0, 0);
+                        let sumVal = 0;
+                        let countWithValue = 0;
+                        ip.portfolios.forEach(pf => {
+                            const initial = Number(pf.initial) || 0;
+                            const vklad   = Number(pf.vklad)   || 0;
+                            const urokRate = (Number(pf.urok) || 0) / 100 / 12;
+                            const overrides = (pf.overrides && typeof pf.overrides === 'object') ? pf.overrides : {};
+                            const startRaw = pf.startMonth || '';
+                            let startDate;
+                            if (/^\d{4}-\d{2}$/.test(startRaw)) {
+                                const [y, m] = startRaw.split('-').map(Number);
+                                startDate = new Date(y, m - 1, 1);
+                            } else {
+                                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                            }
+                            if (startDate > today) { sumVal += initial; if (initial > 0) countWithValue++; return; }
+                            let monthsElapsed = (today.getFullYear() - startDate.getFullYear()) * 12
+                                              + (today.getMonth() - startDate.getMonth()) + 1;
+                            if (monthsElapsed < 1) monthsElapsed = 1;
+                            let balance = initial;
+                            for (let m = 1; m <= monthsElapsed; m++) {
+                                const ov = overrides[m] || {};
+                                // Ruční zůstatek má absolutní přednost.
+                                if (ov.zustatek != null && Number.isFinite(Number(ov.zustatek))) {
+                                    balance = Number(ov.zustatek);
+                                    continue;
+                                }
+                                const rate = (ov.urok != null && Number.isFinite(Number(ov.urok))) ? Number(ov.urok) / 100 / 12 : urokRate;
+                                const flow = (ov.flow != null && Number.isFinite(Number(ov.flow))) ? Number(ov.flow) : vklad;
+                                balance = balance * (1 + rate) + flow;
+                            }
+                            const pfVal = Math.max(0, balance);
+                            sumVal += pfVal;
+                            if (pfVal > 0) countWithValue++;
+                        });
+                        if (sumVal > 0) {
+                            invValue = sumVal;
+                            invLabel = `Investice & Penze: ${fmtCZK(sumVal)} (${countWithValue} portfolií, dopočítáno z vkladů a RPSN)`;
+                        }
                     } else {
                         // Nejstarší jednoportfoliový formát se známými klíči.
                         const candidates = [ip.currentValue, ip.current, ip.totalCurrent, ip.actualValue, ip.lastValue];

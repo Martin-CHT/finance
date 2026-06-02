@@ -285,7 +285,7 @@
                     <div class="text-base font-bold text-slate-100 font-mono" id="global-interest">0 Kč</div>
                 </div>
                 <div class="stat-card accent-emerald">
-                    <div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Doplaceno</div>
+                    <div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Splaceno</div>
                     <div class="text-base font-bold text-slate-100 font-mono" id="global-paid">0 Kč</div>
                 </div>
                 <button onclick="openModuleHelp()" title="Nápověda"
@@ -356,7 +356,7 @@
                 </div>
 
                 <!-- KPI cards -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4">
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 mt-4">
                     <div class="stat-card accent-sky">
                         <div class="text-[9px] font-bold text-sky-400 uppercase tracking-widest mb-0.5">Měsíční splátka</div>
                         <div class="text-sm font-bold text-slate-100 font-mono" id="kpi-monthly">0 Kč</div>
@@ -369,8 +369,12 @@
                         <div class="text-[9px] font-bold text-amber-400 uppercase tracking-widest mb-0.5">Celkem na úrocích</div>
                         <div class="text-sm font-bold text-slate-100 font-mono" id="kpi-interest">0 Kč</div>
                     </div>
+                    <div class="stat-card accent-emerald">
+                        <div class="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mb-0.5">Splaceno</div>
+                        <div class="text-sm font-bold text-slate-100 font-mono" id="kpi-paid-amount">0 Kč</div>
+                    </div>
                     <div class="stat-card accent-indigo">
-                        <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Doplaceno</div>
+                        <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Datum doplacení</div>
                         <div class="text-sm font-bold text-slate-100 font-mono" id="kpi-payoff">—</div>
                     </div>
                 </div>
@@ -484,8 +488,9 @@
                                 <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px] text-right">Doba</th>
                                 <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px] text-right">Měsíčně</th>
                                 <th class="py-2.5 px-3 font-semibold text-rose-400 uppercase tracking-wider text-[10px] text-right">Zbývá</th>
+                                <th class="py-2.5 px-3 font-semibold text-emerald-400 uppercase tracking-wider text-[10px] text-right">Splaceno</th>
                                 <th class="py-2.5 px-3 font-semibold text-amber-400 uppercase tracking-wider text-[10px] text-right">Úroky celkem</th>
-                                <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Doplaceno</th>
+                                <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Datum doplacení</th>
                             </tr>
                         </thead>
                         <tbody id="overview-table-body"></tbody>
@@ -1619,6 +1624,7 @@ function doPost(e) {
                 document.getElementById('progress-total').textContent = formatCZK(totalToPay);
                 document.getElementById('progress-bar').style.width = percent + '%';
                 document.getElementById('kpi-remaining').textContent = formatCZK(currentBalance);
+                document.getElementById('kpi-paid-amount').textContent = formatCZK(paidSoFar);
 
                 // Tabulka
                 const tbody = document.getElementById('table-body');
@@ -1837,15 +1843,18 @@ function doPost(e) {
                 const tbody = document.getElementById('overview-table-body');
                 tbody.innerHTML = '';
                 if (this.loans.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-600 text-xs">Žádné půjčky</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-600 text-xs">Žádné půjčky</td></tr>`;
                 } else {
                     const today = new Date(); today.setHours(0, 0, 0, 0);
                     this.loans.forEach(loan => {
                         const calc = this.calculateLoan(loan);
                         let currentBalance = Number(loan.principal) || 0;
+                        let paidSoFar = 0;
                         for (let i = 0; i < calc.rows.length; i++) {
-                            if (new Date(calc.rows[i].dateStr) <= today) currentBalance = calc.rows[i].balance;
-                            else break;
+                            if (new Date(calc.rows[i].dateStr) <= today) {
+                                currentBalance = calc.rows[i].balance;
+                                paidSoFar += calc.rows[i].totalPayment;
+                            } else break;
                         }
                         const tr = document.createElement('tr');
                         tr.style.borderBottom = '1px solid #1e293b';
@@ -1858,6 +1867,7 @@ function doPost(e) {
                             <td class="py-2.5 px-3 text-right table-number text-slate-400 text-xs">${loan.termMonths || 0} m</td>
                             <td class="py-2.5 px-3 text-right table-number text-sky-400 text-xs font-semibold">${formatCZK(calc.monthly)}</td>
                             <td class="py-2.5 px-3 text-right table-number text-rose-400 text-xs font-semibold">${formatCZK(currentBalance)}</td>
+                            <td class="py-2.5 px-3 text-right table-number text-emerald-400 text-xs font-semibold">${formatCZK(paidSoFar)}</td>
                             <td class="py-2.5 px-3 text-right table-number text-amber-400 text-xs">${formatCZK(calc.totalInterest)}</td>
                             <td class="py-2.5 px-3 text-slate-500 text-xs font-mono">${calc.payoffDate ? formatDate(calc.payoffDate) : '—'}</td>
                         `;

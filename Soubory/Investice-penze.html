@@ -440,8 +440,8 @@
                 <input type="text" id="pf-name" class="config-input" placeholder="Conseq" onchange="app.renamePortfolioField('name', this.value)">
             </div>
             <div class="flex-1 min-w-[12rem]">
-                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Společnost / poznámka</label>
-                <input type="text" id="pf-provider" class="config-input" placeholder="Conseq Investiční společnost" onchange="app.renamePortfolioField('provider', this.value)">
+                <label class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Poznámka</label>
+                <input type="text" id="pf-provider" class="config-input" placeholder="" onchange="app.renamePortfolioField('provider', this.value)">
             </div>
             <button onclick="app.deleteActivePortfolio()" class="px-3 py-2 text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded border border-transparent hover:border-rose-500/20 transition-colors flex items-center gap-1.5">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Smazat portfolio
@@ -1209,9 +1209,7 @@ function doPost(e) {
                 if (!this.model.global) this.model.global = { age: 30, rentaStart: 65, rentaSuma: 80000, showDrawdown: true, metric: 'weighted' };
                 if (this.model.global.showDrawdown === undefined) this.model.global.showDrawdown = true;
                 if (!this.model.global.metric) this.model.global.metric = 'weighted';
-                if (!Array.isArray(this.model.portfolios) || !this.model.portfolios.length) {
-                    this.model.portfolios = [this.blankPortfolio('Conseq')];
-                }
+                if (!Array.isArray(this.model.portfolios)) this.model.portfolios = [];
 
                 // ── RECOVERY ručních úprav (overrides) ──
                 // Stará verze ukládala overrides do samostatného klíče `pension_overrides`,
@@ -1231,8 +1229,8 @@ function doPost(e) {
                     this.model._recoveredOverrides = true;
                 }
 
-                // Výchozí pohled = první portfolio
-                this.activeId = this.model.portfolios[0].id;
+                // Výchozí pohled: pokud nemáme žádné portfolio, zobraz souhrn (prázdný).
+                this.activeId = this.model.portfolios.length > 0 ? this.model.portfolios[0].id : 'summary';
             },
 
             /* Naplní this.settings/this.overrides z aktivního portfolia + globálu,
@@ -1371,12 +1369,12 @@ function doPost(e) {
 
             deleteActivePortfolio() {
                 if (this.activeId === 'summary') return;
-                if (this.model.portfolios.length <= 1) { alert('Nelze smazat poslední portfolio.'); return; }
                 const pf = this.model.portfolios.find(p => p.id === this.activeId);
                 if (!pf) return;
                 if (!confirm('Opravdu smazat portfolio "' + pf.name + '" včetně jeho deníku?')) return;
                 this.model.portfolios = this.model.portfolios.filter(p => p.id !== this.activeId);
-                this.activeId = this.model.portfolios[0].id;
+                // Po smazání posledního portfolia zobraz souhrn (prázdný).
+                this.activeId = this.model.portfolios.length > 0 ? this.model.portfolios[0].id : 'summary';
                 this.save();
                 this.refreshView();
             },
@@ -1562,6 +1560,20 @@ function doPost(e) {
             renderSummary() {
                 const host = document.getElementById('pf-summary-content');
                 if (!host || !this.model) return;
+                if (!this.model.portfolios || this.model.portfolios.length === 0) {
+                    host.innerHTML = `
+                        <div class="panel p-8 text-center">
+                            <i data-lucide="folder-plus" class="w-10 h-10 text-slate-700 mx-auto mb-3"></i>
+                            <p class="text-slate-300 text-sm font-semibold">Zatím žádné portfolio</p>
+                            <p class="text-slate-500 text-xs mt-1 mb-4">Přidej první portfolio v levém panelu tlačítkem <b>+ Portfolio</b>.</p>
+                            <button onclick="app.addPortfolio()" class="px-4 py-2 rounded text-xs font-medium text-sky-300 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 transition-colors">
+                                + Přidat portfolio
+                            </button>
+                        </div>`;
+                    try { localStorage.setItem('pension_summary_v1', JSON.stringify({ totalValue: 0, totalInvested: 0, weighted: 0, xirr: null, rentaStartBalance: 0, portfolios: [], ts: Date.now() })); } catch (e) {}
+                    lucide.createIcons();
+                    return;
+                }
                 const g = this.model.global;
                 const d = this.computeSummaryData();
                 const fmt = (v) => Math.round(v).toLocaleString('cs-CZ') + ' Kč';
@@ -2078,7 +2090,7 @@ function doPost(e) {
                             </td>
                             <td class="px-4 py-2 text-right font-mono text-slate-300">${this.fmtMoney(d.cumulativeDeposits)}</td>
                             <td class="px-4 py-2 text-right">
-                                <input type="number" value="${Math.round(d.flow)}" onchange="app.setOverride(${d.month}, 'flow', this.value)"
+                                <input type="text" inputmode="numeric" data-fc-numfmt data-fc-frac="0" value="${Math.round(d.flow)}" onchange="app.setOverride(${d.month}, 'flow', this.value)"
                                     class="inline-input w-full max-w-[120px] text-right font-mono text-xs p-0.5">
                             </td>
                             <td class="px-4 py-2 text-right">
@@ -2087,7 +2099,7 @@ function doPost(e) {
                             </td>
                             <td class="px-4 py-2 text-right font-mono ${ziskClass}">${this.fmtSignedMoney(d.zisk)}</td>
                             <td class="px-4 py-2 text-right">
-                                <input type="number" value="${Math.round(d.zustatek)}" onchange="app.setOverride(${d.month}, 'zustatek', this.value)"
+                                <input type="text" inputmode="numeric" data-fc-numfmt data-fc-frac="0" value="${Math.round(d.zustatek)}" onchange="app.setOverride(${d.month}, 'zustatek', this.value)"
                                     class="inline-input w-full max-w-[150px] text-right font-mono text-xs font-bold p-0.5 balance-input">
                             </td>
                             <td class="px-4 py-2 text-right font-mono ${vynosClass}">${this.fmtSignedMoney(vynos)}</td>
@@ -2508,7 +2520,9 @@ POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod, bez přev
                 if (trimmed === '') {
                     delete this.overrides[month][key];
                 } else {
-                    const parsed = parseFloat(trimmed);
+                    // Toleruje "10 000" (mezery jako oddělovač tisíců) i "10000".
+                    const parsed = window.FinanceCommon?.ui?.parseNumber?.(trimmed)
+                        ?? parseFloat(String(trimmed).replace(/[\s ]/g, '').replace(',', '.'));
                     if (!Number.isFinite(parsed)) return;
                     this.overrides[month][key] = parsed;
                     if (key === 'zustatek') delete this.overrides[month].urok;

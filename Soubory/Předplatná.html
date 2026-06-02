@@ -204,6 +204,17 @@
         </div>
     </section>
 
+    <!-- Analýza -->
+    <section id="analysisCard" class="panel">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4 text-fuchsia-400"></i> Analýza předplatných
+            </h2>
+            <div id="analysisTabs" class="flex flex-wrap gap-1 bg-slate-800/60 p-1 rounded text-[11px]"></div>
+        </div>
+        <div id="analysisBody"></div>
+    </section>
+
     <!-- AI tip panel -->
     <section class="panel" style="border-color: rgba(217,70,239,0.2);">
         <h2 class="text-sm font-semibold text-fuchsia-300 flex items-center gap-2 mb-3">
@@ -538,8 +549,206 @@
                 </tr>`;
             }).join('');
         }
+        renderAnalysis();
         lucide.createIcons();
         bindSortHandlers();
+    }
+
+    // ─── Analýza ───
+    const ANALYSIS_VIEWS = [
+        { id: 'category', label: 'Kategorie' },
+        { id: 'cycle',    label: 'Cyklus' },
+        { id: 'top',      label: 'TOP 5' },
+        { id: 'currency', label: 'Měna' },
+        { id: 'upcoming', label: 'Příští 30 dní' },
+        { id: 'contracts',label: 'Konce smluv' }
+    ];
+    let currentAnalysisView = 'category';
+
+    function _czkMonthly(x) {
+        return toMonthly(Number(x.amount) || 0, x.cycle) * (x.currency === 'CZK' ? 1 : cxRate(x.currency));
+    }
+
+    function _renderAnalysisTabs() {
+        const host = document.getElementById('analysisTabs');
+        if (!host) return;
+        host.innerHTML = ANALYSIS_VIEWS.map(v => {
+            const active = v.id === currentAnalysisView;
+            return `<button onclick="setAnalysisView('${v.id}')"
+                class="px-2 py-0.5 rounded transition-colors ${active ? 'bg-fuchsia-500/20 text-fuchsia-200' : 'text-slate-400 hover:text-slate-200'}">
+                ${v.label}
+            </button>`;
+        }).join('');
+    }
+
+    function setAnalysisView(id) {
+        currentAnalysisView = id;
+        renderAnalysis();
+    }
+
+    function _barRow(label, value, totalMax, color, sub) {
+        const pct = totalMax > 0 ? Math.min(100, (value / totalMax) * 100) : 0;
+        return `<div class="mb-2">
+            <div class="flex items-center justify-between text-[11px] mb-0.5">
+                <span class="text-slate-300 font-medium">${escHtml(label)}</span>
+                <span class="text-slate-400 font-mono">${escHtml(sub || '')}</span>
+            </div>
+            <div class="relative h-5 rounded bg-slate-800/70 overflow-hidden">
+                <div class="absolute inset-y-0 left-0 rounded transition-all duration-300" style="width:${pct.toFixed(1)}%;background:${color};"></div>
+                <div class="absolute inset-0 flex items-center justify-end pr-2 text-[10px] font-mono text-slate-100 mix-blend-difference">${pct.toFixed(0)} %</div>
+            </div>
+        </div>`;
+    }
+
+    function _emptyHint(msg) {
+        return `<p class="text-xs text-slate-500 py-6 text-center">${escHtml(msg)}</p>`;
+    }
+
+    function renderAnalysis() {
+        _renderAnalysisTabs();
+        const host = document.getElementById('analysisBody');
+        if (!host) return;
+
+        const active = DB.items.filter(x => x.active);
+        if (!active.length) {
+            host.innerHTML = _emptyHint('Žádná aktivní předplatná — přidej nahoře, ať vidíš analýzu.');
+            return;
+        }
+
+        const totalMonthly = active.reduce((s, x) => s + _czkMonthly(x), 0);
+        const view = currentAnalysisView;
+
+        if (view === 'category') {
+            const map = new Map();
+            active.forEach(x => {
+                const k = x.category || '(bez kategorie)';
+                const cur = map.get(k) || { count: 0, monthly: 0 };
+                cur.count++; cur.monthly += _czkMonthly(x);
+                map.set(k, cur);
+            });
+            const rows = [...map.entries()].sort((a,b) => b[1].monthly - a[1].monthly);
+            const max = rows.length ? rows[0][1].monthly : 0;
+            const palette = ['#d946ef','#ec4899','#f43f5e','#f97316','#f59e0b','#eab308','#22c55e','#10b981','#06b6d4','#0ea5e9','#6366f1','#a855f7'];
+            host.innerHTML = `
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Rozdělení měsíčních nákladů podle kategorie</div>
+                ${rows.map((r,i) => _barRow(
+                    r[0],
+                    r[1].monthly,
+                    max,
+                    palette[i % palette.length],
+                    `${fmtCZK(r[1].monthly)}/m · ${r[1].count}×`
+                )).join('')}
+                <div class="text-[10px] text-slate-600 mt-3 pt-3 border-t border-slate-800">Celkem ${rows.length} ${rows.length === 1 ? 'kategorie' : (rows.length < 5 ? 'kategorie' : 'kategorií')} · ${fmtCZK(totalMonthly)}/m · ${fmtCZK(totalMonthly*12)}/rok</div>`;
+        }
+        else if (view === 'cycle') {
+            const map = new Map();
+            active.forEach(x => {
+                const k = CYCLE_LABEL[x.cycle] || x.cycle;
+                const cur = map.get(k) || { count: 0, monthly: 0 };
+                cur.count++; cur.monthly += _czkMonthly(x);
+                map.set(k, cur);
+            });
+            const rows = [...map.entries()].sort((a,b) => b[1].monthly - a[1].monthly);
+            const max = rows.length ? rows[0][1].monthly : 0;
+            const palette = ['#0ea5e9','#6366f1','#a855f7','#d946ef'];
+            host.innerHTML = `
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Rozdělení podle frekvence účtování</div>
+                ${rows.map((r,i) => _barRow(r[0], r[1].monthly, max, palette[i % palette.length], `${fmtCZK(r[1].monthly)}/m · ${r[1].count}×`)).join('')}
+                <div class="text-[10px] text-slate-600 mt-3 pt-3 border-t border-slate-800">Tip: roční předplatné je obvykle levnější než měsíční — zvaž přesun.</div>`;
+        }
+        else if (view === 'top') {
+            const top = active.map(x => ({ x, monthly: _czkMonthly(x) }))
+                              .sort((a,b) => b.monthly - a.monthly).slice(0, 5);
+            const max = top.length ? top[0].monthly : 0;
+            host.innerHTML = `
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-2">5 nejdražších předplatných (přepočteno na měsíční)</div>
+                ${top.map((r,i) => _barRow(
+                    `#${i+1} ${r.x.name}`,
+                    r.monthly,
+                    max,
+                    '#d946ef',
+                    `${fmtCZK(r.monthly)}/m · ${r.x.category || '—'}`
+                )).join('')}
+                <div class="text-[10px] text-slate-600 mt-3 pt-3 border-t border-slate-800">TOP 5 tvoří ${fmtCZK(top.reduce((s,r) => s+r.monthly, 0))}/m (${totalMonthly > 0 ? Math.round(top.reduce((s,r) => s+r.monthly, 0)/totalMonthly*100) : 0} % z celku).</div>`;
+        }
+        else if (view === 'currency') {
+            const map = new Map();
+            active.forEach(x => {
+                const k = x.currency || 'CZK';
+                const cur = map.get(k) || { count: 0, native: 0, czk: 0 };
+                cur.count++;
+                cur.native += toMonthly(Number(x.amount) || 0, x.cycle);
+                cur.czk += _czkMonthly(x);
+                map.set(k, cur);
+            });
+            const rows = [...map.entries()].sort((a,b) => b[1].czk - a[1].czk);
+            const max = rows.length ? rows[0][1].czk : 0;
+            const palette = ['#22c55e','#0ea5e9','#f59e0b'];
+            host.innerHTML = `
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Rozdělení podle měny (přepočteno na CZK/měs)</div>
+                ${rows.map((r,i) => _barRow(
+                    r[0],
+                    r[1].czk,
+                    max,
+                    palette[i % palette.length],
+                    `${fmtCZK(r[1].czk)}/m · ${r[1].count}× · nativně ${new Intl.NumberFormat('cs-CZ',{maximumFractionDigits:2}).format(r[1].native)} ${r[0]}/m`
+                )).join('')}
+                <div class="text-[10px] text-slate-600 mt-3 pt-3 border-t border-slate-800">Pozn.: kurzy jsou orientační (EUR ≈ 25 Kč, USD ≈ 23 Kč).</div>`;
+        }
+        else if (view === 'upcoming') {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const upcoming = active
+                .filter(x => x.nextBilling)
+                .map(x => ({ x, days: daysFromNow(x.nextBilling), monthly: _czkMonthly(x), native: toMonthly(Number(x.amount) || 0, x.cycle) }))
+                .filter(o => o.days !== null && o.days >= 0 && o.days <= 30)
+                .sort((a,b) => a.days - b.days);
+            if (!upcoming.length) { host.innerHTML = _emptyHint('V příštích 30 dnech žádné platby nejsou. ✨'); return; }
+            const sum = upcoming.reduce((s,o) => s + (Number(o.x.amount) || 0) * (o.x.currency === 'CZK' ? 1 : cxRate(o.x.currency)), 0);
+            host.innerHTML = `
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Platby v příštích 30 dnech (${upcoming.length})</div>
+                <div class="space-y-1">
+                    ${upcoming.map(o => {
+                        const pillCls = o.days === 0 ? 'due-now' : (o.days <= 7 ? 'due-soon' : 'ok');
+                        const pillTxt = o.days === 0 ? 'dnes' : `za ${o.days} d`;
+                        return `<div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded bg-slate-800/40">
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-semibold text-slate-200 truncate">${escHtml(o.x.name)}</div>
+                                <div class="text-[10px] text-slate-500 font-mono">${fmtDate(o.x.nextBilling)} · ${escHtml(o.x.category || '—')}</div>
+                            </div>
+                            <span class="pill ${pillCls} flex-shrink-0">${pillTxt}</span>
+                            <span class="font-mono text-xs text-slate-200 flex-shrink-0">${fmtAmount(o.x.amount, o.x.currency)}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div class="text-[10px] text-slate-600 mt-3 pt-3 border-t border-slate-800">Součet odhadnutý v CZK: <b class="text-slate-300 font-mono">${fmtCZK(sum)}</b></div>`;
+        }
+        else if (view === 'contracts') {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const withEnd = active
+                .filter(x => x.contractEnd)
+                .map(x => ({ x, days: daysFromNow(x.contractEnd) }))
+                .filter(o => o.days !== null)
+                .sort((a,b) => a.days - b.days);
+            if (!withEnd.length) { host.innerHTML = _emptyHint('Žádné předplatné nemá zadaný konec smlouvy.'); return; }
+            host.innerHTML = `
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Konce smluv (${withEnd.length})</div>
+                <div class="space-y-1">
+                    ${withEnd.map(o => {
+                        let pillCls = 'ok', pillTxt = `za ${o.days} dní`;
+                        if (o.days < 0) { pillCls = 'due-now'; pillTxt = `před ${-o.days} dny`; }
+                        else if (o.days === 0) { pillCls = 'due-now'; pillTxt = 'dnes'; }
+                        else if (o.days <= 30) { pillCls = 'due-soon'; pillTxt = `za ${o.days} dní`; }
+                        return `<div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded bg-slate-800/40">
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-semibold text-slate-200 truncate">${escHtml(o.x.name)}</div>
+                                <div class="text-[10px] text-slate-500 font-mono">konec: ${fmtDate(o.x.contractEnd)} · ${fmtCZK(_czkMonthly(o.x))}/m</div>
+                            </div>
+                            <span class="pill ${pillCls} flex-shrink-0">${pillTxt}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div class="text-[10px] text-slate-600 mt-3 pt-3 border-t border-slate-800">Tip: před vypršením zkontroluj cenu — poskytovatelé často po vypršení smluvní slevy zvýší cenu.</div>`;
+        }
     }
 
     function cxRate(c) {

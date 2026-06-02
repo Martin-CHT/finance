@@ -601,20 +601,21 @@
             document.getElementById('modalTitleText').textContent = 'Nový měsíční záznam';
             document.getElementById('modalIcon').setAttribute('data-lucide', 'plus-square');
 
+            // Formulářová pole vždy prázdná, datum jen předvyplníme na další měsíc.
             if (tableData.length > 0) {
                 let lastD = new Date(tableData[tableData.length - 1].date);
                 lastD.setMonth(lastD.getMonth() + 1);
                 document.getElementById('inputDate').value = lastD.toISOString().split('T')[0];
             } else {
                 document.getElementById('inputDate').value = '';
-                document.getElementById('inputF1').value = '';
-                document.getElementById('inputF2').value = '';
-                document.getElementById('inputF3').value = '';
-                document.getElementById('inputF4').value = '';
-                document.getElementById('inputF5').value = '';
-                document.getElementById('inputF6').value = '';
-                document.getElementById('inputInf').value = '';
             }
+            document.getElementById('inputF1').value = '';
+            document.getElementById('inputF2').value = '';
+            document.getElementById('inputF3').value = '';
+            document.getElementById('inputF4').value = '';
+            document.getElementById('inputF5').value = '';
+            document.getElementById('inputF6').value = '';
+            document.getElementById('inputInf').value = '';
 
             lucide.createIcons();
             showModal('addModal');
@@ -788,13 +789,15 @@
                             <td class="px-2 py-1 text-right bg-sky-950/10 font-bold border-l border-slate-800">${formatNum(row.celkem, 3)}${d('celkem')}</td>
                             <td class="px-2 py-1 text-right bg-rose-950/10">${formatNum(row.inf)}</td>
                             <td class="px-2 py-1 text-right bg-rose-950/10 border-r border-slate-800">${formatNum(row.infM, 4)}</td>
-                            <td class="px-2 py-1 text-center flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onclick="editRow('${row.id}')" class="text-slate-400 hover:text-sky-400 transition-colors p-1 bg-slate-800 rounded" title="Upravit">
-                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                                </button>
-                                <button onclick="deleteRow('${row.id}')" class="text-slate-400 hover:text-rose-500 transition-colors p-1 bg-slate-800 rounded" title="Smazat">
-                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                </button>
+                            <td class="px-2 py-1 text-center">
+                                <div class="inline-flex justify-center gap-1">
+                                    <button onclick="editRow('${row.id}')" class="text-sky-400 hover:text-sky-300 transition-colors p-1 bg-slate-800 hover:bg-slate-700 rounded" title="Upravit">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button onclick="deleteRow('${row.id}')" class="text-rose-400 hover:text-rose-300 transition-colors p-1 bg-slate-800 hover:bg-slate-700 rounded" title="Smazat">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
                             </td>
                         `;
                         tbody.appendChild(tr);
