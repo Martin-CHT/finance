@@ -1231,20 +1231,31 @@
             // ── PWA: Service Worker (offline cache + install support) ──
             // Funguje JEN na https:// nebo http://localhost — file:// browser zablokuje.
             if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                // Cleanup zastaralých registrací: stará verze aplikace registrovala SW
-                // ze standalone modulové URL (např. /finance/Soubory/) → scope zůstal
-                // /finance/Soubory/ a každé otevření modulu pak hlásí 404. Odhlásíme
-                // všechny SW, jejichž scope nesedí na aktuální origin root.
+                // Cleanup zastaralých registrací: stará verze aplikace omylem registrovala
+                // SW ze standalone modulové URL (např. /finance/Soubory/) → scope zůstal
+                // /finance/Soubory/. Tady ho odhlásíme.
+                //
+                // SAFETY: musíme být skutečně na ROOT stránce (index.html), jinak nás
+                //   může „bad" SW oklamat (servíruje cached HTML na špatné URL, naše
+                //   rootScope dopočte na /finance/Soubory/ a my pak nepatřičně odhlásíme
+                //   legitimní root SW). Cleanup proto bývá AKTIVNÍ jen v top window +
+                //   jen na canonical root path.
                 try {
-                    const rootScope = new URL('./', location.href).href;
-                    navigator.serviceWorker.getRegistrations().then(function (regs) {
-                        regs.forEach(function (r) {
-                            if (r && r.scope && r.scope !== rootScope) {
-                                console.log('[PWA] Unregistering stale SW with scope', r.scope);
-                                r.unregister().catch(function () {});
-                            }
-                        });
-                    }).catch(function () {});
+                    const isTopWindow = (window.top === window.self);
+                    const path = location.pathname;
+                    const atRoot = path.endsWith('/') || path.endsWith('/index.html') || path.endsWith('/index.htm');
+                    if (isTopWindow && atRoot) {
+                        const rootScope = new URL('./', location.href).href;
+                        navigator.serviceWorker.getRegistrations().then(function (regs) {
+                            regs.forEach(function (r) {
+                                // Pouze SUB-SCOPE (víc specifický než root) — nikdy stejný, nikdy rodičovský.
+                                if (r && r.scope && r.scope !== rootScope && r.scope.indexOf(rootScope) === 0) {
+                                    console.log('[PWA] Unregistering stale sub-scope SW:', r.scope);
+                                    r.unregister().catch(function () {});
+                                }
+                            });
+                        }).catch(function () {});
+                    }
                 } catch (e) {}
 
                 navigator.serviceWorker.register('sw.js').then(function (reg) {

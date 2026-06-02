@@ -29,6 +29,8 @@ const APP_FILES = [
   './Soubory/Půjčky.html',
   './Soubory/Investice-penze.html',
   './Soubory/Fondy.html',
+  './Soubory/Fondy-podrobně.html',
+  './Soubory/fondy-podrobně-config.js',
   './Soubory/Majetek-odpisy.html',
   './Soubory/Předplatná.html',
   './Soubory/Pre-FI-RE.html',
