@@ -19,6 +19,10 @@
             font-family: 'Inter', sans-serif;
             background-color: #020617;
             color: #f8fafc;
+            /* Body fixed na výšku okna — zabraňuje, aby celá stránka rolovala spolu se sidebarem.
+               Vnitřní oblasti (goal-list, main) mají vlastní overflow-y. */
+            height: 100vh;
+            overflow: hidden;
         }
 
         .font-mono {

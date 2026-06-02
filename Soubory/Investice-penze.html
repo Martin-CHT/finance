@@ -410,8 +410,8 @@
     <!-- ═══════════════════════ MAIN (sidebar + obsah) ═══════════════════════ -->
     <div class="max-w-7xl mx-auto w-full flex items-start gap-0">
 
-      <!-- ── SIDEBAR: portfolia ── -->
-      <aside id="pf-sidebar" class="flex-shrink-0 w-44 border-r border-slate-800 bg-slate-900/30 py-4 px-2 self-stretch min-h-[calc(100vh-3rem)]">
+      <!-- ── SIDEBAR: portfolia (sticky — hýbe se nezávisle na obsahu) ── -->
+      <aside id="pf-sidebar" class="flex-shrink-0 w-44 border-r border-slate-800 bg-slate-900/30 py-4 px-2 sticky top-0 self-start h-screen overflow-y-auto">
         <div class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 px-2.5 mb-2">Portfolia</div>
         <div id="pf-sidebar-list" class="space-y-0.5"></div>
         <button onclick="app.addPortfolio()" class="w-full mt-3 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded text-xs font-medium text-sky-400 border border-dashed border-slate-700 hover:border-sky-500/50 hover:bg-sky-500/5 transition-colors">
@@ -1176,9 +1176,12 @@ function doPost(e) {
 
                 if (raw && raw._version === 2 && Array.isArray(raw.portfolios)) {
                     this.model = raw;
-                } else {
+                } else if (raw && (Number(raw.vklad) > 0 || Number(raw.initial) > 0 || raw._overrides)) {
                     // ── Migrace ze starého (jednoportfoliového) formátu ──
-                    const old = raw || { age: 30, startMonth: '', sporeniRoky: 35, rentaStart: 65, vklad: 5000, urok: 8.5, rentaSuma: 80000 };
+                    // Migrujeme JEN když má staré data smysluplný obsah (vklad/initial/overrides).
+                    // Bez tohohle by se automaticky vytvořilo "Conseq" portfolio při každém
+                    // čistém startu, což uživatel nechce.
+                    const old = raw;
                     let oldOverrides = {};
                     if (old._overrides && Object.keys(old._overrides).length) oldOverrides = old._overrides;
                     else { try { oldOverrides = JSON.parse(localStorage.getItem('pension_overrides') || '{}'); } catch (e) {} }
@@ -1194,16 +1197,30 @@ function doPost(e) {
                         portfolios: [{
                             id: 'pf_conseq_' + Date.now().toString(36),
                             name: 'Conseq',
-                            provider: 'Conseq',
+                            provider: '',
                             startMonth: old.startMonth || '',
-                            initial: 0,
-                            vklad: Number(old.vklad) || 5000,
-                            urok: Number(old.urok) || 8,
-                            sporeniRoky: Number(old.sporeniRoky) || 35,
+                            initial: Number(old.initial) || 0,
+                            vklad: Number(old.vklad) || 0,
+                            urok: Number(old.urok) || 0,
+                            sporeniRoky: Number(old.sporeniRoky) || 0,
                             overrides: oldOverrides,
                             color: '#0ea5e9',
                             active: true
                         }]
+                    };
+                } else {
+                    // ── Čistý start (žádná data, nebo jen výchozí čísla) ──
+                    // Vytvoříme prázdný v2 model BEZ jakýchkoli portfolií.
+                    this.model = {
+                        _version: 2,
+                        global: {
+                            age: 30,
+                            rentaStart: 65,
+                            rentaSuma: 80000,
+                            showDrawdown: true,
+                            metric: 'weighted'
+                        },
+                        portfolios: []
                     };
                 }
                 if (!this.model.global) this.model.global = { age: 30, rentaStart: 65, rentaSuma: 80000, showDrawdown: true, metric: 'weighted' };
@@ -1331,11 +1348,11 @@ function doPost(e) {
                 const items = this.model.portfolios.map(pf => {
                     const isActive = pf.id === this.activeId;
                     return `<button onclick="app.selectPortfolio('${pf.id}')"
-                        class="w-full flex items-center gap-2 px-2.5 py-2 rounded text-left transition-colors ${isActive ? 'bg-sky-500/15 border border-sky-500/30' : 'hover:bg-slate-800 border border-transparent'}">
-                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${pf.color || '#0ea5e9'}"></span>
+                        class="w-full flex items-start gap-2 px-2.5 py-2 rounded text-left transition-colors ${isActive ? 'bg-sky-500/15 border border-sky-500/30' : 'hover:bg-slate-800 border border-transparent'}">
+                        <span class="w-2.5 h-2.5 mt-1 rounded-full flex-shrink-0" style="background:${pf.color || '#0ea5e9'}"></span>
                         <span class="flex-1 min-w-0">
-                            <span class="block text-xs font-medium truncate ${isActive ? 'text-sky-300' : 'text-slate-300'}">${escapeHtml(pf.name)}</span>
-                            ${pf.provider ? `<span class="block text-[9px] text-slate-600 truncate">${escapeHtml(pf.provider)}</span>` : ''}
+                            <span class="block text-xs font-medium break-words ${isActive ? 'text-sky-300' : 'text-slate-300'}">${escapeHtml(pf.name)}</span>
+                            ${pf.provider ? `<span class="block text-[9px] text-slate-600 break-words leading-snug mt-0.5">${escapeHtml(pf.provider)}</span>` : ''}
                         </span>
                     </button>`;
                 }).join('');

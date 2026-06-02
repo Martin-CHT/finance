@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    var VERSION = 'v2';
+    var VERSION = 'v3';
     var CACHE_PREFIX = 'fc_tw_css_';
 
     /* Klíč modulu — co odlišuje jeden modul od druhého.

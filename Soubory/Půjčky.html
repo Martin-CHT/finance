@@ -125,9 +125,11 @@
         .stat-card.accent-emerald { border-left: 3px solid #10b981; }
         .stat-card.accent-indigo { border-left: 3px solid #6366f1; }
 
-        /* Year header rows in table */
-        .year-header-row { background: #0f172a; cursor: pointer; border-top: 1px solid #334155; border-bottom: 1px solid #1e293b; }
-        .year-header-row:hover { background: #1e293b; }
+        /* Year header rows in table — barevně oddělené dle #131F3D */
+        .year-header-row { background: #131F3D !important; cursor: pointer; border-top: 1px solid #334155; border-bottom: 1px solid #1e293b; }
+        .year-header-row:hover { background: #1a2a4f !important; }
+        .year-header-row > td { background: #131F3D; }
+        .year-header-row:hover > td { background: #1a2a4f; }
 
         /* Scrollbar for table overflow */
         .table-scroll { overflow-x: auto; max-height: 600px; overflow-y: auto; }
@@ -205,7 +207,7 @@
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
 
     <!-- SIDEBAR -->
-    <aside class="w-full md:w-64 flex-shrink-0 flex flex-col md:min-h-screen z-20" style="background:#0f172a; border-right:1px solid #1e293b;">
+    <aside class="w-full md:w-64 flex-shrink-0 flex flex-col md:sticky md:top-0 md:self-start md:h-screen md:overflow-y-auto z-20" style="background:#0f172a; border-right:1px solid #1e293b;">
 
         <!-- Logo -->
         <div class="px-4 py-3 flex items-center gap-2.5" style="border-bottom:1px solid #1e293b;">
@@ -441,13 +443,14 @@
                     <table class="w-full text-left text-xs whitespace-nowrap">
                         <thead style="background:#0f172a;position:sticky;top:0;z-index:10;">
                             <tr style="border-bottom:1px solid #334155;">
-                                <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Rok / Měs.</th>
-                                <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Datum</th>
-                                <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px] text-right">Splátka</th>
-                                <th class="py-2.5 px-3 font-semibold text-rose-400 uppercase tracking-wider text-[10px] text-right">Z toho úrok</th>
-                                <th class="py-2.5 px-3 font-semibold text-sky-400 uppercase tracking-wider text-[10px] text-right">Z toho jistina</th>
-                                <th class="py-2.5 px-3 font-semibold text-amber-400 uppercase tracking-wider text-[10px] text-right w-36">Mimořádně</th>
-                                <th class="py-2.5 px-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px] text-right">Zůstatek</th>
+                                <th class="py-2.5 px-2 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Rok / M.</th>
+                                <th class="py-2.5 px-2 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">Datum</th>
+                                <th class="py-2.5 px-2 font-semibold text-slate-400 uppercase tracking-wider text-[10px] text-right">Splátka</th>
+                                <th class="py-2.5 px-2 font-semibold text-rose-400 uppercase tracking-wider text-[10px] text-right">Úrok</th>
+                                <th class="py-2.5 px-2 font-semibold text-sky-400 uppercase tracking-wider text-[10px] text-right">Jistina</th>
+                                <th class="py-2.5 px-2 font-semibold text-amber-400 uppercase tracking-wider text-[10px] text-right w-32">Mimořádně</th>
+                                <th class="py-2.5 px-2 font-semibold text-emerald-400 uppercase tracking-wider text-[10px] text-right">Splaceno</th>
+                                <th class="py-2.5 px-2 font-semibold text-slate-400 uppercase tracking-wider text-[10px] text-right">Zůstatek</th>
                             </tr>
                         </thead>
                         <tbody id="table-body" class="divide-y" style="--tw-divide-opacity:1;"></tbody>
@@ -1094,9 +1097,16 @@ function doPost(e) {
                     return { rows: [], monthly: 0, totalInterest: 0, totalPaid: 0, payoffDate: null };
                 }
 
-                // Pevná měsíční splátka (anuita)
+                // Pevná měsíční splátka (anuita).
+                // Pokud uživatel zadal `manualMonthly` (pole "Měs. splátka"), použijeme PŘESNĚ
+                // tuto hodnotu — neaproximujeme zpět z anuitního vzorce. Doba splácení
+                // se odvodí přirozeně dle zůstatku (viz while-loop níže). Bez manuálu
+                // se dopočítá anuita ze jistiny + úroku + doby.
+                const manualMonthly = Number(loan.manualMonthly);
                 let monthlyPayment;
-                if (monthlyRate === 0) {
+                if (Number.isFinite(manualMonthly) && manualMonthly > 0) {
+                    monthlyPayment = manualMonthly;
+                } else if (monthlyRate === 0) {
                     monthlyPayment = principal / termMonths;
                 } else {
                     const factor = Math.pow(1 + monthlyRate, termMonths);
@@ -1631,7 +1641,7 @@ function doPost(e) {
                 tbody.innerHTML = '';
 
                 if (calc.rows.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-600 text-xs">Zadejte jistinu, úrok a dobu splácení.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-600 text-xs">Zadejte jistinu, úrok a dobu splácení.</td></tr>`;
                 } else {
                     const rowsByYear = {};
                     calc.rows.forEach(r => { if (!rowsByYear[r.yearNum]) rowsByYear[r.yearNum] = []; rowsByYear[r.yearNum].push(r); });
@@ -1646,6 +1656,9 @@ function doPost(e) {
                         this.resetCollapseState = false;
                     }
 
+                    // Kumulativní suma splaceno napříč všemi řádky (i přes hranice let)
+                    let cumulativePaid = 0;
+
                     Object.keys(rowsByYear).forEach(yearStr => {
                         const yearNum = parseInt(yearStr);
                         const yearRows = rowsByYear[yearNum];
@@ -1654,23 +1667,43 @@ function doPost(e) {
                         yearHeaderTr.className = 'year-header-row';
                         yearHeaderTr.onclick = () => this.toggleYear(yearNum);
                         const icon = isCollapsed ? 'chevron-right' : 'chevron-down';
+
+                        // Roční součty pro souhrnný řádek (zobrazí se v záhlaví roku).
+                        const yearTotals = yearRows.reduce((acc, r) => {
+                            acc.regular  += r.regularPayment;
+                            acc.interest += r.interest;
+                            acc.principal+= r.principalPaid;
+                            acc.extra    += r.extra;
+                            acc.total    += r.totalPayment;
+                            return acc;
+                        }, { regular: 0, interest: 0, principal: 0, extra: 0, total: 0 });
+
                         const finalYearBalance = yearRows[yearRows.length - 1].balance;
+                        const yearPaidEnd = cumulativePaid + yearTotals.total; // kumulativní splaceno na konci roku
+
+                        // Souhrnný řádek roku: zarovnaný do mřížky tabulky tak, aby každý
+                        // sloupec ukazoval roční součet odpovídající sloupci dat. Pozadí #131F3D.
+                        yearHeaderTr.style.background = '#131F3D';
                         yearHeaderTr.innerHTML = `
-                            <td colspan="7" class="py-2.5 px-3">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                                        <i data-lucide="${icon}" class="w-3.5 h-3.5 text-slate-500"></i>
-                                        <span>Rok ${yearNum}</span>
-                                        <span class="text-[10px] font-normal text-slate-600 font-mono">${yearRows.length} splátek</span>
-                                    </div>
-                                    <div class="text-[11px] text-slate-500">Zůstatek: <span class="font-semibold text-rose-400 font-mono ml-1">${formatCZK(finalYearBalance)}</span></div>
+                            <td class="py-2 px-2">
+                                <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+                                    <i data-lucide="${icon}" class="w-3.5 h-3.5 text-sky-400"></i>
+                                    <span>${yearNum}</span>
                                 </div>
                             </td>
+                            <td class="py-2 px-2 text-[10px] text-slate-500 font-mono">${yearRows.length} splátek</td>
+                            <td class="py-2 px-2 text-right table-number text-slate-200 font-semibold">${formatCZK(yearTotals.regular)}</td>
+                            <td class="py-2 px-2 text-right table-number text-rose-400 font-semibold">${formatCZK(yearTotals.interest)}</td>
+                            <td class="py-2 px-2 text-right table-number text-sky-400 font-semibold">${formatCZK(yearTotals.principal)}</td>
+                            <td class="py-2 px-2 text-right table-number ${yearTotals.extra > 0 ? 'text-amber-400 font-semibold' : 'text-slate-600'}">${yearTotals.extra > 0 ? formatCZK(yearTotals.extra) : '—'}</td>
+                            <td class="py-2 px-2 text-right table-number text-emerald-400 font-semibold">${formatCZK(yearPaidEnd)}</td>
+                            <td class="py-2 px-2 text-right table-number text-slate-100 font-semibold">${formatCZK(finalYearBalance)}</td>
                         `;
                         tbody.appendChild(yearHeaderTr);
 
                         if (!isCollapsed) {
                             yearRows.forEach(row => {
+                                cumulativePaid += row.totalPayment;
                                 const tr = document.createElement('tr');
                                 tr.style.borderBottom = '1px solid #1e293b';
                                 const rowDate = new Date(row.dateStr);
@@ -1688,21 +1721,24 @@ function doPost(e) {
                                 if (isPayoff) tr.style.background = 'rgba(16,185,129,0.10)';
 
                                 const extraVal = row.extra !== 0 ? row.extra : '';
-                                const extraClass = row.extra > 0 ? 'color:#fbbf24;font-weight:600;' : '';
 
                                 tr.innerHTML = `
-                                    <td class="py-2 px-3 text-slate-600 font-mono">${row.yearNum}/${((row.monthIdx - 1) % 12) + 1}</td>
-                                    <td class="py-2 px-3 text-slate-400">${formatDate(row.dateStr)}</td>
-                                    <td class="py-2 px-3 text-right table-number ${isPaid ? 'text-slate-600' : 'text-slate-300'}">${formatCZK(row.regularPayment)}</td>
-                                    <td class="py-2 px-3 text-right table-number text-rose-400">${formatCZK(row.interest)}</td>
-                                    <td class="py-2 px-3 text-right table-number text-sky-400">${formatCZK(row.principalPaid)}</td>
-                                    <td class="py-1.5 px-3 text-right">
-                                        <input type="number" class="w-full max-w-[110px] text-right px-2 py-1 rounded text-xs table-number transition-all outline-none" style="background:transparent;border:1px solid transparent;color:${row.extra > 0 ? '#fbbf24' : '#94a3b8'};" value="${extraVal}" placeholder="0" onchange="app.updateExtra(${row.monthIdx}, this.value)" onfocus="this.style.borderColor='#0ea5e9';this.style.background='#1e293b';" onblur="this.style.borderColor='transparent';this.style.background='transparent';">
+                                    <td class="py-2 px-2 text-slate-600 font-mono">${row.yearNum}/${((row.monthIdx - 1) % 12) + 1}</td>
+                                    <td class="py-2 px-2 text-slate-400">${formatDate(row.dateStr)}</td>
+                                    <td class="py-2 px-2 text-right table-number ${isPaid ? 'text-slate-600' : 'text-slate-300'}">${formatCZK(row.regularPayment)}</td>
+                                    <td class="py-2 px-2 text-right table-number text-rose-400">${formatCZK(row.interest)}</td>
+                                    <td class="py-2 px-2 text-right table-number text-sky-400">${formatCZK(row.principalPaid)}</td>
+                                    <td class="py-1.5 px-2 text-right">
+                                        <input type="number" class="w-full max-w-[100px] text-right px-1.5 py-1 rounded text-xs table-number transition-all outline-none" style="background:transparent;border:1px solid transparent;color:${row.extra > 0 ? '#fbbf24' : '#94a3b8'};" value="${extraVal}" placeholder="0" onchange="app.updateExtra(${row.monthIdx}, this.value)" onfocus="this.style.borderColor='#0ea5e9';this.style.background='#1e293b';" onblur="this.style.borderColor='transparent';this.style.background='transparent';">
                                     </td>
-                                    <td class="py-2 px-3 text-right font-semibold table-number ${isPayoff ? 'text-emerald-400' : 'text-slate-200'}">${formatCZK(row.balance)}</td>
+                                    <td class="py-2 px-2 text-right table-number text-emerald-400/80">${formatCZK(cumulativePaid)}</td>
+                                    <td class="py-2 px-2 text-right font-semibold table-number ${isPayoff ? 'text-emerald-400' : 'text-slate-200'}">${formatCZK(row.balance)}</td>
                                 `;
                                 tbody.appendChild(tr);
                             });
+                        } else {
+                            // Pokud je rok sbalený, ovšem stále musíme posunout kumulativně.
+                            cumulativePaid += yearTotals.total;
                         }
                     });
                 }
