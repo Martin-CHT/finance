@@ -1607,14 +1607,42 @@ function doPost(e) {
                 const trimmed = String(value ?? '').trim();
                 if (trimmed === '') {
                     delete this.model.global.rentaSuma;
+                    // Smaž auto-vyplněné hodnoty per-portfolio, ale nech ručně zadané.
+                    // Rozliš podle flagu _rentaAutoFilled (nastavujeme níže při auto-fillu).
+                    this.model.portfolios.forEach(pf => {
+                        if (pf._rentaAutoFilled) {
+                            delete pf.rentaSuma;
+                            delete pf._rentaAutoFilled;
+                        }
+                    });
                 } else {
                     const parsed = window.FinanceCommon?.ui?.parseNumber?.(trimmed)
                         ?? parseFloat(String(trimmed).replace(/[\s ]/g, '').replace(',', '.'));
-                    if (!Number.isFinite(parsed)) return;
+                    if (!Number.isFinite(parsed) || parsed < 0) return;
                     this.model.global.rentaSuma = parsed;
+
+                    // AUTO-DISTRIBUTE: spočítej a ZAPIŠ proporcionální podíl
+                    // do každého portfolia, které nemá ručně nastavenou rentu
+                    // (= je prázdné, nebo bylo naposledy auto-vyplněno).
+                    // Ručně zadané hodnoty (bez _rentaAutoFilled flagu) NEPŘEPISUJEME.
+                    const todayValues = this._computeTodayValuesAll();
+                    this.model.portfolios.forEach(pf => {
+                        const hasManual = (pf.rentaSuma != null && pf.rentaSuma !== '' && !pf._rentaAutoFilled);
+                        if (hasManual) return; // ručně zadané — nepřepíšeme
+                        const eff = this.effectiveRentaFor(pf, todayValues);
+                        pf.rentaSuma = Math.round(eff);
+                        pf._rentaAutoFilled = true;
+                    });
                 }
                 this.save();
                 this.renderSummary();
+                // Pokud je aktivní detail nějakého portfolia (uživatel mezitím přepnul),
+                // překresli i jeho config inputy — input "Plánovaná renta" musí ukázat
+                // novou auto-vyplněnou hodnotu. V summary mode se ale teď stejně nestáhne.
+                if (this.activeId !== 'summary') {
+                    this.loadActiveContext();
+                    this.fillConfigInputs();
+                }
             },
             toggleDrawdown(on) {
                 this.model.global.showDrawdown = !!on;
@@ -1825,7 +1853,17 @@ function doPost(e) {
                 this.settings.urok = parseFloat(document.getElementById('base-urok').value) || 0;
                 // rentaSuma per-portfolio: prázdný input = '' (explicitně nevyplněno, dopočet ze souhrnu).
                 const rsRaw = (document.getElementById('base-renta-suma')?.value || '').trim();
-                this.settings.rentaSuma = rsRaw === '' ? '' : (_p('base-renta-suma') || 0);
+                const newRenta = rsRaw === '' ? '' : (_p('base-renta-suma') || 0);
+                // Detekce uživatelské změny renty: pokud se nová hodnota liší od aktuální
+                // pf.rentaSuma, znamená to, že uživatel ručně zasáhl → smaž flag _rentaAutoFilled
+                // (od teď je hodnota ručně zadaná a nepřepíše ji další úprava globální renty).
+                const activePf = this.model.portfolios.find(p => p.id === this.activeId);
+                if (activePf) {
+                    const oldRenta = (activePf.rentaSuma == null || activePf.rentaSuma === '') ? '' : Number(activePf.rentaSuma);
+                    const cmpNew = newRenta === '' ? '' : Number(newRenta);
+                    if (oldRenta !== cmpNew) delete activePf._rentaAutoFilled;
+                }
+                this.settings.rentaSuma = newRenta;
                 const initEl = document.getElementById('base-initial');
                 if (initEl) this.settings.initial = _p('base-initial') || 0;
 
