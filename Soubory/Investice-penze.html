@@ -1748,10 +1748,16 @@ function doPost(e) {
                 const chartGrid = isLight ? '#e2e8f0' : '#1e293b';
                 if (this.summaryChart) { this.summaryChart.destroy(); this.summaryChart = null; }
 
-                const accLabels = d.accSeries.map(p => String(p.year));
+                // Labels obohatíme o věk uživatele v daném roce — stejný formát jako
+                // graf v detailu portfolia ("2030 (38 l.)"). Věk = age dnes + (rok − dnešní rok).
+                const g = this.model.global || {};
+                const todayYear = new Date().getFullYear();
+                const ageInYear = (y) => Math.max(0, Math.round((Number(g.age) || 0) + (y - todayYear)));
+                const labelOf = (p) => `${p.year} (${ageInYear(p.year)} l.)`;
+                const accLabels = d.accSeries.map(labelOf);
                 const accData = d.accSeries.map(p => p.value);
                 // drawdown navazuje za posledním akumulačním bodem
-                const drawLabels = d.drawSeries.map(p => String(p.year));
+                const drawLabels = d.drawSeries.map(labelOf);
                 const labels = accLabels.concat(drawLabels);
                 // akumulace: hodnoty + null pro drawdown část; čerpání: null pro akum část + hodnoty
                 const accSet = accData.concat(d.drawSeries.map(() => null));
@@ -1824,10 +1830,43 @@ function doPost(e) {
                 if (initEl) this.settings.initial = _p('base-initial') || 0;
 
                 this.commitActiveContext();
+
+                // ── Per-portfolio drawdown: použij EFFECTIVE rentu, ne raw settings.rentaSuma ──
+                // Pokud má portfolio vlastní pf.rentaSuma, použije se; jinak se rozdělí podíl
+                // z globální renty proporcionálně k dnešní hodnotě portfolia. Bez tohoto by
+                // graf v důchodové fázi rostl do nekonečna (renta = 0).
+                const activePf = this.model.portfolios.find(p => p.id === this.activeId);
+                const origRenta = this.settings.rentaSuma;
+                if (activePf) {
+                    const todayValues = this._computeTodayValuesAll();
+                    const effRenta = this.effectiveRentaFor(activePf, todayValues);
+                    // Override JEN pro tento jeden calculate() call.
+                    this.settings.rentaSuma = effRenta;
+                }
                 this.calculate();
+                this.settings.rentaSuma = origRenta;
+
                 this.render();
                 this.renderChart();
                 this.save();
+            },
+
+            /* Spočítá dnešní hodnotu (zustatek k periodEnd ≤ today) pro každé portfolio.
+               Používá computePortfolioRows v accumulation-only režimu (bez drawdownu),
+               který je idempotentní (interně si zálohuje a obnovuje settings/overrides/data).
+               Vrací { pfId: dnešníHodnota } — vstup do effectiveRentaFor. */
+            _computeTodayValuesAll() {
+                const today = new Date(); today.setHours(23, 59, 59, 999);
+                const values = {};
+                this.model.portfolios.forEach(p => {
+                    let val = Number(p.initial) || 0;
+                    try {
+                        const rows = this.computePortfolioRows(p, true);
+                        rows.forEach(r => { if (new Date(r.periodEnd) <= today) val = r.zustatek; });
+                    } catch (e) {}
+                    values[p.id] = val;
+                });
+                return values;
             },
 
             applyTheme(theme) {
