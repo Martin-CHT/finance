@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="cs" class="dark">
 
 <head>
@@ -405,12 +405,13 @@
                     <i data-lucide="line-chart" class="w-4 h-4 text-slate-400"></i>
                     Vývoj fondů — normalizovaný na 100 (pro srovnání výkonnosti)
                 </h2>
-                <div class="flex gap-1">
+                <div class="flex items-center gap-1">
                     <button class="range-btn active" id="range-1M" onclick="setRange('1M')">1M</button>
                     <button class="range-btn" id="range-3M" onclick="setRange('3M')">3M</button>
                     <button class="range-btn" id="range-6M" onclick="setRange('6M')">6M</button>
                     <button class="range-btn" id="range-1R" onclick="setRange('1R')">1R</button>
                     <button class="range-btn" id="range-vse" onclick="setRange('vse')">Vše</button>
+                    <input type="date" id="custom-range" onchange="setCustomRange(this.value)" class="ml-2 bg-[#1e293b] border border-slate-600 text-slate-300 text-[11px] rounded px-2 outline-none focus:border-sky-500 cursor-pointer" title="Vlastní datum od..." style="height: 24px; line-height: 24px;">
                 </div>
             </div>
             <div class="relative h-[300px] min-h-[180px] max-h-[80vh] w-full p-2 resize-y overflow-hidden">
@@ -638,6 +639,7 @@
         let activeFondy = [];     // pole aktivních fondů z konfigurace
         let chartInstance = null;
         let currentRange = '1M';
+        let customCutoffDate = null;
         let collapsedMonths = new Set();
         let backfillRunning = false;
 
@@ -687,6 +689,25 @@
                 }
 
                 pricesData = (json.prices || []).sort((a, b) => b.date.localeCompare(a.date));
+
+                // Odstranění duplicit (svátky, víkendy), aby graf nespínal vodorovně a tabulka vypsala pomlčku
+                activeFondy.forEach(f => {
+                    let lastSeenVal = null;
+                    // Procházíme od nejstaršího (konec pole) po nejnovější (začátek pole)
+                    for (let i = pricesData.length - 1; i >= 0; i--) {
+                        let val = pricesData[i][f.id];
+                        if (val !== null && val !== undefined && val !== '') {
+                            let currentVal = Number(val);
+                            if (currentVal === lastSeenVal) {
+                                // Hodnota je stejná jako v předchozí obchodní den -> nezměnilo se nic
+                                pricesData[i][f.id] = null;
+                            } else {
+                                lastSeenVal = currentVal;
+                            }
+                        }
+                    }
+                });
+
                 inflationData = json.inflation || [];
 
                 // Nastavení defaultně sbalených měsíců
@@ -1066,6 +1087,51 @@
                 };
             });
 
+            // Přidání Inflace do grafu
+            if (filtered.length > 0) {
+                const inflRaw = new Array(filtered.length).fill(null);
+                const inflNormalized = new Array(filtered.length).fill(null);
+                let currentInflIndex = 100;
+                let lastValidDate = null;
+
+                for (let i = 0; i < filtered.length; i++) {
+                    const row = filtered[i];
+                    const ym = row.date.substring(0, 7);
+                    const infRecord = inflationData.find(inf => inf.yearMonth === ym);
+                    const inflationPa = infRecord ? infRecord.inflation_pa : 0; // Pokud chybí, bereme 0 %
+
+                    if (i === 0) {
+                        inflNormalized[i] = 100;
+                        lastValidDate = new Date(row.date);
+                    } else {
+                        const currDate = new Date(row.date);
+                        const diffDays = (currDate - lastValidDate) / (1000 * 60 * 60 * 24);
+                        if (diffDays > 0 && inflationPa !== null && inflationPa !== undefined) {
+                            // Denní složené úročení p.a. sazby inflace
+                            const dailyMultiplier = Math.pow(1 + (inflationPa / 100), diffDays / 365.25);
+                            currentInflIndex *= dailyMultiplier;
+                        }
+                        inflNormalized[i] = currentInflIndex;
+                        lastValidDate = currDate;
+                    }
+                }
+
+                datasets.push({
+                    label: 'Inflace (p.a.)',
+                    data: inflNormalized,
+                    borderColor: '#fb7185', // rose-400 barva (odpovídá tabulce)
+                    backgroundColor: '#fb718518',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    tension: 0.15,
+                    spanGaps: true,
+                    fill: false,
+                    tooltip_raw: inflRaw
+                });
+            }
+
             if (chartInstance) chartInstance.destroy();
 
             Chart.defaults.color = '#94a3b8';
@@ -1100,6 +1166,8 @@
                                     label += norm.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                     if (raw !== null) {
                                         label += ' (index)  |  ' + raw.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' CZK';
+                                    } else {
+                                        label += ' (index)';
                                     }
                                     return label;
                                 }
@@ -1121,6 +1189,7 @@
         }
 
         function getRangeCutoff(range) {
+            if (range === 'custom') return customCutoffDate;
             const now = new Date();
             if (range === '1M') { now.setMonth(now.getMonth() - 1); return now.toISOString().split('T')[0]; }
             if (range === '3M') { now.setMonth(now.getMonth() - 3); return now.toISOString().split('T')[0]; }
@@ -1132,8 +1201,20 @@
         function setRange(range) {
             currentRange = range;
             document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`range-${range}`)?.classList.add('active');
+            const btn = document.getElementById(`range-${range}`);
+            if (btn) btn.classList.add('active');
+            
+            if (range !== 'custom') {
+                const dateInput = document.getElementById('custom-range');
+                if (dateInput) dateInput.value = '';
+            }
             renderChart();
+        }
+
+        function setCustomRange(dateVal) {
+            if (!dateVal) return;
+            customCutoffDate = dateVal;
+            setRange('custom');
         }
 
         // ── KPI ────────────────────────────────────────────
