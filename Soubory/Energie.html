@@ -93,11 +93,29 @@
 
         <!-- Single meter view (electricity/water/gas) -->
         <div id="view-meter" class="p-4">
+            <!-- Period filter -->
+            <div class="flex items-center gap-2 mb-3 bg-[#0f172a] border border-[#1e293b] p-2 rounded-lg text-xs">
+                <label class="text-slate-500 font-medium ml-1">Období:</label>
+                <select id="meterPeriod" class="bg-[#020617] border border-[#1e293b] text-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500" onchange="const c = document.getElementById('meterCustomPeriod'); if(this.value==='custom') c.classList.replace('hidden', 'flex'); else c.classList.replace('flex', 'hidden'); renderMeter()">
+                    <option value="this_month">Tento měsíc</option>
+                    <option value="last_month">Minulý měsíc</option>
+                    <option value="this_year">Tento rok</option>
+                    <option value="last_year">Minulý rok</option>
+                    <option value="all" selected>Vše</option>
+                    <option value="custom">Vlastní (Od-Do)</option>
+                </select>
+                <div id="meterCustomPeriod" class="hidden items-center gap-2 ml-1">
+                    <input type="date" id="meterDateFrom" class="bg-[#020617] border border-[#1e293b] text-slate-300 rounded px-2 py-1 outline-none" onchange="renderMeter()">
+                    <span class="text-slate-500">-</span>
+                    <input type="date" id="meterDateTo" class="bg-[#020617] border border-[#1e293b] text-slate-300 rounded px-2 py-1 outline-none" onchange="renderMeter()">
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <div class="kpi-card"><div class="kpi-label">Poslední odečet</div><div id="mLast" class="kpi-value text-amber-400">—</div><div class="text-[10px] text-slate-600" id="mLastDate">—</div></div>
-                <div class="kpi-card"><div class="kpi-label">Denní průměr</div><div id="mDaily" class="kpi-value text-sky-400">—</div><div class="text-[10px] text-slate-600" id="mDailyUnit">jedn./den</div></div>
-                <div class="kpi-card"><div class="kpi-label">Měsíční náklad</div><div id="mCost" class="kpi-value text-rose-400">0 Kč</div><div class="text-[10px] text-slate-600">spotřeba × cena + fix</div></div>
-                <div class="kpi-card"><div class="kpi-label">Trend Y/Y</div><div id="mYoY" class="kpi-value text-emerald-400">—</div><div class="text-[10px] text-slate-600">vs. minulý rok</div></div>
+                <div class="kpi-card"><div class="kpi-label">Poslední odečet</div><div id="mLast" class="kpi-value text-slate-200">—</div><div class="text-[10px] text-slate-600" id="mLastDate">—</div></div>
+                <div class="kpi-card"><div class="kpi-label">Průměrná denní</div><div id="mDaily" class="kpi-value text-sky-400">—</div><div class="text-[10px] text-slate-600" id="mDailyUnit">jedn./den (za obd.)</div></div>
+                <div class="kpi-card"><div class="kpi-label">Spotřeba za obd.</div><div id="mConsPeriod" class="kpi-value text-amber-400">—</div><div class="text-[10px] text-slate-600" id="mConsUnit">jednotek</div></div>
+                <div class="kpi-card"><div class="kpi-label">Náklad za obd.</div><div id="mCostPeriod" class="kpi-value text-rose-400">0 Kč</div><div class="text-[10px] text-slate-600">dle aktuálního tarifu</div></div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
@@ -127,11 +145,22 @@
 
         <!-- Overview view -->
         <div id="view-overview" class="p-4 hidden">
-            <p class="text-xs text-slate-500 mb-4">Srovnání měsíčních nákladů všech tří médií. Klikni na záložku konkrétního média pro detaily.</p>
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <p class="text-xs text-slate-500">Srovnání nákladů všech tří médií. Klikni na záložku média pro detaily.</p>
+                <div class="flex items-center gap-2 bg-[#0f172a] border border-[#1e293b] p-1.5 rounded-lg text-xs">
+                    <label class="text-slate-500 font-medium ml-1">Zobrazit:</label>
+                    <select id="overviewPeriod" class="bg-[#020617] border border-[#1e293b] text-slate-300 rounded px-2 py-1 outline-none focus:border-amber-500" onchange="renderOverview()">
+                        <option value="this_year" selected>Tento rok</option>
+                        <option value="last_year">Minulý rok</option>
+                        <option value="last_12m">Posledních 12 měsíců</option>
+                        <option value="all">Vše</option>
+                    </select>
+                </div>
+            </div>
             <div class="grid grid-cols-3 gap-3 mb-4">
-                <div class="kpi-card"><div class="kpi-label">Elektřina (rok)</div><div id="ovElec" class="kpi-value text-amber-400">0 Kč</div></div>
-                <div class="kpi-card"><div class="kpi-label">Voda (rok)</div><div id="ovWater" class="kpi-value text-sky-400">0 Kč</div></div>
-                <div class="kpi-card"><div class="kpi-label">Plyn (rok)</div><div id="ovGas" class="kpi-value text-orange-400">0 Kč</div></div>
+                <div class="kpi-card"><div class="kpi-label">Elektřina</div><div id="ovElec" class="kpi-value text-amber-400">0 Kč</div></div>
+                <div class="kpi-card"><div class="kpi-label">Voda</div><div id="ovWater" class="kpi-value text-sky-400">0 Kč</div></div>
+                <div class="kpi-card"><div class="kpi-label">Plyn</div><div id="ovGas" class="kpi-value text-orange-400">0 Kč</div></div>
             </div>
             <div class="panel" style="background:#020617;">
                 <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Měsíční náklady (Kč)</h3>
@@ -257,16 +286,61 @@
         for (let i = 0; i < rs.length; i++) {
             const r = rs[i];
             const prev = rs[i - 1];
-            let cons = null, days = null, cost = null;
+            let cons = null, days = null, cost = null, startDate = null;
             if (prev) {
+                startDate = prev.date;
                 cons = r.value - prev.value;
                 days = daysBetween(prev.date, r.date);
-                const unit = r.manualPrice || tariff.unit || 0;
+                const unit = r.manualPrice !== null && r.manualPrice !== undefined ? r.manualPrice : (tariff.unit || 0);
                 cost = cons * unit + (tariff.fixedMonthly || 0) * (days / 30.44);
             }
-            rows.push({ ...r, consumption: cons, days, cost });
+            rows.push({ ...r, startDate, consumption: cons, days, cost });
         }
         return rows;
+    }
+
+    function getPeriodDates(periodSelectId, fromId, toId) {
+        const p = document.getElementById(periodSelectId).value;
+        const d = new Date();
+        let dFrom = null, dTo = null;
+        const y = d.getFullYear(), m = d.getMonth();
+        if (p === 'this_month') { dFrom = new Date(y, m, 1); dTo = new Date(y, m + 1, 0); }
+        else if (p === 'last_month') { dFrom = new Date(y, m - 1, 1); dTo = new Date(y, m, 0); }
+        else if (p === 'this_year') { dFrom = new Date(y, 0, 1); dTo = new Date(y, 11, 31); }
+        else if (p === 'last_year') { dFrom = new Date(y - 1, 0, 1); dTo = new Date(y - 1, 11, 31); }
+        else if (p === 'last_12m') { dFrom = new Date(y, m - 11, 1); dTo = new Date(y, m + 1, 0); }
+        else if (p === 'custom' && fromId && toId) {
+            dFrom = new Date(document.getElementById(fromId).value || '2000-01-01');
+            dTo = new Date(document.getElementById(toId).value || '2099-12-31');
+            if (isNaN(dFrom.getTime())) dFrom = new Date('2000-01-01');
+            if (isNaN(dTo.getTime())) dTo = new Date('2099-12-31');
+        }
+        if (dTo) dTo.setHours(23,59,59,999);
+        return { dFrom, dTo };
+    }
+
+    function calculatePeriodStats(rows, dFrom, dTo) {
+        let totalCons = 0, totalCost = 0, totalDays = 0;
+        const fTime = dFrom ? dFrom.getTime() : -Infinity;
+        const tTime = dTo ? dTo.getTime() : Infinity;
+
+        for (const r of rows) {
+            if (r.consumption === null || r.days === null || !r.startDate) continue;
+            const rStartTime = new Date(r.startDate).getTime();
+            const rEndTime = new Date(r.date).getTime();
+
+            const start = Math.max(rStartTime, fTime);
+            const end = Math.min(rEndTime, tTime);
+
+            if (start < end) {
+                const overlapDays = (end - start) / 86400000;
+                const ratio = overlapDays / r.days;
+                totalCons += r.consumption * ratio;
+                totalCost += r.cost * ratio;
+                totalDays += overlapDays;
+            }
+        }
+        return { totalCons, totalCost, totalDays };
     }
 
     // ─── Meter selection ───
@@ -304,28 +378,25 @@
         const tariff = DB.meters[m].tariff;
         const rows = consumptionRows(m);
 
+        // Period filter logic
+        const { dFrom, dTo } = getPeriodDates('meterPeriod', 'meterDateFrom', 'meterDateTo');
+        const stats = calculatePeriodStats(rows, dFrom, dTo);
+
         // KPI
         const last = rows[rows.length - 1];
-        const prev = rows[rows.length - 2];
         document.getElementById('mLast').textContent = last ? `${fmtN(last.value)} ${meta.unit}` : '—';
         document.getElementById('mLastDate').textContent = last ? new Date(last.date).toLocaleDateString('cs-CZ') : '—';
-        document.getElementById('mDailyUnit').textContent = `${meta.unit}/den`;
+        document.getElementById('mDailyUnit').textContent = `${meta.unit}/den (za obd.)`;
+        document.getElementById('mConsUnit').textContent = meta.unit;
 
-        if (last && last.consumption !== null && last.days) {
-            document.getElementById('mDaily').textContent = fmtN(last.consumption / last.days, 2);
-            document.getElementById('mCost').textContent = fmtCZK(last.cost / Math.max(last.days, 1) * 30.44);
+        if (stats.totalDays > 0) {
+            document.getElementById('mDaily').textContent = fmtN(stats.totalCons / stats.totalDays, 2);
+            document.getElementById('mConsPeriod').textContent = fmtN(stats.totalCons, 2);
+            document.getElementById('mCostPeriod').textContent = fmtCZK(stats.totalCost);
         } else {
             document.getElementById('mDaily').textContent = '—';
-            document.getElementById('mCost').textContent = '—';
-        }
-
-        // YoY trend
-        const yoy = computeYoY(m);
-        const yEl = document.getElementById('mYoY');
-        if (yoy === null) { yEl.textContent = '—'; yEl.className = 'kpi-value text-slate-500'; }
-        else {
-            yEl.textContent = (yoy > 0 ? '+' : '') + yoy.toFixed(1) + '%';
-            yEl.className = 'kpi-value ' + (yoy > 5 ? 'text-rose-400' : yoy < -5 ? 'text-emerald-400' : 'text-amber-400');
+            document.getElementById('mConsPeriod').textContent = '—';
+            document.getElementById('mCostPeriod').textContent = '0 Kč';
         }
 
         // Tariff summary
@@ -336,23 +407,50 @@
             <div><span class="text-slate-600">Fixní/měs:</span> <span class="font-mono">${fmtN(tariff.fixedMonthly, 0)} Kč</span></div>
         `;
 
-        // Table
+        // Table with months collapsing
         const tbody = document.getElementById('readingsBody');
         const empty = document.getElementById('emptyReadings');
         if (!rows.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); }
         else {
             empty.classList.add('hidden');
-            tbody.innerHTML = rows.slice().reverse().map(r => `
-                <tr>
-                    <td class="font-mono">${esc(r.date)}</td>
-                    <td class="text-right font-mono">${fmtN(r.value, 2)} ${meta.unit}</td>
-                    <td class="text-right font-mono ${r.consumption !== null ? '' : 'text-slate-600'}">${r.consumption !== null ? fmtN(r.consumption, 2) + ' ' + meta.unit : '—'}</td>
-                    <td class="text-right font-mono ${r.days !== null ? '' : 'text-slate-600'}">${r.days !== null ? r.days : '—'}</td>
-                    <td class="text-right font-mono ${r.cost !== null ? 'text-rose-400' : 'text-slate-600'}">${r.cost !== null ? fmtCZK(r.cost) : '—'}</td>
-                    <td class="text-[11px] text-slate-500">${esc(r.note || '')}</td>
-                    <td class="text-right"><button class="btn btn-ghost p-1.5" onclick="editReading('${esc(r.date)}')"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i></button></td>
-                </tr>
-            `).join('');
+            
+            const grouped = {};
+            const rSorted = rows.slice().reverse();
+            for (const r of rSorted) {
+                const ym = r.date.substring(0,7);
+                if (!grouped[ym]) grouped[ym] = { rows: [], sumCons: 0, sumCost: 0, sumDays: 0 };
+                grouped[ym].rows.push(r);
+                if (r.consumption !== null) grouped[ym].sumCons += r.consumption;
+                if (r.cost !== null) grouped[ym].sumCost += r.cost;
+                if (r.days !== null) grouped[ym].sumDays += r.days;
+            }
+
+            const months = ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+            let html = '';
+            for (const [ym, data] of Object.entries(grouped)) {
+                const [y, mStr] = ym.split('-');
+                const monthName = months[parseInt(mStr)-1] + ' ' + y;
+                const id = 'grp_' + ym;
+                html += `<tr class="bg-amber-500/10 cursor-pointer text-slate-200" onclick="document.querySelectorAll('.${id}').forEach(e=>e.classList.toggle('hidden'))">
+                    <td colspan="2" class="font-semibold text-amber-500"><i data-lucide="calendar" class="w-3 h-3 inline mr-1"></i> ${monthName}</td>
+                    <td class="text-right font-mono font-semibold">${fmtN(data.sumCons, 2)} ${meta.unit}</td>
+                    <td class="text-right font-mono text-slate-400">${data.sumDays}</td>
+                    <td class="text-right font-mono text-rose-400 font-semibold">${fmtCZK(data.sumCost)}</td>
+                    <td colspan="2"></td>
+                </tr>`;
+                for (const r of data.rows) {
+                    html += `<tr class="${id}">
+                        <td class="font-mono pl-4">${esc(r.date)}</td>
+                        <td class="text-right font-mono">${fmtN(r.value, 2)} ${meta.unit}</td>
+                        <td class="text-right font-mono ${r.consumption !== null ? '' : 'text-slate-600'}">${r.consumption !== null ? fmtN(r.consumption, 2) + ' ' + meta.unit : '—'}</td>
+                        <td class="text-right font-mono ${r.days !== null ? '' : 'text-slate-600'}">${r.days !== null ? r.days : '—'}</td>
+                        <td class="text-right font-mono ${r.cost !== null ? 'text-rose-400' : 'text-slate-600'}">${r.cost !== null ? fmtCZK(r.cost) : '—'}</td>
+                        <td class="text-[11px] text-slate-500">${esc(r.note || '')}</td>
+                        <td class="text-right"><button class="btn btn-ghost p-1.5" onclick="editReading('${esc(r.date)}')"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i></button></td>
+                    </tr>`;
+                }
+            }
+            tbody.innerHTML = html;
         }
 
         // Chart
@@ -363,10 +461,13 @@
         const data = rows.filter(r => r.days !== null).map(r => r.consumption / r.days);
         chartMeter = new Chart(ctx, {
             type: 'line',
-            data: { labels, datasets: [{ label: `${meta.unit}/den`, data, borderColor: meta.color, backgroundColor: meta.color + '20', fill: true, tension: .3 }] },
+            data: { labels, datasets: [{ label: `${meta.unit}/den`, data, borderColor: meta.color, backgroundColor: meta.color + '20', fill: true, tension: 0 }] },
             options: { responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { labels: { color: isLight ? '#475569' : '#94a3b8' } } },
-                scales: { x: { ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } }, y: { ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } } }
+                scales: { 
+                    x: { ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } }, 
+                    y: { beginAtZero: true, suggestedMin: 0, ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } } 
+                }
             }
         });
         lucide.createIcons();
@@ -386,17 +487,22 @@
     }
 
     function renderOverview() {
+        const { dFrom, dTo } = getPeriodDates('overviewPeriod', null, null);
         const sums = { electricity: 0, water: 0, gas: 0 };
-        const year = new Date().getFullYear();
+
         ['electricity','water','gas'].forEach(m => {
-            const rows = consumptionRows(m).filter(r => r.cost !== null && r.date.startsWith(year + '-'));
-            sums[m] = rows.reduce((s,r) => s + r.cost, 0);
+            const rows = consumptionRows(m);
+            const stats = calculatePeriodStats(rows, dFrom, dTo);
+            sums[m] = stats.totalCost;
         });
+
         document.getElementById('ovElec').textContent  = fmtCZK(sums.electricity);
         document.getElementById('ovWater').textContent = fmtCZK(sums.water);
         document.getElementById('ovGas').textContent   = fmtCZK(sums.gas);
 
-        // Build month-by-month bars
+        // Build month-by-month bars for the last 12 months (or keep it fixed to 12 months context for the chart?)
+        // The chart is best kept as last 12 months for visual trend regardless of filter, or filter applies to KPI only.
+        // Let's keep the chart showing last 12 months to always have context.
         const months = []; // YYYY-MM
         for (let i = 11; i >= 0; i--) {
             const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
@@ -427,7 +533,7 @@
                 plugins: { legend: { labels: { color: isLight ? '#475569' : '#94a3b8' } } },
                 scales: {
                     x: { stacked: true, ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 } } },
-                    y: { stacked: true, ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 }, callback: v => fmtCZK(v) } }
+                    y: { stacked: true, beginAtZero: true, suggestedMin: 0, ticks: { color: isLight ? '#475569' : '#64748b', font: { size: 10 }, callback: v => fmtCZK(v) } }
                 }
             }
         });
@@ -550,31 +656,20 @@
             metrics[meter] = { totalCons, days: Math.round(days), dailyAvg, yearlyEst, unitPrice, monthlyFixed, yearlyCost, supplier: m.tariff?.name || '?' };
         });
 
-        // Typický český průměr (pro porovnání)
-        const benchmark = {
-            electricity: { yearly: 2500, unit: 'kWh', note: 'běžná domácnost bez vytápění elektřinou' },
-            water: { yearly: 30, unit: 'm³ × osoba', note: 'cca 35 m³ na osobu/rok' },
-            gas: { yearly: 12000, unit: 'kWh', note: 'rodinný dům s plynovým vytápěním' }
-        };
-
+        // AI Prompt bez tvrdých benchmarků
         const lines = Object.entries(metrics).map(([meter, m]) => {
-            const b = benchmark[meter];
-            const ratio = m.yearlyEst / b.yearly;
-            return `- ${meter.toUpperCase()}: ${m.yearlyEst.toFixed(0)} ${b.unit}/rok (${m.yearlyCost.toFixed(0)} Kč, ${b.note}) → ${ratio < 0.8 ? 'POD průměrem' : ratio > 1.3 ? 'NAD průměrem' : 'v normě'} (${(ratio*100).toFixed(0)}% benchmarku)`;
+            return `- ${meter.toUpperCase()}: Náklad cca ${m.yearlyCost.toFixed(0)} Kč ročně (denní průměr spotřeby: ${m.dailyAvg.toFixed(2)} jedn.). Fixní poplatky tvoří ${(m.monthlyFixed*12/Math.max(1,m.yearlyCost)*100).toFixed(0)} % celkových nákladů. Cena za jednotku: ${m.unitPrice} Kč.`;
         }).join('\n');
 
-        const prompt = `Jsi expert na energetickou efektivitu domácností v ČR. Mluv česky, věcně, žádné generické rady.
+        const prompt = `Jsi analytik domácích rozpočtů. Máš před sebou data o spotřebě energií domácnosti (extrapolováno z nedávných odečtů na roční průměr):
+${lines || '(žádná data)'}
 
-METRIKY DOMÁCNOSTI (roční extrapolace z odečtů):
-${lines || '(žádné odečty)'}
+Zadání:
+1. **Analýza nákladů:** Které médium tvoří největší finanční zátěž a z jakého důvodu (vysoká spotřeba vs. vysoká jednotková cena vs. fixní poplatky)?
+2. **Posouzení tarifů:** Odpovídá poměr fixních poplatků a jednotkové ceny reálné spotřebě? (Např. pokud je spotřeba minimální, ale fixní poplatky tvoří většinu ceny, upozorni na to a doporuč přechod na tarif s nižším fixem).
+3. **Hlavní doporučení:** Navrhni POUZE JEDEN reálný krok (změna distribuční sazby, jiný typ tarifu, investice do regulace vytápění), který bude mít největší dopad na roční úsporu.
 
-POŽADAVEK — vrať MAX 4 stručné body (1-2 věty), žádný úvod:
-1. **Médium s největším potenciálem úspory** — kde se nejvíc plýtvá vs. benchmark, konkrétní příčina.
-2. **Konkrétní úsporný krok** (LED osvětlení? jiný tarif? regulace topení? bojler nastavení?) s odhadem úspory v Kč/rok.
-3. **Sezónní anomálie** k prověření — neobvyklý skok mezi odečty (zima/léto)?
-4. **Optimalizace dodavatele / tarifu** — vyplatí se přejít? Na co se zaměřit při srovnání?
-
-Formátuj <b>tučně</b> klíčová slova. Žádný opis dat výše.`;
+Odpověz stručně ve 3 bodech bez zbytečné omáčky. Klíčová slova dej **tučně**. Nepoužívej obecné plošné české průměry (např. 12000 kWh atd.), ale pracuj pouze s těmito daty a hledej finanční neefektivitu.`;
 
         try {
             const text = await callEnergieAI(prompt, provider, { groqKey, geminiKey, chatKey });
