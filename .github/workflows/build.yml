@@ -1,0 +1,30 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch: # Umožní ti spustit kompilaci manuálně přes tlačítko
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Stažení zdrojového kódu
+        uses: actions/checkout@v4
+
+      - name: Nastavení Javy
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17' # Většina moderních projektů používá Javu 17
+
+      - name: Povolení spuštění Gradle
+        run: chmod +x ./gradlew
+
+      - name: Sestavení APK
+        run: ./gradlew assembleDebug
+
+      - name: Zpřístupnění hotového APK ke stažení
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
